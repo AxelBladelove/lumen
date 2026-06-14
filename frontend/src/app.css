@@ -483,7 +483,8 @@ button {
 .node-shadow.motion-unlock,
 .node-label.motion-complete,
 .node-label.motion-unlock,
-.active-text-icon.motion-unlock {
+.active-text-icon.motion-unlock,
+.node-motion-spark {
   will-change: transform, opacity, filter;
 }
 
@@ -551,6 +552,38 @@ button {
 
 .route-node.motion-unlock img {
   animation: nodeUnlockAssetReveal 720ms cubic-bezier(0.18, 0.9, 0.22, 1) both;
+}
+
+.node-motion-sparks {
+  position: absolute;
+  inset: -10%;
+  z-index: 5;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.node-motion-spark {
+  position: absolute;
+  left: var(--spark-x);
+  top: var(--spark-y);
+  width: var(--spark-size);
+  height: var(--spark-size);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 38% 34%, rgba(244, 255, 251, 0.95) 0 18%, color-mix(in srgb, var(--theme-glow) 82%, #ffffff) 34%, color-mix(in srgb, var(--theme-core) 34%, transparent) 62%, transparent 74%);
+  box-shadow:
+    0 0 5px color-mix(in srgb, var(--theme-glow) 54%, transparent),
+    0 0 11px color-mix(in srgb, var(--theme-core) 28%, transparent);
+  opacity: 0;
+  transform: translate3d(-50%, -50%, 0) scale(0.45);
+}
+
+.node-motion-sparks.motion-complete .node-motion-spark {
+  animation: nodeCompleteMaterialSpark 580ms cubic-bezier(0.18, 0.88, 0.22, 1) var(--spark-delay) both;
+}
+
+.node-motion-sparks.motion-unlock .node-motion-spark {
+  animation: nodeUnlockMaterialSpark 680ms cubic-bezier(0.16, 0.88, 0.22, 1) var(--spark-delay) both;
 }
 
 .node-shadow.motion-complete {
@@ -1123,6 +1156,49 @@ button {
   }
 }
 
+@keyframes nodeCompleteMaterialSpark {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.45);
+    filter: blur(0);
+  }
+
+  28% {
+    opacity: 0.82;
+    transform: translate3d(calc(-50% + var(--spark-dx) * 0.32), calc(-50% + var(--spark-dy) * 0.32), 0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(-50% + var(--spark-dx)), calc(-50% + var(--spark-dy)), 0) scale(0.58);
+    filter: blur(0.7px);
+  }
+}
+
+@keyframes nodeUnlockMaterialSpark {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.34);
+    filter: blur(0.2px);
+  }
+
+  22% {
+    opacity: 0;
+  }
+
+  48% {
+    opacity: 0.9;
+    transform: translate3d(calc(-50% + var(--spark-dx) * 0.42), calc(-50% + var(--spark-dy) * 0.42), 0) scale(1.08);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(-50% + var(--spark-dx) * 1.08), calc(-50% + var(--spark-dy) * 1.08), 0) scale(0.62);
+    filter: blur(0.8px);
+  }
+}
+
 @keyframes nodeShadowComplete {
   0% {
     opacity: 1;
@@ -1238,6 +1314,7 @@ button {
   .node-label.motion-complete,
   .node-label.motion-unlock,
   .active-text-icon.motion-unlock,
+  .node-motion-spark,
   .route-node.motion-complete::before,
   .route-node.motion-complete::after,
   .route-node.motion-unlock::before,

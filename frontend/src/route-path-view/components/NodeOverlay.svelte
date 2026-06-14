@@ -20,6 +20,15 @@
     challenge: publicAsset("assets/route-nodes/node-challenge-purple.runtime.webp")
   };
 
+  const motionParticles = [
+    { x: 50, y: 8, dx: 0, dy: -18, size: 3.2, delay: 0 },
+    { x: 76, y: 22, dx: 14, dy: -10, size: 2.8, delay: 48 },
+    { x: 88, y: 51, dx: 18, dy: 0, size: 2.4, delay: 88 },
+    { x: 65, y: 82, dx: 10, dy: 14, size: 2.7, delay: 122 },
+    { x: 30, y: 78, dx: -12, dy: 12, size: 2.4, delay: 72 },
+    { x: 14, y: 44, dx: -16, dy: -2, size: 2.9, delay: 112 }
+  ];
+
   onMount(() => {
     mounted = true;
     sampler = createPathSampler(path.pathD, path.transform);
@@ -157,6 +166,23 @@
       {#if node.status === "active"}
         <span class={`active-text-icon ${motionClass(node)}`} aria-hidden="true">
           <NodeStringInputIcon />
+        </span>
+      {/if}
+      {#if node.motion}
+        <span class={`node-motion-sparks ${motionClass(node)}`} aria-hidden="true">
+          {#each motionParticles as particle}
+            <span
+              class="node-motion-spark"
+              style={`
+                --spark-x:${particle.x}%;
+                --spark-y:${particle.y}%;
+                --spark-dx:${particle.dx}px;
+                --spark-dy:${particle.dy}px;
+                --spark-size:${particle.size}px;
+                --spark-delay:${particle.delay}ms;
+              `}
+            ></span>
+          {/each}
         </span>
       {/if}
     </button>
