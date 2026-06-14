@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+frontend/dist/
+
+# Local dev/browser state
+.edge-headless-profile/
+frontend/.edge-headless-profile/
+
+# Logs
+*.log
+
+# Temporary workspaces
+.tmp/
+tmp/
+
+# Environment files
+.env
+.env.*
+
+# Local user state
+*.local.json
+**/usuario/progreso/
+*.db
+*.db-shm
+*.db-wal
+
+# Generated verification screenshots
+frontend/route-path-screenshot.png

@@ -1,0 +1,317 @@
+# Enter Lumen Mode
+
+## Propósito
+
+`Enter Lumen Mode` define qué ocurre cuando el usuario presiona el icono de Lumen dentro de VS Code.
+
+Esta feature no documenta el instalador, la estructura completa de carpetas, el funcionamiento interno de Modo Ruta, el funcionamiento interno de Modo Libre ni la lógica profunda de cada comando.
+
+Su responsabilidad es definir, de forma explícita, cómo se entra a Lumen Mode, qué configuración visual se aplica, qué vistas aparecen, qué vistas se ocultan, qué comandos quedan disponibles y cómo se prepara la experiencia inicial del usuario.
+
+Entrar a Lumen Mode no significa abrir un panel más. Significa transformar temporalmente VS Code en un entorno enfocado de Lumen.
+
+## Punto de entrada
+
+Lumen debe aparecer en el Activity Bar de VS Code con su icono oficial.
+
+El icono debe usar el logo SVG de Lumen y funcionar como la entrada principal del producto dentro de VS Code.
+
+Al presionar el icono de Lumen, la extensión debe ejecutar el comando:
+
+```txt
+lumen.enterMode
+```
+
+Si Lumen Mode no está activo, este comando inicia la secuencia de entrada.
+
+Si Lumen Mode ya está activo, este comando no debe duplicar vistas ni crear una nueva instancia. Debe enfocar la experiencia existente de Lumen.
+
+## Secuencia de entrada
+
+Al ejecutar `lumen.enterMode`, Lumen debe seguir esta secuencia:
+
+1. Activar el estado interno `lumen.inMode`.
+2. Mostrar una pantalla de transición con el logo de Lumen y el wordmark.
+3. Aplicar en background la configuración visual de Lumen Mode.
+4. Resolver si el usuario entra a primera apertura, Modo Ruta, Modo Libre o último estado útil.
+5. Abrir las vistas necesarias según el modo.
+6. Abrir el archivo activo si existe.
+7. Activar los keybindings contextuales de Lumen.
+8. Mostrar la UI principal de Lumen en su posición correspondiente.
+9. Ocultar la pantalla de transición cuando el layout esté listo.
+
+La transición con logo y wordmark no es decorativa solamente. Sirve para cubrir visualmente el momento en que VS Code aplica el layout, cambia vistas, activa Zen Mode y prepara el contexto de trabajo.
+
+El usuario no debe ver la interfaz “armándose” de forma desordenada. Debe ver Lumen cargando y luego entrar en un workspace ya colocado.
+
+## Primera entrada
+
+Si es la primera vez que el usuario entra a Lumen Mode, la transición inicial debe llevar a una bienvenida visual.
+
+La bienvenida debe mostrar primero el logo de Lumen y el wordmark. Después debe presentar una explicación breve de qué es Lumen, cuáles son sus modos principales y cuáles son los comandos mínimos para empezar.
+
+La bienvenida debe explicar que existen dos modos:
+
+Modo Ruta.
+
+Modo Libre.
+
+También debe mencionar los comandos principales de Lumen Mode, pero sin explicar profundamente cada uno. La explicación profunda de comandos vive en documentos separados.
+
+Después de la bienvenida, Lumen debe llevar al usuario a la selección de modo.
+
+## Entrada normal
+
+Si el usuario ya completó la primera entrada, `lumen.enterMode` debe llevarlo al último estado útil.
+
+Si existe un ejercicio pendiente, se abre ese ejercicio.
+
+Si el último estado útil fue Modo Ruta, se entra a Modo Ruta.
+
+Si el último estado útil fue Modo Libre, se entra a Modo Libre.
+
+Si no hay estado útil, se abre la selección de modo.
+
+## Configuración base de Zen Mode
+
+Lumen Mode debe activar Zen Mode como base visual.
+
+La configuración default de Lumen Mode debe fijar estos valores:
+
+```json
+{
+  "zenMode.centerLayout": true,
+  "zenMode.fullScreen": true,
+  "zenMode.hideActivityBar": true,
+  "zenMode.hideLineNumbers": true,
+  "zenMode.hideStatusBar": true,
+  "zenMode.showTabs": "none",
+  "zenMode.silentNotifications": true
+}
+```
+
+`zenMode.restore` no debe usarse como mecanismo principal de Lumen Mode. Lumen debe controlar su propio estado de entrada y salida mediante `lumen.enterMode` y `lumen.exitMode`.
+
+Lumen Mode debe aplicar estos valores como configuración de modo, no como una modificación permanente e invisible para el usuario.
+
+Si en el futuro el usuario puede personalizar el workspace, esa personalización debe vivir en un documento separado. El default de Lumen Mode sigue siendo este.
+
+## Layout default
+
+El layout default de Lumen Mode es determinista.
+
+No es una sugerencia visual.
+
+No depende del azar, del último layout manual del usuario ni de cómo estaba VS Code antes de entrar.
+
+Al terminar la secuencia de entrada, VS Code debe quedar en una de dos variantes de layout:
+
+Modo Ruta.
+
+Modo Libre.
+
+Ambos modos comparten la base de Zen Mode, pero no muestran exactamente las mismas zonas.
+
+## Layout de Modo Ruta
+
+En Modo Ruta, el gestor de archivos debe estar oculto.
+
+El usuario no debe depender del File Explorer para avanzar por la ruta.
+
+La UI principal de Lumen debe guiar el flujo: ruta actual, ejercicio activo, instrucciones, progreso, estado, acciones disponibles y navegación.
+
+El editor central debe mostrar el archivo de trabajo correspondiente al ejercicio activo.
+
+El panel de Lumen debe estar visible y ser la guía principal del usuario.
+
+El Activity Bar, Status Bar, tabs, line numbers y barras no necesarias deben quedar ocultos según la configuración default de Lumen Mode.
+
+Modo Ruta debe sentirse como una experiencia guiada. La estructura de archivos puede existir por debajo, pero no debe ser el mecanismo principal de navegación del usuario.
+
+## Layout de Modo Libre
+
+En Modo Libre, el gestor de archivos puede estar visible.
+
+El modo libre es el espacio donde el usuario puede crear ejercicios propios, importar ejercicios específicos, trabajar tareas externas o practicar temas concretos sin seguir una ruta guiada.
+
+Por eso, en Modo Libre, el File Explorer sí tiene valor para el usuario.
+
+El layout default de Modo Libre debe organizarse así:
+
+A la izquierda, el gestor de archivos.
+
+En el centro, el editor de código.
+
+A la derecha, el panel principal de Lumen.
+
+El panel de Lumen debe mostrar el banco de ejercicios, filtros, acciones de importación, creación de ejercicios propios o información del ejercicio actual.
+
+`Ctrl + B` debe quedar disponible como comando para mostrar u ocultar el gestor de archivos en Modo Libre.
+
+En Modo Ruta, el gestor de archivos debe permanecer oculto por default.
+
+## Vistas que genera Lumen
+
+Al entrar a Lumen Mode, la extensión debe preparar las vistas propias de Lumen.
+
+Lumen debe tener una vista principal en el Activity Bar usando el icono oficial.
+
+Dentro de esa vista, Lumen debe poder mostrar su panel principal como Webview View.
+
+El panel principal de Lumen debe ser capaz de renderizar diferentes estados:
+
+* Transición de entrada.
+* Bienvenida inicial.
+* Selección de modo.
+* Vista de Modo Ruta.
+* Vista de Modo Libre.
+* Banco de ejercicios.
+* Estado del ejercicio actual.
+* Ayuda contextual.
+* Estados de error o recuperación.
+
+La vista de Lumen no debe ser un panel secundario decorativo. Debe funcionar como el centro de control de la experiencia.
+
+## Comandos activos al entrar
+
+Al entrar en Lumen Mode, deben quedar disponibles los comandos contextuales de Lumen.
+
+Este documento no explica en profundidad el comportamiento interno de cada comando. Solo define que estos comandos deben quedar activos y disponibles dentro de Lumen Mode.
+
+Comandos base:
+
+```txt
+Esc              -> lumen.exitMode
+F9               -> lumen.compileCurrentExercise
+Ctrl + Shift + R -> lumen.askTutor
+Ctrl + B         -> workbench.action.toggleSidebarVisibility
+Ctrl + Shift + P -> Command Palette de VS Code
+```
+
+Cada acción importante de Lumen debe tener botón visual y comando equivalente.
+
+Los botones ayudan a descubrir la acción.
+
+Los comandos ayudan a que el usuario aprenda un flujo más cercano al de un programador.
+
+Los keybindings de Lumen deben activarse por contexto. Deben depender de un estado equivalente a:
+
+```txt
+lumen.inMode == true
+```
+
+Los comandos no deben invadir el comportamiento global de VS Code cuando Lumen Mode no está activo.
+
+## Escape como salida
+
+`Esc` debe ser la salida rápida de Lumen Mode.
+
+Cuando el usuario presiona `Esc` y no hay ningún estado temporal abierto, Lumen debe ejecutar:
+
+```txt
+lumen.exitMode
+```
+
+Si hay un prompt, mini ventana, selector, input o interacción temporal abierta, `Esc` debe cerrar primero esa interacción.
+
+Solo cuando no haya interacción temporal activa, `Esc` debe salir de Lumen Mode.
+
+La lógica profunda de salida vive en el documento `exit-lumen-mode.md`.
+
+## Ayuda contextual
+
+Lumen Mode debe mostrar una ayuda contextual ligera para recordar comandos.
+
+Esta ayuda puede aparecer como hover, tooltip, mini card o zona compacta dentro del panel de Lumen.
+
+Debe ser contextual al estado actual.
+
+En Modo Ruta debe recordar los comandos útiles para resolver, compilar, pedir ayuda y salir.
+
+En Modo Libre debe recordar también el uso de `Ctrl + B` para mostrar u ocultar el gestor de archivos.
+
+La ayuda contextual no debe explicar profundamente cada comando. Solo debe funcionar como memoria rápida.
+
+## Ask Tutor dentro de Lumen Mode
+
+`Ctrl + Shift + R` debe estar disponible dentro de Lumen Mode como entrada rápida a Ask Tutor.
+
+Si el usuario tiene una línea, función, bloque o fragmento seleccionado, ese fragmento debe usarse como contexto inicial.
+
+Si no hay selección, Ask Tutor debe usar el contexto general del ejercicio actual.
+
+La respuesta del tutor debe seguir la filosofía socrática de Lumen.
+
+La explicación completa de Ask Tutor vive en su propio módulo. Aquí solo se define que Enter Lumen Mode debe activar el comando y conectarlo al contexto actual.
+
+## Selección de modo
+
+Cuando Lumen necesita que el usuario elija cómo trabajar, debe mostrar una selección clara entre Modo Ruta y Modo Libre.
+
+Modo Ruta significa seguir una experiencia guiada.
+
+Modo Libre significa trabajar sin ruta obligatoria: buscar ejercicios, importar ejercicios, crear ejercicios propios y practicar temas concretos.
+
+La selección de modo no debe tratarse como configuración técnica. Debe presentarse como una decisión de uso.
+
+## Contratos con otros módulos
+
+`Enter Lumen Mode` coordina otros módulos, pero no absorbe sus responsabilidades.
+
+`lumen-mode-layout` define con precisión cómo se aplican las vistas, qué comandos de VS Code se ejecutan para ocultar o mostrar zonas, y cómo se restauran luego.
+
+`lumen-mode-keybindings` define la implementación exacta de los shortcuts, sus `when clauses`, conflictos y prioridades.
+
+`lumen-mode-help` define el diseño y contenido exacto del hover, tooltip, mini card o ayuda contextual.
+
+`session-memory` responde si el usuario ya completó la bienvenida, cuál fue el último modo usado y si existe un ejercicio pendiente.
+
+`mode-selection` define la pantalla y comportamiento de selección entre Modo Ruta y Modo Libre.
+
+`route-mode` define el comportamiento profundo del modo guiado.
+
+`free-mode` define el comportamiento profundo del modo libre.
+
+`exercise-workspace` abre o prepara los archivos de trabajo necesarios.
+
+`lumen-frontend` renderiza la transición, bienvenida, panel derecho y vistas internas.
+
+`local-engine` resuelve el estado real de ejercicios, progreso, errores, intentos y metadata local.
+
+`ask-tutor` implementa la experiencia completa de ayuda socrática.
+
+## Reglas deterministas
+
+Lumen Mode tiene un default explícito.
+
+El default no debe quedar abierto a interpretación.
+
+Modo Ruta oculta el gestor de archivos.
+
+Modo Libre permite ver el gestor de archivos.
+
+El panel de Lumen va a la derecha.
+
+El editor queda como zona central.
+
+Zen Mode se activa con la configuración definida en este documento.
+
+La pantalla de transición se muestra mientras el layout se prepara.
+
+Los comandos se activan por contexto.
+
+Los botones importantes tienen comando equivalente.
+
+La salida rápida es `Esc`.
+
+El usuario puede personalizar más adelante, pero la personalización no cambia el default documentado aquí.
+
+## Resultado esperado
+
+Al terminar `lumen.enterMode`, el usuario debe ver Lumen listo para trabajar.
+
+Si entra a Modo Ruta, debe ver el editor y la guía de Lumen, sin gestor de archivos visible.
+
+Si entra a Modo Libre, debe ver el gestor de archivos a la izquierda, el editor en el centro y Lumen a la derecha.
+
+En ambos casos, la experiencia debe estar en Zen Mode, con distracciones ocultas, comandos activos, ayuda contextual disponible y salida clara mediante `Esc`.

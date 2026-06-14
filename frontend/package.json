@@ -1,0 +1,17 @@
+{
+  "name": "lumen-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "svelte": "^5.16.0",
+    "three": "^0.184.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}
