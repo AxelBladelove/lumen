@@ -95,12 +95,16 @@
     if (node.status === "challenge") return "Reto";
     return node.title;
   }
+
+  function motionClass(node: RoutePathNode) {
+    return node.motion ? `motion-${node.motion}` : "";
+  }
 </script>
 
 <div class="node-overlay" style={`--node-tint:${theme.nodeTintFilter ?? "none"}`}>
   {#each placedNodes as { node, place } (node.id)}
     <span
-      class={`node-contact-rim ${node.status}`}
+      class={`node-contact-rim ${node.status} ${motionClass(node)}`}
       style={`
         left:${place.rimX}px;
         top:${place.rimY}px;
@@ -110,7 +114,7 @@
       `}
     ></span>
     <span
-      class={`node-contact ${node.status}`}
+      class={`node-contact ${node.status} ${motionClass(node)}`}
       style={`
         left:${place.contactX}px;
         top:${place.contactY}px;
@@ -120,18 +124,19 @@
       `}
     ></span>
     <span
-      class={`node-shadow ${node.status}`}
+      class={`node-shadow ${node.status} ${motionClass(node)}`}
       style={`
         left:${place.shadowX}px;
         top:${place.shadowY}px;
         width:${place.shadowWidth}px;
         height:${place.shadowHeight}px;
-        transform:rotate(${place.shadowAngle}rad);
+        --node-shadow-angle:${place.shadowAngle}rad;
+        transform:rotate(var(--node-shadow-angle));
       `}
     ></span>
 
     <button
-      class={`route-node ${node.status}`}
+      class={`route-node ${node.status} ${motionClass(node)}`}
       type="button"
       aria-label={iconLabel(node)}
       style={`
@@ -150,13 +155,13 @@
         draggable="false"
       />
       {#if node.status === "active"}
-        <span class="active-text-icon" aria-hidden="true">
+        <span class={`active-text-icon ${motionClass(node)}`} aria-hidden="true">
           <NodeStringInputIcon />
         </span>
       {/if}
     </button>
 
-    <div class={`node-label ${node.status}`} style={`left:${place.labelX}px; top:${place.labelY}px;`}>
+    <div class={`node-label ${node.status} ${motionClass(node)}`} style={`left:${place.labelX}px; top:${place.labelY}px;`}>
       <h3>{node.title}</h3>
       <p>{node.subtitle}</p>
       {#if node.status === "active"}

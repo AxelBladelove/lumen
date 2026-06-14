@@ -1,6 +1,7 @@
 export type NodeStatus = "completed" | "active" | "locked" | "challenge";
 export type NodeType = "exercise" | "challenge" | "quiz" | "project" | "checkpoint";
 export type LabelSide = "left" | "right" | "auto";
+export type NodeMotion = "complete" | "unlock";
 
 export type ModuleTheme = {
   id: string;
@@ -37,6 +38,7 @@ export type RoutePathNode = {
   size?: number;
   nodeOffset?: { x: number; y: number };
   labelOffset?: { x: number; y: number };
+  motion?: NodeMotion;
 };
 
 export type RoutePathModuleView = {

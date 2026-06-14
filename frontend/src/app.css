@@ -461,6 +461,40 @@ button {
     drop-shadow(0 0 10px rgba(160, 142, 204, 0.16));
 }
 
+.route-node.motion-complete,
+.route-node.motion-unlock,
+.node-shadow.motion-complete,
+.node-shadow.motion-unlock,
+.node-label.motion-complete,
+.node-label.motion-unlock,
+.active-text-icon.motion-unlock {
+  will-change: transform, opacity, filter;
+}
+
+.route-node.motion-complete {
+  animation: nodeCompleteSettle 620ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
+}
+
+.route-node.motion-unlock {
+  animation: nodeUnlockBecomeActive 720ms cubic-bezier(0.18, 0.9, 0.22, 1) both;
+}
+
+.node-shadow.motion-complete {
+  animation: nodeShadowComplete 620ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
+}
+
+.node-shadow.motion-unlock {
+  animation: nodeShadowUnlock 720ms cubic-bezier(0.18, 0.9, 0.22, 1) both;
+}
+
+.node-label.motion-complete {
+  animation: nodeLabelComplete 500ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
+}
+
+.node-label.motion-unlock {
+  animation: nodeLabelUnlock 620ms cubic-bezier(0.18, 0.9, 0.22, 1) both;
+}
+
 .active-text-icon {
   position: absolute;
   left: 30px;
@@ -472,6 +506,10 @@ button {
     drop-shadow(0 0 4px rgba(244, 252, 251, 0.3))
     drop-shadow(0 0 9px color-mix(in srgb, var(--theme-glow) 22%, transparent));
   pointer-events: none;
+}
+
+.active-text-icon.motion-unlock {
+  animation: nodeActiveIconReveal 600ms cubic-bezier(0.16, 0.88, 0.24, 1) 90ms both;
 }
 
 .active-text-icon .node-string-input-icon {
@@ -829,11 +867,156 @@ button {
   }
 }
 
+@keyframes nodeCompleteSettle {
+  0% {
+    transform: scale(1.42);
+    filter:
+      drop-shadow(0 16px 16px rgba(0, 0, 0, 0.56))
+      drop-shadow(0 0 22px color-mix(in srgb, var(--theme-glow) 52%, transparent));
+  }
+
+  42% {
+    transform: scale(0.92);
+    filter:
+      drop-shadow(0 10px 10px rgba(0, 0, 0, 0.62))
+      drop-shadow(0 0 18px color-mix(in srgb, var(--theme-core) 46%, transparent));
+  }
+
+  68% {
+    transform: scale(1.05);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes nodeUnlockBecomeActive {
+  0% {
+    opacity: 0.92;
+    transform: scale(0.72);
+    filter:
+      drop-shadow(0 12px 14px rgba(0, 0, 0, 0.58))
+      drop-shadow(0 0 8px rgba(160, 142, 204, 0.22));
+  }
+
+  42% {
+    opacity: 1;
+    transform: scale(1.08);
+    filter:
+      drop-shadow(0 17px 17px rgba(0, 0, 0, 0.56))
+      drop-shadow(0 0 13px color-mix(in srgb, var(--theme-glow) 56%, transparent))
+      drop-shadow(0 0 24px color-mix(in srgb, var(--theme-glow) 20%, transparent));
+  }
+
+  72% {
+    transform: scale(0.98);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes nodeShadowComplete {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--node-shadow-angle)) scale(1.22);
+    filter: blur(5px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: rotate(var(--node-shadow-angle)) scale(1);
+    filter: blur(3.75px);
+  }
+}
+
+@keyframes nodeShadowUnlock {
+  0% {
+    opacity: 0.74;
+    transform: rotate(var(--node-shadow-angle)) scale(0.74);
+    filter: blur(2.5px);
+  }
+
+  48% {
+    opacity: 1;
+    transform: rotate(var(--node-shadow-angle)) scale(1.12);
+    filter: blur(4.6px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: rotate(var(--node-shadow-angle)) scale(1);
+    filter: blur(4.25px);
+  }
+}
+
+@keyframes nodeLabelComplete {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, -4px, 0) scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes nodeLabelUnlock {
+  0% {
+    opacity: 0.58;
+    transform: translate3d(-10px, 5px, 0) scale(0.96);
+    filter: blur(0.5px);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translate3d(2px, -2px, 0) scale(1.02);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes nodeActiveIconReveal {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 5px, 0) scale(0.78);
+    filter:
+      drop-shadow(0 0 2px rgba(244, 252, 251, 0.18))
+      drop-shadow(0 0 4px color-mix(in srgb, var(--theme-glow) 10%, transparent));
+  }
+
+  54% {
+    opacity: 1;
+    transform: translate3d(0, -1px, 0) scale(1.07);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-text-input,
   .hero-text-asset,
   .hero-star-pulse,
-  .hero-sparkle-pulse {
+  .hero-sparkle-pulse,
+  .route-node.motion-complete,
+  .route-node.motion-unlock,
+  .node-shadow.motion-complete,
+  .node-shadow.motion-unlock,
+  .node-label.motion-complete,
+  .node-label.motion-unlock,
+  .active-text-icon.motion-unlock {
     animation: none;
   }
 

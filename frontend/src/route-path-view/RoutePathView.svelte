@@ -8,7 +8,7 @@
   import SnakeLayer from "./components/SnakeLayer.svelte";
   import { createPathSampler, type PathSampler } from "./path/pathMetrics";
   import { publicAsset, themeVars } from "./theme/moduleTheme";
-  import type { NodeStatus, RoutePathModuleView, RoutePathNode } from "./types/routePath";
+  import type { NodeMotion, NodeStatus, RoutePathModuleView, RoutePathNode } from "./types/routePath";
 
   export let module: RoutePathModuleView;
 
@@ -22,10 +22,13 @@
   let advanceCommitDone = false;
   let mounted = false;
   let pathSampler: PathSampler | null = null;
+  let nodeMotionById: Record<string, NodeMotion> = {};
+  let nodeMotionTimers: number[] = [];
   const routeAnimationDuration = 860;
   const routeStartKick = 0.1;
   const routeNodeCommitFallbackProgress = 0.4;
   const nodeEdgeCommitRadius = 25;
+  const nodeMotionDuration = 720;
 
   function updateScale() {
     const marginX = 28;
@@ -48,6 +51,7 @@
     return () => {
       window.removeEventListener("resize", updateScale);
       cancelAnimationFrame(splitAnimationFrame);
+      nodeMotionTimers.forEach((timer) => window.clearTimeout(timer));
     };
   });
 
@@ -79,7 +83,8 @@
   }
   $: interactiveNodes = module.nodes.map((node, index) => ({
     ...node,
-    status: statusForNode(node, index, activeNodeIndex)
+    status: statusForNode(node, index, activeNodeIndex),
+    motion: nodeMotionById[node.id]
   }));
   $: activeNode = interactiveNodes.find((node) => node.status === "active");
   $: nextNode = interactiveNodes[activeNodeIndex + 1];
@@ -107,6 +112,7 @@
     const targetIndex = activeNodeIndex + 1;
     const targetNode = module.nodes[targetIndex];
     if (!targetNode) return;
+    const previousNode = module.nodes[activeNodeIndex];
 
     isAdvancing = true;
     advanceCommitDone = false;
@@ -120,7 +126,25 @@
       if (advanceCommitDone) return;
       advanceCommitDone = true;
       activeNodeIndex = targetIndex;
+      playNodeTransition(previousNode, targetNode);
     });
+  }
+
+  function playNodeTransition(previousNode: RoutePathNode | undefined, targetNode: RoutePathNode) {
+    const nextMotionById = { ...nodeMotionById, [targetNode.id]: "unlock" as NodeMotion };
+    if (previousNode) {
+      nextMotionById[previousNode.id] = "complete";
+    }
+    nodeMotionById = nextMotionById;
+
+    const transitionIds = [previousNode?.id, targetNode.id].filter(Boolean) as string[];
+    const timer = window.setTimeout(() => {
+      const remainingMotions = { ...nodeMotionById };
+      transitionIds.forEach((id) => delete remainingMotions[id]);
+      nodeMotionById = remainingMotions;
+      nodeMotionTimers = nodeMotionTimers.filter((motionTimer) => motionTimer !== timer);
+    }, nodeMotionDuration);
+    nodeMotionTimers = [...nodeMotionTimers, timer];
   }
 
   function nodeEdgeCommitT(from: number, targetNode: RoutePathNode) {
