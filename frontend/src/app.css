@@ -425,7 +425,6 @@ button {
   z-index: 6;
   padding: 0;
   border: 0;
-  border-radius: 999px;
   background: transparent;
   cursor: pointer;
   pointer-events: auto;
@@ -485,13 +484,11 @@ button {
 .node-label.motion-complete,
 .node-label.motion-unlock,
 .active-text-icon.motion-unlock {
-  will-change: transform, opacity, filter, box-shadow;
+  will-change: transform, opacity, filter;
 }
 
 .route-node.motion-complete {
-  animation:
-    nodeCompleteSettle 620ms cubic-bezier(0.2, 0.82, 0.2, 1) both,
-    nodeCompleteEdgeBloom 620ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
+  animation: nodeCompleteSettle 620ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
 }
 
 .route-node.motion-complete::before {
@@ -523,9 +520,7 @@ button {
 }
 
 .route-node.motion-unlock {
-  animation:
-    nodeUnlockBecomeActive 720ms cubic-bezier(0.18, 0.9, 0.22, 1) both,
-    nodeUnlockEdgeBloom 720ms cubic-bezier(0.18, 0.9, 0.22, 1) both;
+  animation: nodeUnlockBecomeActive 720ms cubic-bezier(0.18, 0.9, 0.22, 1) both;
 }
 
 .route-node.motion-unlock::before {
@@ -986,36 +981,6 @@ button {
   }
 }
 
-@keyframes nodeCompleteEdgeBloom {
-  0% {
-    box-shadow:
-      0 0 0 0 color-mix(in srgb, var(--theme-glow) 0%, transparent),
-      inset 0 0 0 color-mix(in srgb, var(--theme-core) 0%, transparent);
-  }
-
-  28% {
-    box-shadow:
-      0 0 0 2px color-mix(in srgb, #ffffff 18%, var(--theme-glow)),
-      0 0 12px 2px color-mix(in srgb, var(--theme-glow) 38%, transparent),
-      0 0 26px 6px color-mix(in srgb, var(--theme-core) 24%, transparent),
-      inset 0 0 14px color-mix(in srgb, var(--theme-glow) 18%, transparent);
-  }
-
-  58% {
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, #ffffff 12%, var(--theme-glow)),
-      0 0 10px 1px color-mix(in srgb, var(--theme-glow) 24%, transparent),
-      0 0 20px 3px color-mix(in srgb, var(--theme-core) 14%, transparent),
-      inset 0 0 9px color-mix(in srgb, var(--theme-core) 12%, transparent);
-  }
-
-  100% {
-    box-shadow:
-      0 0 0 0 color-mix(in srgb, var(--theme-glow) 0%, transparent),
-      inset 0 0 0 color-mix(in srgb, var(--theme-core) 0%, transparent);
-  }
-}
-
 @keyframes nodeCompleteSurfaceSweep {
   0% {
     opacity: 0;
@@ -1098,36 +1063,6 @@ button {
   100% {
     opacity: 1;
     transform: scale(1);
-  }
-}
-
-@keyframes nodeUnlockEdgeBloom {
-  0% {
-    box-shadow:
-      0 0 0 0 color-mix(in srgb, var(--theme-glow) 0%, transparent),
-      inset 0 0 0 color-mix(in srgb, var(--theme-glow) 0%, transparent);
-  }
-
-  24% {
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, #ffffff 16%, var(--theme-glow)),
-      0 0 14px 2px color-mix(in srgb, var(--theme-glow) 42%, transparent),
-      0 0 30px 7px color-mix(in srgb, var(--theme-core) 26%, transparent),
-      inset 0 0 18px color-mix(in srgb, var(--theme-glow) 20%, transparent);
-  }
-
-  52% {
-    box-shadow:
-      0 0 0 2px color-mix(in srgb, #ffffff 20%, var(--theme-glow)),
-      0 0 18px 2px color-mix(in srgb, var(--theme-glow) 48%, transparent),
-      0 0 36px 8px color-mix(in srgb, var(--theme-core) 22%, transparent),
-      inset 0 0 20px color-mix(in srgb, var(--theme-glow) 18%, transparent);
-  }
-
-  100% {
-    box-shadow:
-      0 0 0 0 color-mix(in srgb, var(--theme-glow) 0%, transparent),
-      inset 0 0 0 color-mix(in srgb, var(--theme-glow) 0%, transparent);
   }
 }
 
