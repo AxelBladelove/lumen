@@ -429,9 +429,24 @@ button {
   cursor: pointer;
   pointer-events: auto;
   isolation: isolate;
+  overflow: visible;
+}
+
+.route-node::before,
+.route-node::after {
+  content: "";
+  position: absolute;
+  inset: -22%;
+  z-index: 1;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  transform-origin: center;
 }
 
 .route-node img {
+  position: relative;
+  z-index: 2;
   display: block;
   width: 100%;
   height: 100%;
@@ -475,8 +490,84 @@ button {
   animation: nodeCompleteSettle 620ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
 }
 
+.route-node.motion-complete::before {
+  background:
+    conic-gradient(
+      from 215deg,
+      transparent 0 12%,
+      color-mix(in srgb, var(--theme-glow) 18%, transparent) 18%,
+      color-mix(in srgb, #ffffff 80%, var(--theme-glow)) 24%,
+      color-mix(in srgb, var(--theme-core) 46%, transparent) 31%,
+      transparent 43% 100%
+    ),
+    radial-gradient(circle at 50% 50%, transparent 0 55%, color-mix(in srgb, var(--theme-glow) 26%, transparent) 58%, transparent 67%);
+  filter:
+    blur(0.2px)
+    drop-shadow(0 0 10px color-mix(in srgb, var(--theme-glow) 52%, transparent));
+  mix-blend-mode: screen;
+  animation: nodeCompleteHalo 620ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
+}
+
+.route-node.motion-complete::after {
+  inset: -36%;
+  background:
+    radial-gradient(circle at 50% 9%, rgba(244, 255, 251, 0.95) 0 2.1px, transparent 2.7px),
+    radial-gradient(circle at 82% 27%, color-mix(in srgb, var(--theme-glow) 80%, #ffffff) 0 2.4px, transparent 3px),
+    radial-gradient(circle at 92% 58%, color-mix(in srgb, var(--theme-core) 82%, #ffffff) 0 2px, transparent 2.7px),
+    radial-gradient(circle at 71% 86%, color-mix(in srgb, var(--theme-glow) 66%, #ffffff) 0 2px, transparent 2.8px),
+    radial-gradient(circle at 29% 90%, rgba(244, 255, 251, 0.76) 0 1.8px, transparent 2.6px),
+    radial-gradient(circle at 8% 54%, color-mix(in srgb, var(--theme-core) 74%, #ffffff) 0 2.2px, transparent 3px),
+    radial-gradient(circle at 18% 23%, rgba(244, 255, 251, 0.84) 0 1.9px, transparent 2.7px);
+  filter:
+    drop-shadow(0 0 5px color-mix(in srgb, #ffffff 42%, transparent))
+    drop-shadow(0 0 12px color-mix(in srgb, var(--theme-glow) 58%, transparent));
+  mix-blend-mode: screen;
+  animation: nodeCompleteSparkBurst 640ms cubic-bezier(0.18, 0.88, 0.22, 1) both;
+}
+
+.route-node.motion-complete img {
+  animation: nodeCompleteAssetSeal 620ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
+}
+
 .route-node.motion-unlock {
   animation: nodeUnlockBecomeActive 720ms cubic-bezier(0.18, 0.9, 0.22, 1) both;
+}
+
+.route-node.motion-unlock::before {
+  inset: -18%;
+  background:
+    conic-gradient(
+      from -55deg,
+      transparent 0 55%,
+      color-mix(in srgb, var(--theme-glow) 8%, transparent) 60%,
+      color-mix(in srgb, #ffffff 76%, var(--theme-glow)) 66%,
+      color-mix(in srgb, var(--theme-core) 42%, transparent) 73%,
+      transparent 82% 100%
+    ),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--theme-glow) 14%, transparent), transparent 66%);
+  filter:
+    drop-shadow(0 0 10px color-mix(in srgb, var(--theme-glow) 48%, transparent))
+    drop-shadow(0 0 20px color-mix(in srgb, var(--theme-core) 20%, transparent));
+  mix-blend-mode: screen;
+  animation: nodeUnlockNeonSweep 720ms cubic-bezier(0.18, 0.9, 0.22, 1) both;
+}
+
+.route-node.motion-unlock::after {
+  inset: 8%;
+  z-index: 3;
+  background:
+    linear-gradient(115deg, transparent 0 32%, rgba(244, 255, 251, 0.78) 44%, color-mix(in srgb, var(--theme-glow) 62%, transparent) 49%, transparent 61% 100%),
+    radial-gradient(circle at 68% 28%, rgba(244, 255, 251, 0.46), transparent 20%);
+  border-radius: 999px;
+  filter:
+    blur(0.35px)
+    drop-shadow(0 0 9px color-mix(in srgb, var(--theme-glow) 42%, transparent));
+  mix-blend-mode: screen;
+  animation: nodeUnlockInternalGlint 620ms cubic-bezier(0.17, 0.88, 0.22, 1) 40ms both;
+}
+
+.route-node.motion-unlock img {
+  animation: nodeUnlockAssetReveal 720ms cubic-bezier(0.18, 0.9, 0.22, 1) both;
 }
 
 .node-shadow.motion-complete {
@@ -497,6 +588,7 @@ button {
 
 .active-text-icon {
   position: absolute;
+  z-index: 4;
   left: 30px;
   top: 30px;
   width: 66px;
@@ -510,6 +602,21 @@ button {
 
 .active-text-icon.motion-unlock {
   animation: nodeActiveIconReveal 600ms cubic-bezier(0.16, 0.88, 0.24, 1) 90ms both;
+}
+
+.active-text-icon.motion-unlock::before {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  z-index: -1;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--theme-glow) 22%, transparent), transparent 58%),
+    conic-gradient(from 130deg, transparent 0 18%, rgba(244, 255, 251, 0.62) 23%, color-mix(in srgb, var(--theme-glow) 34%, transparent) 28%, transparent 38% 100%);
+  filter: blur(1px);
+  mix-blend-mode: screen;
+  animation: nodeIconMicroCharge 540ms cubic-bezier(0.18, 0.88, 0.22, 1) 70ms both;
+  pointer-events: none;
 }
 
 .active-text-icon .node-string-input-icon {
@@ -891,6 +998,62 @@ button {
   }
 }
 
+@keyframes nodeCompleteHalo {
+  0% {
+    opacity: 0;
+    transform: rotate(-44deg) scale(0.66);
+  }
+
+  18% {
+    opacity: 0.94;
+  }
+
+  58% {
+    opacity: 0.78;
+    transform: rotate(165deg) scale(1.05);
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(260deg) scale(1.42);
+  }
+}
+
+@keyframes nodeCompleteSparkBurst {
+  0% {
+    opacity: 0;
+    transform: scale(0.54) rotate(-9deg);
+  }
+
+  23% {
+    opacity: 0;
+  }
+
+  44% {
+    opacity: 0.92;
+    transform: scale(0.94) rotate(5deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.28) rotate(18deg);
+  }
+}
+
+@keyframes nodeCompleteAssetSeal {
+  0% {
+    filter: var(--node-tint) brightness(1.18) saturate(1.12);
+  }
+
+  38% {
+    filter: var(--node-tint) brightness(1.44) saturate(1.22);
+  }
+
+  100% {
+    filter: var(--node-tint);
+  }
+}
+
 @keyframes nodeUnlockBecomeActive {
   0% {
     opacity: 0.92;
@@ -916,6 +1079,61 @@ button {
   100% {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes nodeUnlockNeonSweep {
+  0% {
+    opacity: 0;
+    transform: rotate(-80deg) scale(0.72);
+  }
+
+  20% {
+    opacity: 0.74;
+  }
+
+  58% {
+    opacity: 0.98;
+    transform: rotate(130deg) scale(1.06);
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(252deg) scale(1.24);
+  }
+}
+
+@keyframes nodeUnlockInternalGlint {
+  0% {
+    opacity: 0;
+    transform: translate3d(-30%, 18%, 0) rotate(-14deg) scaleX(0.55);
+  }
+
+  24% {
+    opacity: 0;
+  }
+
+  48% {
+    opacity: 0.82;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(36%, -18%, 0) rotate(-14deg) scaleX(1.08);
+  }
+}
+
+@keyframes nodeUnlockAssetReveal {
+  0% {
+    filter: var(--node-tint) brightness(0.72) saturate(0.82);
+  }
+
+  34% {
+    filter: var(--node-tint) brightness(1.38) saturate(1.18);
+  }
+
+  100% {
+    filter: var(--node-tint);
   }
 }
 
@@ -1005,6 +1223,23 @@ button {
   }
 }
 
+@keyframes nodeIconMicroCharge {
+  0% {
+    opacity: 0;
+    transform: rotate(-30deg) scale(0.72);
+  }
+
+  42% {
+    opacity: 0.76;
+    transform: rotate(80deg) scale(1.02);
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(170deg) scale(1.2);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-text-input,
   .hero-text-asset,
@@ -1016,8 +1251,23 @@ button {
   .node-shadow.motion-unlock,
   .node-label.motion-complete,
   .node-label.motion-unlock,
-  .active-text-icon.motion-unlock {
+  .active-text-icon.motion-unlock,
+  .route-node.motion-complete::before,
+  .route-node.motion-complete::after,
+  .route-node.motion-unlock::before,
+  .route-node.motion-unlock::after,
+  .route-node.motion-complete img,
+  .route-node.motion-unlock img,
+  .active-text-icon.motion-unlock::before {
     animation: none;
+  }
+
+  .route-node.motion-complete::before,
+  .route-node.motion-complete::after,
+  .route-node.motion-unlock::before,
+  .route-node.motion-unlock::after,
+  .active-text-icon.motion-unlock::before {
+    opacity: 0;
   }
 
   .hero-border-comet,
