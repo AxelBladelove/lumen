@@ -24,6 +24,7 @@
   let pathSampler: PathSampler | null = null;
   let nodeMotionById: Record<string, NodeMotion> = {};
   let nodeMotionTimers: number[] = [];
+  let reviewNodeId: string | null = null;
   const routeAnimationDuration = 860;
   const routeStartKick = 0.1;
   const routeNodeCommitFallbackProgress = 0.4;
@@ -44,12 +45,14 @@
     pathSampler = createPathSampler(module.path.pathD, module.path.transform);
     updateScale();
     window.addEventListener("resize", updateScale);
+    window.addEventListener("lumen:exercise-completed", handleExerciseCompletedEvent);
     displayedLockedStartT = lockedStartT;
     splitAnimationTarget = lockedStartT;
     splitAnimationReady = true;
 
     return () => {
       window.removeEventListener("resize", updateScale);
+      window.removeEventListener("lumen:exercise-completed", handleExerciseCompletedEvent);
       cancelAnimationFrame(splitAnimationFrame);
       nodeMotionTimers.forEach((timer) => window.clearTimeout(timer));
     };
@@ -84,7 +87,8 @@
   $: interactiveNodes = module.nodes.map((node, index) => ({
     ...node,
     status: statusForNode(node, index, activeNodeIndex),
-    motion: nodeMotionById[node.id]
+    motion: nodeMotionById[node.id],
+    reviewMode: node.id === reviewNodeId && index < activeNodeIndex ? "repeat" as const : undefined
   }));
   $: activeNode = interactiveNodes.find((node) => node.status === "active");
   $: nextNode = interactiveNodes[activeNodeIndex + 1];
@@ -108,6 +112,31 @@
   }
 
   function continueToNextNode() {
+    completeActiveExercise();
+  }
+
+  function handleNodeSelect(node: RoutePathNode) {
+    const selectedIndex = module.nodes.findIndex((candidate) => candidate.id === node.id);
+    if (selectedIndex < 0) return;
+
+    if (selectedIndex < activeNodeIndex) {
+      reviewNodeId = reviewNodeId === node.id ? null : node.id;
+      return;
+    }
+
+    if (selectedIndex === activeNodeIndex) {
+      reviewNodeId = null;
+    }
+  }
+
+  function handleExerciseCompletedEvent(event: Event) {
+    const completedNodeId = (event as CustomEvent<{ nodeId?: string }>).detail?.nodeId;
+    const currentNode = module.nodes[activeNodeIndex];
+    if (completedNodeId && currentNode?.id !== completedNodeId) return;
+    completeActiveExercise();
+  }
+
+  function completeActiveExercise() {
     if (!canContinue) return;
     const targetIndex = activeNodeIndex + 1;
     const targetNode = module.nodes[targetIndex];
@@ -116,6 +145,7 @@
 
     isAdvancing = true;
     advanceCommitDone = false;
+    reviewNodeId = null;
     const commitAtT = nodeEdgeCommitT(displayedLockedStartT, targetNode);
 
     animateUnlockedRoute(displayedLockedStartT, targetNode.pathT, commitAtT, () => {
@@ -237,7 +267,13 @@
       <ProgressCard completed={completedCount} total={module.total} percent={completionPercent} />
 
       <SnakeLayer path={module.path} theme={module.theme} lockedStartT={displayedLockedStartT} />
-      <NodeOverlay path={module.path} nodes={interactiveNodes} theme={module.theme} />
+      <NodeOverlay
+        path={module.path}
+        nodes={interactiveNodes}
+        theme={module.theme}
+        isReviewing={Boolean(reviewNodeId)}
+        onNodeSelect={handleNodeSelect}
+      />
 
       <div class="hero-text-input">
         <HeroTextSticker src={heroAsset} />

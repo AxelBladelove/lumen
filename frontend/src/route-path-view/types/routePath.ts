@@ -39,6 +39,7 @@ export type RoutePathNode = {
   nodeOffset?: { x: number; y: number };
   labelOffset?: { x: number; y: number };
   motion?: NodeMotion;
+  reviewMode?: "repeat";
 };
 
 export type RoutePathModuleView = {

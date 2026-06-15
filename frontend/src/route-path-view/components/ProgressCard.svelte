@@ -5,6 +5,9 @@
 
   const segmentCount = 14;
   $: exactSegments = (percent / 100) * segmentCount;
+  $: filledSegments = Array.from({ length: segmentCount }, (_, index) =>
+    Math.max(0, Math.min(1, exactSegments - index))
+  );
 </script>
 
 <section class="progress-card" aria-label="Progreso del módulo">
@@ -15,12 +18,15 @@
     <strong>{percent}%</strong><span> completado</span>
   </div>
   <div class="progress-segments" aria-hidden="true">
-    {#each Array(segmentCount) as _, index}
+    {#each filledSegments as fill, index}
       <span
-        class:done={index + 1 <= Math.floor(exactSegments)}
-        class:partial={index === Math.floor(exactSegments)}
-        style={`--partial:${Math.max(0.12, exactSegments - Math.floor(exactSegments))}`}
-      ></span>
+        class:filled={fill > 0}
+        class:done={fill >= 1}
+        class:partial={fill > 0 && fill < 1}
+        style={`--fill:${fill > 0 ? Math.max(0.18, fill) : 0}`}
+      >
+        <i></i>
+      </span>
     {/each}
   </div>
 </section>
