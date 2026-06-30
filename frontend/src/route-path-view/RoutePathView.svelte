@@ -18,6 +18,8 @@
 
   const stage = { width: 1086, height: 1448 };
   let scale = 1;
+  let layoutWidth = stage.width;
+  let contentOffset = 0;
   let displayedLockedStartT = 0;
   let splitAnimationFrame = 0;
   let splitAnimationTarget = -1;
@@ -38,10 +40,14 @@
   function updateScale() {
     const marginX = 28;
     const marginY = 22;
-    scale = Math.max(
+    const nextScale = Math.max(
       0.32,
       Math.min(1, (window.innerWidth - marginX) / stage.width, (window.innerHeight - marginY) / stage.height)
     );
+    const expandedWidth = (window.innerWidth - marginX) / nextScale;
+    scale = nextScale;
+    layoutWidth = Math.max(stage.width, Math.min(2200, expandedWidth));
+    contentOffset = (layoutWidth - stage.width) / 2;
   }
 
   onMount(() => {
@@ -253,12 +259,12 @@
 <main class="lumen-route-app" style={themeVars(module.theme)}>
   <div
     class="stage-viewport"
-    style={`width:${stage.width * scale}px; height:${stage.height * scale}px;`}
+    style={`width:${layoutWidth * scale}px; height:${stage.height * scale}px;`}
   >
     <section
       class="route-stage"
       aria-label={`${module.routeTitle}, módulo ${module.moduleNumber}: ${module.title}`}
-      style={`--stage-scale:${scale}`}
+      style={`--stage-scale:${scale}; --layout-width:${layoutWidth}px; --content-offset:${contentOffset}px;`}
     >
       <div class="background-layer"></div>
       <div class="code-ghost" aria-hidden="true">
