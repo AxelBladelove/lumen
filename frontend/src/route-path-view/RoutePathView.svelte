@@ -36,12 +36,11 @@
   const nodeMotionDuration = 720;
 
   function updateScale() {
-    const marginX = 56;
-    const maxExpandedScale = 1.42;
-    const widthDrivenScale = (window.innerWidth - marginX) / stage.width;
+    const marginX = 28;
+    const marginY = 22;
     scale = Math.max(
       0.32,
-      Math.min(maxExpandedScale, widthDrivenScale)
+      Math.min(1, (window.innerWidth - marginX) / stage.width, (window.innerHeight - marginY) / stage.height)
     );
   }
 

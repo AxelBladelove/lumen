@@ -496,7 +496,7 @@
   function updateSize() {
     if (!runtime || !size?.width || !size?.height) return;
     const effectiveRenderScale = isVscodeWebview
-      ? Math.max(0.7, Math.min(1, renderScale * 1.2))
+      ? Math.max(0.7, Math.min(0.9, renderScale * 1.55))
       : 1;
     const renderWidth = Math.max(1, Math.round(size.width * effectiveRenderScale));
     const renderHeight = Math.max(1, Math.round(size.height * effectiveRenderScale));
