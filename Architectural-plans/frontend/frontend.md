@@ -6,6 +6,27 @@ Archivo: `Architectural-plans/frontend/frontend.md`
 
 `Frontend` define la capa visual de Lumen.
 
+## Estado actual del repo
+
+El frontend implementado hoy vive en `frontend/` como una app Svelte 5 con
+Vite y Three.js. La pantalla real disponible es `RoutePathView`, conectada a
+datos mock de `Ruta C / Módulo 2: Cadenas de caracteres`.
+
+La app se monta desde `frontend/src/main.ts`, usa `App.svelte` como raíz y se
+comunica con la extensión mediante `frontend/src/webview/vscodeBridge.ts`.
+Al iniciar, envía `frontend.ready`; también emite `route.node.selected` y
+`route.continue.requested`. Puede recibir snapshots de módulo o eventos de
+ejercicio completado, aunque en el estado actual el dato inicial viene del mock.
+
+El build actual no es un Vite default puro: `frontend/vite.config.ts` usa base
+relativa, separa Three.js en chunk manual, inlinea CSS en `dist/index.html`,
+difiere el entry module hasta `window.load` y elimina PNG source de `dist`
+cuando existen assets runtime `.webp`.
+
+No están implementadas todavía las vistas de onboarding, selección de modos,
+Free Mode, colección de ejercicios, Ask Tutor, estados de compilación ni
+errores reales del Local Engine.
+
 Esta carpeta no documenta el Local Engine, la base de datos, Cloud, compilación ni el instalador. Su responsabilidad es ordenar cómo se construye la UI de Lumen dentro de VS Code y cómo esa UI se separa de la lógica real del producto.
 
 La regla principal es:
@@ -73,53 +94,52 @@ Este módulo usa estas tecnologías del tech stack de Lumen:
 
 Tecnologías que no deben ser el default de esta capa:
 
-- **React**: puede existir como prototipo histórico, pero el frontend final debe migrarse a Svelte.
+- **React**: puede existir como prototipo histórico, pero el frontend implementado en este repo ya usa Svelte.
 - **DOM interno de VS Code**: no debe tocarse ni hackearse.
 - **Cloud como fuente directa de estado visual final**: Cloud entrega metadata/assets, pero el estado visual final se compone localmente.
 
 ## Estructura de carpeta
 
-Estructura inicial propuesta:
+Estructura objetivo propuesta:
 
 ```txt
 frontend/
-  frontend.md
-
-  app-shell/
-  route-path-view/
-    route-path-view.md
-
-  webgl-snake/
-  node-assets/
-  theme-system/
-  ui-state/
-  exercise-collection-view/
-  ask-tutor-ui/
+  src/
+    App.svelte
+    app.css
+    brand/
+    route-path-view/
+    webgl-snake/
+    webview/
+  public/
+    assets/
+    materials/
+  usuario/
 ```
 
-No todas las subcarpetas necesitan documentación ahora.
-
-Se crean como fronteras conceptuales para que el desarrollo no mezcle todo en una sola carpeta.
-
-La primera documentación profunda dentro de `frontend` es `route-path-view.md`.
+El repo actual usa `src/route-path-view`, `src/webgl-snake`, `src/webview` y
+`src/brand`. Las carpetas conceptuales como `exercise-collection-view` o
+`ask-tutor-ui` todavía no existen.
 
 ## Submódulos iniciales
 
-`app-shell` contiene la estructura visual general de Lumen dentro de la webview: layout base, navegación, raíz de vistas y contenedor de estado.
+`App.svelte` contiene la raíz visual actual de la webview y el puente de
+mensajes con VS Code.
 
 `route-path-view` contiene la vista tipo Duolingo de rutas y módulos: snake path, nodos, progreso, labels, estados y CTA.
 
 `webgl-snake` contiene el renderer reusable del snake path: geometry, material, postprocess, presets y animación.
 
-`node-assets` contiene assets y reglas visuales de nodos: completado, activo, bloqueado, reto, quiz, proyecto y sombras.
+Los assets de nodos viven hoy en `frontend/public/assets/route-nodes`.
 
-`theme-system` contiene colores, tokens visuales, presets por módulo, gradientes, glow, glass y variantes.
+El theme del módulo vive hoy en `src/route-path-view/theme/moduleTheme.ts`.
 
-`ui-state` contiene estado visual local de la webview. No reemplaza al Local Engine ni a SQLite.
+El estado visual local de la ruta vive hoy dentro de `RoutePathView.svelte`.
+No reemplaza al Local Engine ni a SQLite.
 
-`exercise-collection-view` contiene la UI visual de la colección de ejercicios.
+`exercise-collection-view` no está implementado todavía.
 
-`ask-tutor-ui` contiene la entrada compacta, paneles, pistas y respuestas de la Guía.
+`ask-tutor-ui` no está implementado todavía.
 
 ## Relación con VS Code Webview
 
@@ -208,13 +228,20 @@ La regla es usar la técnica que dé mejor fidelidad visual y performance.
 
 ## Migración desde prototipo React
 
-El prototipo actual puede estar en React/JSX.
+La parte visual usada por este slice ya fue portada a Svelte.
 
-El frontend final de Lumen debe migrarse a Svelte.
+Los archivos equivalentes actuales son:
 
-Los archivos existentes del prototipo pueden servir como referencia técnica y visual.
+```txt
+frontend/src/webgl-snake/geometry.js
+frontend/src/webgl-snake/materialPresets.ts
+frontend/src/webgl-snake/materials.js
+frontend/src/webgl-snake/postprocess.js
+frontend/src/webgl-snake/WebGLSnake.svelte
+frontend/src/route-path-view/path/snakePath.generated.ts
+```
 
-Ejemplos mencionados en el proyecto actual:
+Ejemplos históricos del prototipo:
 
 ```txt
 src/webgl/geometry.js
@@ -261,4 +288,4 @@ Permite usar assets como en game development.
 
 Permite renderizar rutas tipo Duolingo sin mezclar lógica de producto con presentación.
 
-Permite migrar el prototipo actual hacia una arquitectura limpia.
+Permite seguir consolidando el prototipo ya portado a Svelte hacia una arquitectura limpia.

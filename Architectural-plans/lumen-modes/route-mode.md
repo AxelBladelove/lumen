@@ -6,6 +6,16 @@ Archivo: `Architectural-plans/lumen-modes/route-mode.md`
 
 `Route Mode` define la forma guiada de usar Lumen.
 
+## Estado actual del repo
+
+Route Mode completo no está implementado todavía.
+
+La implementación actual es una vista mock de ruta: el Extension Host activa
+`lumen.mode = route`, abre `lumen.routePath` y el frontend muestra un módulo
+mockeado de Ruta C. Avanzar de nodo ocurre localmente en `RoutePathView.svelte`
+y no registra progreso real, no materializa ejercicios, no evalúa gates y no
+consulta Local Engine ni SQLite.
+
 Este modo existe para que el usuario aprenda siguiendo una progresión estructurada. Lumen decide qué viene después, qué ejercicios pertenecen a cada módulo, cuándo se desbloquea una parte nueva y qué debe reforzarse según el progreso del usuario.
 
 Route Mode no reemplaza Free Mode. Tiene otro objetivo.

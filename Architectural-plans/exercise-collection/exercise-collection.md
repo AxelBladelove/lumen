@@ -6,6 +6,15 @@ Archivo: `Architectural-plans/exercise-collection/exercise-collection.md`
 
 `Exercise Collection` define la colección de ejercicios de Lumen.
 
+## Estado actual del repo
+
+La colección de ejercicios todavía no está implementada. No hay UI de
+colección, filtros, importación, paquetes `.esex`, metadata local/remota ni
+operaciones de Local Engine para listar o materializar ejercicios.
+
+El mock actual solo define siete nodos visuales dentro de
+`frontend/src/route-path-view/data/mockRouteModule.ts`.
+
 La colección es el lugar donde el usuario puede ver, buscar, filtrar, importar o revisar ejercicios disponibles.
 
 Esta colección se usa principalmente desde Free Mode, pero también contiene ejercicios que pertenecen a rutas.

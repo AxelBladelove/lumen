@@ -6,6 +6,24 @@ Archivo: `Architectural-plans/extension-host/lumen-mode/lumen-mode-keybindings.m
 
 `Lumen Mode Keybindings` define los comandos y atajos de teclado activos cuando Lumen Mode está encendido.
 
+## Estado actual del repo
+
+El repo actual no contribuye keybindings.
+
+Los comandos existentes en `package.json` son:
+
+```txt
+lumen.open
+lumen.enterMode
+lumen.exitMode
+lumen.refreshWebview
+```
+
+No existen todavía `lumen.compileCurrentExercise`, `lumen.askTutor`,
+keybindings para `Esc`, `F9`, `Ctrl + Shift + R`, ni reglas `when` específicas.
+La extensión sí setea `lumen.inMode` y `lumen.mode`, lo cual prepara parte del
+terreno para los keybindings futuros.
+
 Este documento no explica profundamente qué hace cada feature. No documenta la compilación, Ask Tutor, Exit Mode ni Command Palette por dentro.
 
 Su responsabilidad es fijar qué comandos existen, qué shortcut los activa, cuándo están activos y qué reglas deben seguir para no romper la experiencia normal de VS Code.

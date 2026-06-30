@@ -6,6 +6,29 @@ Archivo: `Architectural-plans/extension-engine-bridge/extension-engine-bridge.md
 
 `Extension Engine Bridge` define cómo se comunican la extensión de VS Code y el Local Engine de Lumen.
 
+## Estado actual del repo
+
+El bridge completo hacia Local Engine todavía no está implementado.
+
+Lo que existe hoy es un protocolo mínimo entre Extension Host y webview:
+
+- Versión compartida `lumenWebviewProtocolVersion = 1`.
+- Mensajes webview -> extensión:
+  - `frontend.ready`
+  - `route.node.selected`
+  - `route.continue.requested`
+- Mensajes extensión -> webview:
+  - `extension.ready`
+  - `lumen.entry.state`
+  - `route.module.snapshot`
+  - `route.exercise.completed`
+
+El Extension Host solo registra estos eventos en el output channel `Lumen`,
+responde `extension.ready` cuando el frontend está listo y reenvía el estado de
+entrada si existe. No lanza un binario Rust, no habla JSON-RPC con un engine y
+no implementa operaciones como compilación, colección, route continue real o
+Ask Tutor.
+
 Este módulo existe porque Lumen no debe meter toda la lógica dentro del Extension Host ni dentro de la webview.
 
 La extensión recibe acciones desde VS Code.

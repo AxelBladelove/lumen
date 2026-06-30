@@ -1,5 +1,23 @@
 # Architectural-plans/Tech-stack.md
 
+## Estado actual del repo
+
+La implementación presente en este repositorio cubre solo el primer slice de
+Lumen como extensión de VS Code:
+
+- Extension Host en TypeScript con comandos `lumen.open`, `lumen.enterMode`,
+  `lumen.exitMode` y `lumen.refreshWebview`.
+- Webview View `lumen.routePath` dentro del contenedor de Activity Bar `Lumen`.
+- Frontend Svelte 5 + Vite empaquetado dentro de `frontend/dist`.
+- Route Path View mockeada para `Ruta C / Módulo 2: Cadenas de caracteres`.
+- Renderer WebGL con Three.js para el snake path.
+- Scripts locales de medición CDP en `scripts/`.
+
+Todavía no existe implementación de Local Engine en Rust, SQLite local,
+compilación con `F9`, Ask Tutor, Cloudflare Workers, D1, R2, KV, AI Gateway,
+Tauri ni standalone. Las secciones siguientes siguen siendo la arquitectura
+objetivo, no una lista de módulos ya implementados.
+
 ## Frontend
 
 | Tecnología          | Por qué se decidió                                                                                                                           |

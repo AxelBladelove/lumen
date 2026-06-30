@@ -1,10 +1,16 @@
 # AI Gateway
 
-Archivo: `Architectural-plans/cloud/ai-gateway/ai-gateway.md`
+Archivo: `Architectural-plans/cloud/ai-gateaway/ai-gateway.md`
 
 ## Propósito
 
 `AI Gateway` define la capa cloud que conecta Ask Tutor con proveedores de IA.
+
+## Estado actual del repo
+
+AI Gateway no está implementado en este repositorio. No hay Worker, secrets,
+proveedores configurados, endpoints de IA ni integración desde la extensión o
+webview. Este documento describe la arquitectura objetivo.
 
 La extensión, la webview y el Local Engine no deben tener claves privadas de IA.
 

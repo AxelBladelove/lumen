@@ -6,6 +6,12 @@ Archivo: `Architectural-plans/cloud/workers-api/workers-api.md`
 
 `Workers API` define la entrada HTTP principal de la nube de Lumen.
 
+## Estado actual del repo
+
+Workers API no está implementada en este repositorio. No hay proyecto
+Cloudflare Worker, `wrangler.toml`, endpoints HTTP, bindings ni código cloud.
+Este documento describe la arquitectura objetivo.
+
 Este submódulo no guarda paquetes, no guarda objetos grandes, no reemplaza la base local y no renderiza la UI. Su responsabilidad es exponer endpoints pequeños, claros y seguros para que el Local Engine pueda consultar metadata, pedir descargas autorizadas y usar servicios remotos como la Guía.
 
 La regla principal es:

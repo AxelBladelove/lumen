@@ -6,6 +6,15 @@ Archivo: `Architectural-plans/local-engine/compile.md`
 
 `Compile` define el comportamiento de compilación y ejecución de ejercicios en Lumen.
 
+## Estado actual del repo
+
+La compilación de ejercicios no está implementada todavía. El repo actual no
+contribuye `lumen.compileCurrentExercise`, no registra `F9`, no contiene Local
+Engine, no invoca GCC/MSYS2 y no abre consola externa.
+
+Este documento define el comportamiento objetivo del futuro módulo de
+compilación.
+
 Este archivo vive dentro de `local-engine` porque compilar no debe ser una responsabilidad de la webview ni del Extension Host. La UI puede tener un botón y VS Code puede recibir el shortcut `F9`, pero la lógica real de compilación debe pasar por el Local Engine.
 
 La promesa principal es simple:

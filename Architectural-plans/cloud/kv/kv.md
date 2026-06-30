@@ -6,6 +6,12 @@ Archivo: `Architectural-plans/cloud/kv/kv.md`
 
 `KV` define la capa de cache remoto de Lumen.
 
+## Estado actual del repo
+
+KV no está implementado en este repositorio. No hay Workers KV binding,
+manifests cacheados ni flags remotos. Este documento describe la arquitectura
+objetivo.
+
 KV no es la fuente de verdad de Lumen.
 
 KV se usa para acelerar lecturas frecuentes de metadata que cambia poco o que puede reconstruirse desde D1/R2.

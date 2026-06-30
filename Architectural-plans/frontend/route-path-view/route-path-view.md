@@ -6,6 +6,47 @@ Archivo: `Architectural-plans/frontend/route-path-view/route-path-view.md`
 
 `Route Path View` define la vista visual de módulos dentro de Route Mode.
 
+## Estado actual del repo
+
+La implementación actual está en `frontend/src/route-path-view/` y renderiza
+un mock de `Ruta C / Módulo 2: Cadenas de caracteres`.
+
+Archivos principales:
+
+```txt
+RoutePathView.svelte
+components/RouteHeader.svelte
+components/ProgressCard.svelte
+components/SnakeLayer.svelte
+components/NodeOverlay.svelte
+components/HeroTextSticker.svelte
+components/BottomCta.svelte
+data/mockRouteModule.ts
+path/pathMetrics.ts
+path/snakePath.generated.ts
+theme/moduleTheme.ts
+types/routePath.ts
+```
+
+La vista actual:
+
+- Calcula escala y ancho de layout para un stage fijo de `1086 x 1448`.
+- Usa `pathT` y `pathMetrics.ts` para colocar nodos, labels, sombras y zonas
+  de contacto sobre el SVG path.
+- Renderiza el snake path con `SnakeLayer` y `WebGLSnake`.
+- Divide el snake en dos segmentos: desbloqueado líquido y bloqueado
+  graphite/purple.
+- Difiere nodos, progreso, hero y CTA unos 80 ms para mejorar el primer load.
+- Permite avanzar localmente al siguiente nodo con animación de ruta,
+  transición `complete/unlock` y actualización de progreso.
+- Permite seleccionar nodos completados para estado visual de repetición.
+- Respeta `prefers-reduced-motion` para saltar o apagar animaciones pesadas.
+- Expone marks de performance como `lumen:route-mounted`.
+
+Lo que todavía no existe: datos reales del Local Engine, persistencia,
+desbloqueos reales, explicación de bloqueo, estados de error, fallback WebGL
+visible, conexión a ejercicios reales o a Route Mode completo.
+
 Es la pantalla tipo Duolingo donde el usuario ve un módulo de una ruta, su progreso, el snake path, los nodos completados, el nodo activo, los nodos bloqueados y el siguiente paso recomendado.
 
 Este documento no define la lógica completa de Route Mode.
@@ -39,7 +80,10 @@ La imagen objetivo muestra:
 - CTA inferior con el siguiente ejercicio.
 - Fondo oscuro con profundidad visual.
 
-El prototipo actual en navegador ya tiene parte del layout y el snake path integrado, pero todavía le faltan nodos, sombras, assets finales y refinamiento visual.
+El repo actual ya incluye layout, snake path, nodos, sombras calculadas,
+assets runtime, labels, progreso, CTA y refinamiento visual inicial. El trabajo
+pendiente ya no es portar esos elementos básicos, sino conectarlos a datos
+reales, ampliar estados y endurecer fallbacks.
 
 ## Nombre del submódulo
 
@@ -243,11 +287,18 @@ El renderer devuelve el snake visual.
 
 Route Path View coloca nodos encima.
 
+En la implementación actual, `SnakeLayer.svelte` carga dinámicamente
+`materialPresets`, construye presets para el tramo desbloqueado y el tramo
+bloqueado, y pasa un arreglo `segments` a `WebGLSnake.svelte`. El renderer
+soporta rangos `rangeStart/rangeEnd`, caps líquidos o grises, themes por
+segmento, escala de render reducida para webview/mobile y estadísticas en
+`window.__LUMEN_WEBGL_STATS__`.
+
 ## Nodos
 
 Los nodos representan ejercicios o actividades.
 
-Estados mínimos:
+Estados modelados en los tipos actuales:
 
 - completed
 - active
@@ -255,6 +306,11 @@ Estados mínimos:
 - challenge
 - quiz
 - project
+
+En `NodeStatus` hoy existen `completed`, `active`, `locked` y `challenge`.
+`quiz`, `project` y `checkpoint` existen como `NodeType`, pero no todos tienen
+asset visual específico todavía. El mock actual incluye ejercicios, un
+challenge y un project bloqueado.
 
 Un nodo completado debe verse desbloqueado y marcado.
 
@@ -450,6 +506,8 @@ Route Path View debe recibir datos estructurados.
 
 Ejemplo conceptual:
 
+Forma conceptual objetivo:
+
 ```ts
 type RoutePathModuleView = {
   routeId: string;
@@ -467,9 +525,33 @@ type RoutePathModuleView = {
 };
 ```
 
-La vista no debe inventar estos datos.
+Forma implementada actualmente en `types/routePath.ts`:
+
+```ts
+type RoutePathModuleView = {
+  routeTitle: string;
+  moduleNumber: number;
+  title: string;
+  subtitle: string;
+  completed: number;
+  total: number;
+  percent: number;
+  theme: ModuleTheme;
+  path: SnakePathConfig;
+  nodes: RoutePathNode[];
+  nextAction: {
+    label: string;
+    targetTitle: string;
+  };
+};
+```
+
+La vista no debe inventar estos datos en la arquitectura final.
 
 Vienen del Local Engine y metadata cacheada.
+
+En el repo actual vienen de `mockRouteModule.ts`, con opción de recibir un
+mensaje `route.module.snapshot` desde la extensión/webview bridge.
 
 ## Datos de nodo
 
@@ -482,10 +564,14 @@ type RoutePathNode = {
   title: string;
   subtitle?: string;
   type: "exercise" | "challenge" | "quiz" | "project" | "checkpoint";
-  status: "completed" | "active" | "locked" | "available";
+  status: "completed" | "active" | "locked" | "challenge";
   pathT: number;
   labelSide?: "left" | "right" | "auto";
-  assetKey?: string;
+  size?: number;
+  nodeOffset?: { x: number; y: number };
+  labelOffset?: { x: number; y: number };
+  motion?: "complete" | "unlock";
+  reviewMode?: "repeat";
 };
 ```
 
@@ -549,23 +635,20 @@ El snake path debe venir de WebGL/procedural renderer.
 
 ## Migración del prototipo actual
 
-El prototipo actual en `Prueba UI extension` debe usarse como referencia.
+El prototipo en `Prueba UI extension` ya fue usado como referencia para el
+slice actual.
 
-La IA o programador debe inspeccionar:
+Las piezas equivalentes en el repo son:
 
 ```txt
-src/webgl/
-src/components/
-public/materials/
-LessonPath
-WebGLSnake
-material presets
-snake path generated
+frontend/src/webgl-snake/
+frontend/src/route-path-view/components/
+frontend/public/materials/
+frontend/src/route-path-view/path/snakePath.generated.ts
 ```
 
-Debe migrar el resultado a Svelte sin perder el material visual logrado.
-
-No se debe empezar desde cero si el prototipo ya logró parte del material del snake.
+La regla sigue siendo no descartar lo que ya funciona, pero la tarea pendiente
+ya no es una migración React -> Svelte de este slice.
 
 ## Performance
 
@@ -643,7 +726,7 @@ Los colores vienen del theme del módulo.
 
 Cloud entrega metadata/assets, no pixeles finales.
 
-El prototipo actual debe migrarse a Svelte, no descartarse.
+El slice actual ya está en Svelte; cualquier prototipo externo debe usarse como referencia sin descartar lo que ya funciona.
 
 Las sombras de nodos deben preferir cálculo por tangente si da mejor control.
 

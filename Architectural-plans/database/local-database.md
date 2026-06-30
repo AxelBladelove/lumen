@@ -6,6 +6,15 @@ Archivo: `Architectural-plans/database/local-database.md`
 
 `Local Database` define la memoria persistente local de Lumen.
 
+## Estado actual del repo
+
+La base local todavía no está implementada. No hay archivo SQLite, migraciones,
+schema, driver Rust ni Local Engine que lea o escriba estado persistente.
+
+El único estado persistido por la extensión actual es el `bootIntent` mínimo en
+`context.globalState`, usado para recordar que el usuario pidió abrir Lumen en
+la fase mock. Este documento describe la base local objetivo.
+
 La base de datos local guarda el estado que Lumen necesita recordar entre sesiones: ejercicios importados, ejercicios creados, progreso, intentos, errores, desbloqueos, metadata local y último estado útil del usuario.
 
 La base local no es la UI.

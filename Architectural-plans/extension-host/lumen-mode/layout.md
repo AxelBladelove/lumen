@@ -6,6 +6,22 @@ Archivo: `Architectural-plans/extension-host/lumen-mode/lumen-mode-layout.md`
 
 `Lumen Mode Layout` define cómo debe quedar visualmente VS Code cuando Lumen Mode está activo.
 
+## Estado actual del repo
+
+El layout completo de Lumen Mode todavía no está implementado.
+
+La extensión actual solo contribuye:
+
+- Un contenedor de Activity Bar `lumen`.
+- Una Webview View `lumen.routePath` llamada `Ruta C`.
+- Comandos para abrir, entrar, salir y refrescar la webview.
+
+`lumen.enterMode` abre `workbench.view.extension.lumen` e intenta enfocar
+`lumen.routePath`, pero no activa Zen Mode, no oculta Activity Bar, Status Bar,
+tabs, line numbers o panel inferior, no posiciona un panel derecho dedicado y
+no distingue layout real de Modo Ruta vs Modo Libre. Todo lo que sigue en este
+documento es el layout objetivo.
+
 Este documento no explica cómo se entra a Lumen Mode, ni qué hace cada comando, ni cómo funciona Modo Ruta o Modo Libre por dentro. Su responsabilidad es fijar el layout default de Lumen: qué se muestra, qué se oculta, dónde aparece cada vista y qué configuración visual debe aplicarse.
 
 El layout de Lumen Mode debe ser determinista. No debe depender del layout previo del usuario ni quedar a interpretación de la IA o del programador.

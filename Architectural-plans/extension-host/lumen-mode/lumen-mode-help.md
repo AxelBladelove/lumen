@@ -6,6 +6,16 @@ Archivo: `Architectural-plans/extension-host/lumen-mode/lumen-mode-help.md`
 
 `Lumen Mode Help` define cómo Lumen recuerda al usuario qué puede hacer dentro de Lumen Mode.
 
+## Estado actual del repo
+
+La ayuda contextual de Lumen Mode no está implementada todavía.
+
+El frontend actual solo muestra la Route Path View mockeada. No hay hovers de
+comandos, mini card de shortcuts, ayuda contextual de Ask Tutor ni memoria de
+ayudas vistas. Los botones existentes en la pantalla mock no muestran los
+shortcuts definidos en este documento porque esos shortcuts tampoco están
+contribuidos todavía.
+
 Esta feature no documenta la lógica interna de compilación, Ask Tutor, Modo Ruta, Modo Libre ni Exit Mode.
 
 Su responsabilidad es mostrar ayuda contextual breve, clara y no invasiva para que el usuario recuerde los comandos, botones y acciones disponibles según el estado actual.

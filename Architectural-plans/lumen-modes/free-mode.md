@@ -6,6 +6,14 @@ Archivo: `Architectural-plans/lumen-modes/free-mode.md`
 
 `Free Mode` define la forma libre de usar Lumen.
 
+## Estado actual del repo
+
+Free Mode todavía no está implementado. No hay selección de modo, UI de banco o
+colección, creación de ejercicios propios, importación de ejercicios,
+compilación, Ask Tutor ni layout específico de Modo Libre.
+
+El repo actual solo abre la Route Path View mockeada.
+
 Este modo existe para que el usuario pueda practicar, importar o crear ejercicios sin seguir una ruta guiada. Es el modo donde Lumen funciona más como un entorno de práctica asistida: el usuario decide qué quiere trabajar y Lumen le da herramientas para compilar, pedir ayuda, registrar errores, revisar intentos y mantener progreso local.
 
 Free Mode no reemplaza Modo Ruta. Tiene otro objetivo.

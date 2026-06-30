@@ -4,6 +4,26 @@
 
 `Enter Lumen Mode` define qué ocurre cuando el usuario presiona el icono de Lumen dentro de VS Code.
 
+## Estado actual del repo
+
+La implementación actual de entrada es un mock funcional, no el flujo completo
+de Lumen Mode descrito en este documento.
+
+Hoy `lumen.open` y `lumen.enterMode` llaman a
+`extension/src/lumenEntry.ts`. Esa función:
+
+- Calcula `LumenEntryState` con protocolo `1`, modo `route`, phase
+  `mock-route-path-view` y estado del workspace `.lumen`.
+- Guarda un `bootIntent` en `context.globalState`.
+- Activa context keys `lumen.inMode = true` y `lumen.mode = route`.
+- Abre el contenedor de actividad `workbench.view.extension.lumen`.
+- Intenta enfocar la view `lumen.routePath`.
+- Envía `lumen.entry.state` a la webview.
+
+No implementa todavía pantalla de transición, Zen Mode, selección de modo,
+apertura de archivo activo, keybindings contextuales, restauración del último
+estado útil ni cambio automático al workspace `.lumen`.
+
 Esta feature no documenta el instalador, la estructura completa de carpetas, el funcionamiento interno de Modo Ruta, el funcionamiento interno de Modo Libre ni la lógica profunda de cada comando.
 
 Su responsabilidad es definir, de forma explícita, cómo se entra a Lumen Mode, qué configuración visual se aplica, qué vistas aparecen, qué vistas se ocultan, qué comandos quedan disponibles y cómo se prepara la experiencia inicial del usuario.

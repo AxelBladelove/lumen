@@ -6,6 +6,24 @@ Archivo: `Architectural-plans/lumen-workspace/lumen-workspace.md`
 
 `Lumen Workspace` define dónde vive Lumen y qué ocurre cuando el usuario abre Lumen desde VS Code.
 
+## Estado actual del repo
+
+La implementación actual solo detecta y reporta el estado del workspace; no
+cambia de workspace todavía.
+
+`extension/src/lumenEntryState.ts` calcula:
+
+- `officialWorkspacePath` como `path.join(os.homedir(), ".lumen")`.
+- `currentWorkspacePath` desde el primer workspace folder de VS Code.
+- Si `~/.lumen` existe.
+- Si el workspace actual es exactamente `~/.lumen`.
+- La acción sugerida: `ready`, `workspace-switch-pending` o
+  `workspace-missing`.
+
+Ese estado se envía a la webview como parte de `lumen.entry.state` y se guarda
+en `bootIntent` al entrar. Aún no se ejecuta `vscode.openFolder`, no se llama
+`workspace.saveAll`, no se crea `.lumen` y no hay flujo de reparación si falta.
+
 Este módulo existe porque Lumen no debe crear ejercicios dentro de cualquier proyecto que el usuario tenga abierto.
 
 Si el usuario está trabajando en un proyecto personal y presiona el icono de Lumen, Lumen debe cambiar al workspace local oficial de Lumen antes de crear, importar o abrir ejercicios.

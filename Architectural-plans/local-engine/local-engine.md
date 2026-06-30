@@ -6,6 +6,17 @@ Archivo: `Architectural-plans/local-engine/local-engine.md`
 
 `Local Engine` define el cerebro local de Lumen.
 
+## Estado actual del repo
+
+El Local Engine todavía no existe en este repositorio. No hay crate Rust,
+binario local, protocolo de engine, SQLite, Tree-sitter, compilación ni lógica
+real de ejercicios/progreso.
+
+El estado actual que se parece a "engine state" es solo
+`extension/src/lumenEntryState.ts`, que calcula un estado básico de entrada y
+workspace para la webview mock. Todo lo demás en este documento describe la
+arquitectura objetivo.
+
 El Local Engine es la capa que ejecuta la lógica importante del producto en la máquina del usuario. No es la UI, no es la extensión de VS Code y no es la base de datos. Es el componente que decide, valida, prepara y ejecuta operaciones reales.
 
 La webview muestra.

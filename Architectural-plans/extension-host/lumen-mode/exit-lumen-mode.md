@@ -6,6 +6,18 @@ Archivo: `Architectural-plans/extension-host/lumen-mode/exit-lumen-mode.md`
 
 `Exit Lumen Mode` define qué ocurre cuando el usuario sale de Lumen Mode.
 
+## Estado actual del repo
+
+La implementación actual de salida es mínima. `lumen.exitMode` borra el
+`bootIntent`, actualiza context keys (`lumen.inMode = false` y
+`lumen.mode = undefined`) y envía a la webview un `lumen.entry.state` con
+`inMode: false`.
+
+Todavía no guarda último ejercicio, último archivo, último modo real ni ruta
+activa. Tampoco restaura Zen Mode, layout, paneles, keybindings, compilaciones
+en curso, Ask Tutor ni UI temporal, porque esas piezas todavía no existen en el
+repo actual.
+
 Esta feature no documenta cómo se entra a Lumen Mode, ni cómo funciona Modo Ruta, Modo Libre, Ask Tutor o la compilación.
 
 Su responsabilidad es definir cómo Lumen desactiva su modo enfocado, limpia sus estados temporales, guarda la sesión actual y devuelve VS Code a un estado normal.

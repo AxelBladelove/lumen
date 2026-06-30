@@ -6,6 +6,14 @@ Archivo: `Architectural-plans/AI/ask-tutor.md`
 
 `Ask Tutor` define la función de asistencia inteligente de Lumen.
 
+## Estado actual del repo
+
+Ask Tutor todavía no está implementado. El repo actual no contribuye
+`lumen.askTutor`, no registra `Ctrl + Shift + R`, no prepara contexto con Local
+Engine, no llama a ningún Gateway y no tiene UI de Guía en la webview.
+
+Este documento describe el comportamiento objetivo.
+
 En la UI puede llamarse `Guía`, `Ask Tutor` o un nombre equivalente de producto, pero su objetivo es el mismo: ayudar al usuario a avanzar sin regalarle directamente el código.
 
 Ask Tutor existe para acompañar al estudiante mientras programa. Debe usar el ejercicio activo, el código actual, la selección del usuario, sus errores de compilación, sus intentos y el contexto del modo actual para dar una ayuda útil.
