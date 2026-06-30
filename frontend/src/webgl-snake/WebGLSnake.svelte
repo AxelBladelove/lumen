@@ -84,6 +84,11 @@
   >;
 
   const withBase = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\//, "")}`;
+  const isVscodeWebview =
+    typeof window !== "undefined" &&
+    (typeof window.acquireVsCodeApi === "function" || Boolean(window.__LUMEN_WEBVIEW_BOOTSTRAP__));
+  const pathSampleCount = isVscodeWebview ? 1700 : 2200;
+  const ribbonSegments = isVscodeWebview ? 14 : 18;
   const THREE = {
     AdditiveBlending,
     BufferGeometry,
@@ -127,6 +132,7 @@
   export let showEndCap = true;
   export let capStyle: CapStyle = "liquid";
   export let segments: SnakeSegmentConfig[] | null = null;
+  export let renderScale = 1;
   export let textureUrls: TextureUrls = {
     body: withBase("materials/snake-green/body.runtime.webp"),
     capLeft: withBase("materials/snake-green/cap-left.runtime.webp"),
@@ -139,7 +145,7 @@
   let normalizedSegments: NormalizedSnakeSegment[] = [];
 
   $: if (pathD && typeof document !== "undefined") {
-    sampledPath = sampleSnakePath(pathD, 2200);
+    sampledPath = sampleSnakePath(pathD, pathSampleCount);
   }
 
   $: normalizedSegments = normalizeSegments(
@@ -365,7 +371,7 @@
   function updateGeometryForEntry(entry: any, segment: NormalizedSnakeSegment, baseOrder: number) {
     const visiblePath = sliceSampledPath(sampledPath, segment.rangeStart, segment.rangeEnd);
 
-    const nextGeometry = createRibbonGeometry(THREE, sampledPath, segment.tubeWidth, 18);
+    const nextGeometry = createRibbonGeometry(THREE, sampledPath, segment.tubeWidth, ribbonSegments);
     entry.bodyMesh.geometry.dispose();
     entry.bodyMesh.geometry = nextGeometry;
 
@@ -489,8 +495,13 @@
 
   function updateSize() {
     if (!runtime || !size?.width || !size?.height) return;
-    runtime.renderer.setSize(size.width, size.height, false);
-    runtime.pipeline.setSize(size.width, size.height);
+    const effectiveRenderScale = isVscodeWebview
+      ? Math.max(0.7, Math.min(0.9, renderScale * 1.55))
+      : 1;
+    const renderWidth = Math.max(1, Math.round(size.width * effectiveRenderScale));
+    const renderHeight = Math.max(1, Math.round(size.height * effectiveRenderScale));
+    runtime.renderer.setSize(renderWidth, renderHeight, false);
+    runtime.pipeline.setSize(renderWidth, renderHeight);
     runtime.camera.left = 0;
     runtime.camera.right = size.width;
     runtime.camera.top = 0;
@@ -506,7 +517,7 @@
     runtime.needsRender = true;
   }
 
-  $: updateSize();
+  $: if (size?.width && size?.height && renderScale) updateSize();
   $: updateTransform();
 
   onMount(() => {
@@ -517,7 +528,7 @@
       powerPreference: "high-performance"
     });
     renderer.setClearColor(0x080a0d, 0);
-    const pixelRatioCap = window.matchMedia("(max-width: 700px)").matches ? 1 : 1.25;
+    const pixelRatioCap = isVscodeWebview ? 1 : window.matchMedia("(max-width: 700px)").matches ? 1 : 1.25;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pixelRatioCap));
     renderer.toneMapping = NoToneMapping;
     renderer.outputColorSpace = SRGBColorSpace;
@@ -583,15 +594,18 @@
     const bodyTexture = loadTexture(textureUrls.body);
     const capLeftTexture = loadTexture(textureUrls.capLeft);
     const capRightTexture = loadTexture(textureUrls.capRight);
-    const lowPowerVisuals = window.matchMedia("(max-width: 700px), (prefers-reduced-motion: reduce)").matches;
+    const lowPowerVisuals =
+      isVscodeWebview || window.matchMedia("(max-width: 700px), (prefers-reduced-motion: reduce)").matches;
     const pipeline = new BloomPipeline(
       THREE,
       renderer,
-      lowPowerVisuals
+      isVscodeWebview
+        ? { samples: 0, blurPasses: 3, bloomScale: 3 }
+        : lowPowerVisuals
         ? { samples: 0, blurPasses: 4, bloomScale: 3 }
         : { samples: 2, blurPasses: 6, bloomScale: 2 }
     );
-    const targetFrameInterval = lowPowerVisuals ? 1000 / 45 : 1000 / 60;
+    const targetFrameInterval = isVscodeWebview ? 1000 / 60 : lowPowerVisuals ? 1000 / 45 : 1000 / 60;
     let lastRenderTime = -targetFrameInterval;
 
     runtime = {
@@ -611,6 +625,7 @@
       bloomRadius: 0,
       startTime: performance.now(),
       raf: 0,
+      frameTimer: 0,
       disposed: false,
       texturesReady: settledTextureLoads === 3,
       compileReady: false,
@@ -639,7 +654,13 @@
         runtime.needsRender = false;
         lastRenderTime = now;
       }
-      runtime.raf = requestAnimationFrame(frame);
+      if (document.hidden) {
+        runtime.frameTimer = window.setTimeout(() => frame(), 450);
+      } else if (isVscodeWebview && !runtime.hasAnimatedSegments && !runtime.needsRender) {
+        runtime.frameTimer = window.setTimeout(() => frame(), 220);
+      } else {
+        runtime.raf = requestAnimationFrame(frame);
+      }
     }
     frame();
 
@@ -647,6 +668,7 @@
       if (!runtime) return;
       runtime.disposed = true;
       cancelAnimationFrame(runtime.raf);
+      window.clearTimeout(runtime.frameTimer);
       runtime.pipeline.dispose();
       runtime.segmentEntries.forEach(disposeSegmentEntry);
       disposeTexture(bodyTexture);

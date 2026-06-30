@@ -7,6 +7,7 @@
   export let path: SnakePathConfig;
   export let theme: ModuleTheme;
   export let lockedStartT = 1;
+  export let renderScale = 1;
 
   const stageSize = { width: 1086, height: 1448 };
   const effectFeatures = buildEffectFeatures(materialEffectsV1);
@@ -71,5 +72,6 @@
     transform={path.transform ?? identityTransform}
     tubeWidth={path.tubeWidth}
     segments={snakeSegments}
+    renderScale={renderScale}
   />
 </div>

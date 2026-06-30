@@ -11,6 +11,10 @@
   import type { NodeMotion, NodeStatus, RoutePathModuleView, RoutePathNode } from "./types/routePath";
 
   export let module: RoutePathModuleView;
+  export let onNodeSelected: ((node: RoutePathNode) => void) | undefined = undefined;
+  export let onContinueRequest:
+    | ((payload: { fromNodeId?: string; nextNodeId?: string }) => void)
+    | undefined = undefined;
 
   const stage = { width: 1086, height: 1448 };
   let scale = 1;
@@ -112,10 +116,16 @@
   }
 
   function continueToNextNode() {
+    onContinueRequest?.({
+      fromNodeId: activeNode?.id,
+      nextNodeId: nextNode?.id
+    });
     completeActiveExercise();
   }
 
   function handleNodeSelect(node: RoutePathNode) {
+    onNodeSelected?.(node);
+
     const selectedIndex = module.nodes.findIndex((candidate) => candidate.id === node.id);
     if (selectedIndex < 0) return;
 
@@ -266,7 +276,7 @@
 
       <ProgressCard completed={completedCount} total={module.total} percent={completionPercent} />
 
-      <SnakeLayer path={module.path} theme={module.theme} lockedStartT={displayedLockedStartT} />
+      <SnakeLayer path={module.path} theme={module.theme} lockedStartT={displayedLockedStartT} renderScale={scale} />
       <NodeOverlay
         path={module.path}
         nodes={interactiveNodes}

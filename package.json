@@ -1,0 +1,93 @@
+{
+  "name": "lumen",
+  "displayName": "Lumen",
+  "description": "Lumen VS Code integration shell for the Route C strings mock.",
+  "version": "0.0.1",
+  "private": true,
+  "publisher": "lumen",
+  "type": "commonjs",
+  "main": "./extension/out/extension.js",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Education"
+  ],
+  "activationEvents": [
+    "onCommand:lumen.open",
+    "onCommand:lumen.enterMode",
+    "onCommand:lumen.exitMode",
+    "onCommand:lumen.refreshWebview",
+    "onView:lumen.routePath"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "lumen.open",
+        "title": "Lumen: Open Lumen",
+        "category": "Lumen",
+        "icon": {
+          "light": "assets/brand/lumen-editor-icon.svg",
+          "dark": "assets/brand/lumen-editor-icon.svg"
+        }
+      },
+      {
+        "command": "lumen.enterMode",
+        "title": "Lumen: Enter Mode",
+        "category": "Lumen",
+        "icon": {
+          "light": "assets/brand/lumen-editor-icon.svg",
+          "dark": "assets/brand/lumen-editor-icon.svg"
+        }
+      },
+      {
+        "command": "lumen.exitMode",
+        "title": "Lumen: Exit Mode",
+        "category": "Lumen"
+      },
+      {
+        "command": "lumen.refreshWebview",
+        "title": "Lumen: Refresh Webview",
+        "category": "Lumen"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "lumen",
+          "title": "Lumen",
+          "icon": "assets/brand/lumen-activitybar-icon.svg"
+        }
+      ]
+    },
+    "menus": {
+      "editor/title": [
+        {
+          "command": "lumen.open",
+          "group": "navigation@0"
+        }
+      ]
+    },
+    "views": {
+      "lumen": [
+        {
+          "id": "lumen.routePath",
+          "name": "Ruta C",
+          "type": "webview"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "dev:frontend": "bun run --cwd frontend dev",
+    "build:frontend": "bun run --cwd frontend build",
+    "compile:extension": "tsc -p extension/tsconfig.json",
+    "watch:extension": "tsc -w -p extension/tsconfig.json",
+    "build": "bun run build:frontend && bun run compile:extension"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.8.3"
+  }
+}

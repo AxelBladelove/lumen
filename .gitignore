@@ -4,6 +4,8 @@ node_modules/
 # Build outputs
 dist/
 frontend/dist/
+extension/out/
+.vscode-test/
 
 # Local dev/browser state
 .edge-headless-profile/

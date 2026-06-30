@@ -26,7 +26,7 @@ body,
 body {
   overflow: hidden;
   color: var(--text-main);
-  background: var(--bg-deep);
+  background: linear-gradient(135deg, #010608 0%, #001117 46%, #001019 100%);
   font-family: var(--font);
 }
 
@@ -35,16 +35,43 @@ button {
 }
 
 .lumen-route-app {
+  position: relative;
   width: 100vw;
   height: 100vh;
   overflow: auto;
   background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.36), transparent 26% 72%, rgba(0, 0, 0, 0.28)),
-    linear-gradient(135deg, #010507 0%, #001117 46%, #011018 100%);
+    linear-gradient(90deg, rgba(0, 0, 0, 0.34), transparent 25% 74%, rgba(0, 0, 0, 0.3)),
+    linear-gradient(135deg, #010608 0%, #001117 46%, #001019 100%);
+}
+
+.lumen-route-app::before,
+.lumen-route-app::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lumen-route-app::before {
+  z-index: 0;
+  background:
+    radial-gradient(ellipse at center, transparent 0 51%, rgba(0, 0, 0, 0.58) 100%),
+    repeating-linear-gradient(90deg, rgba(125, 217, 205, 0.008) 0 1px, transparent 1px 82px),
+    repeating-linear-gradient(0deg, rgba(125, 217, 205, 0.006) 0 1px, transparent 1px 82px);
+}
+
+.lumen-route-app::after {
+  z-index: 0;
+  opacity: 0.23;
+  mix-blend-mode: screen;
+  background:
+    linear-gradient(112deg, transparent 0 28%, rgba(0, 245, 212, 0.036) 38%, transparent 52%),
+    linear-gradient(72deg, transparent 0 48%, rgba(0, 201, 145, 0.027) 58%, transparent 72%);
 }
 
 .stage-viewport {
   position: absolute;
+  z-index: 1;
   left: 50%;
   top: 12px;
   transform: translateX(-50%);
@@ -60,7 +87,6 @@ button {
   isolation: isolate;
   transform: scale(var(--stage-scale));
   transform-origin: top left;
-  box-shadow: 0 28px 90px var(--shadow-deep);
 }
 
 .route-stage > * {
@@ -70,30 +96,7 @@ button {
 .background-layer {
   inset: 0;
   z-index: 0;
-  background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.34), transparent 25% 74%, rgba(0, 0, 0, 0.3)),
-    linear-gradient(135deg, #010608 0%, #001117 46%, #001019 100%);
-}
-
-.background-layer::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at center, transparent 0 51%, rgba(0, 0, 0, 0.58) 100%),
-    repeating-linear-gradient(90deg, rgba(125, 217, 205, 0.008) 0 1px, transparent 1px 82px),
-    repeating-linear-gradient(0deg, rgba(125, 217, 205, 0.006) 0 1px, transparent 1px 82px);
-}
-
-.background-layer::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: 0.23;
-  mix-blend-mode: screen;
-  background:
-    linear-gradient(112deg, transparent 0 28%, rgba(0, 245, 212, 0.036) 38%, transparent 52%),
-    linear-gradient(72deg, transparent 0 48%, rgba(0, 201, 145, 0.027) 58%, transparent 72%);
+  background: transparent;
 }
 
 .route-header {
@@ -387,13 +390,17 @@ button {
   z-index: 2;
   width: 1086px;
   height: 1448px;
+  contain: layout paint style;
   pointer-events: none;
+  transform: translateZ(0);
 }
 
 .snake-layer .webgl-host {
   position: absolute;
   inset: 0;
   z-index: 1;
+  contain: strict;
+  overflow: hidden;
 }
 
 .snake-layer .webgl-host,
@@ -401,6 +408,7 @@ button {
   display: block;
   width: 100%;
   height: 100%;
+  backface-visibility: hidden;
 }
 
 .node-overlay {
@@ -1775,6 +1783,7 @@ button {
     opacity: 0;
   }
 }
+
 
 .node-string-input-icon {
   display: block;
