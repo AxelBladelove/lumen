@@ -24,6 +24,11 @@ Ese estado se envía a la webview como parte de `lumen.entry.state` y se guarda
 en `bootIntent` al entrar. Aún no se ejecuta `vscode.openFolder`, no se llama
 `workspace.saveAll`, no se crea `.lumen` y no hay flujo de reparación si falta.
 
+Existe un flujo local de desarrollo llamado `build:local`, pero sincroniza la
+extension instalada en `~/.vscode/extensions`; no crea ni cambia el workspace
+oficial `~/.lumen`. Ese flujo vive documentado en
+`Architectural-plans/desarrollo/build-local/build-local.md`.
+
 Este módulo existe porque Lumen no debe crear ejercicios dentro de cualquier proyecto que el usuario tenga abierto.
 
 Si el usuario está trabajando en un proyecto personal y presiona el icono de Lumen, Lumen debe cambiar al workspace local oficial de Lumen antes de crear, importar o abrir ejercicios.

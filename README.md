@@ -1,65 +1,97 @@
 # Lumen
 
-Lumen is currently a VS Code extension shell that packages a Svelte/Vite
-frontend as the `lumen.routePath` webview. The implemented slice is a mocked
-Route C / Module 2 path view for `Cadenas de caracteres`.
+Lumen es, en este estado del repo, una extension de VS Code que empaqueta un
+frontend Svelte/Vite dentro de la webview `lumen.routePath`.
 
-## Current Implementation
+El slice implementado es un mock visual de `Ruta C / Modulo 2: Cadenas de
+caracteres`. Sirve para validar la experiencia de Route Path View, el snake
+WebGL, la pantalla de entrada, el pipeline de build y la medicion de
+performance.
 
-- Root extension package: `package.json`.
-- Extension entry: `extension/src/extension.ts`.
+## Implementacion Actual
+
+- Paquete raiz de la extension: `package.json`.
+- Entry point de la extension: `extension/src/extension.ts`.
 - Webview provider: `extension/src/lumenRoutePathViewProvider.ts`.
-- Frontend app: `frontend/src/App.svelte`.
-- Route view: `frontend/src/route-path-view/RoutePathView.svelte`.
-- WebGL snake renderer: `frontend/src/webgl-snake/WebGLSnake.svelte`.
-- Mock route data: `frontend/src/route-path-view/data/mockRouteModule.ts`.
+- Estado de entrada/workspace: `extension/src/lumenEntryState.ts`.
+- App frontend: `frontend/src/App.svelte`.
+- Vista de ruta: `frontend/src/route-path-view/RoutePathView.svelte`.
+- Renderer WebGL del snake: `frontend/src/webgl-snake/WebGLSnake.svelte`.
+- Datos mock de ruta: `frontend/src/route-path-view/data/mockRouteModule.ts`.
+- Assets de marca: `assets/brand/`.
+- Scripts de performance e instalacion local: `scripts/`.
 
-The extension contributes the Lumen activity-bar container, the `Ruta C`
-webview view, and the commands `lumen.open`, `lumen.enterMode`,
-`lumen.exitMode`, and `lumen.refreshWebview`.
+La extension contribuye el contenedor de Activity Bar `Lumen`, la vista
+webview `Ruta C` y los comandos:
 
-Route data is still mocked in the frontend. There is no Local Engine, SQLite
-database, Cloudflare backend, compile command, Ask Tutor command, or packaged
-exercise collection in this repository yet.
+```txt
+lumen.open
+lumen.enterMode
+lumen.exitMode
+lumen.refreshWebview
+```
 
-## Development
+Todavia no existen Local Engine, SQLite local, Cloudflare backend, comando de
+compilacion, Ask Tutor ni coleccion de ejercicios empaquetada.
 
-Install dependencies with Bun, then build both frontend and extension:
+## Desarrollo
+
+Instala dependencias con Bun y compila frontend + extension:
 
 ```txt
 bun install
 bun run build
 ```
 
-Useful scripts:
+Scripts principales:
 
 ```txt
 bun run dev:frontend
 bun run build:frontend
 bun run compile:extension
 bun run build
+bun run build:local
 ```
 
-The webview provider reads `frontend/dist/index.html`. If the frontend has not
-been built, the extension shows a minimal missing-build page that asks the user
-to run `bun run build`.
+`build:local` compila el repo y sincroniza `extension/out`, `frontend/dist`,
+`assets` y `package.json` dentro de la copia instalada en
+`~/.vscode/extensions/lumen.lumen-0.0.1`. Despues de correrlo, VS Code debe
+recargarse con `Developer: Reload Window` para tomar la nueva copia.
 
-## Frontend Build Shape
+## Build de la Webview
 
-The Vite build uses a relative base so it can run inside a VS Code webview.
-Custom Vite plugins inline the built CSS into `index.html`, defer the entry
-module until `window.load`, and prune source PNGs from `frontend/dist` after
-runtime WebP assets are emitted.
+El provider lee `frontend/dist/index.html`. Si el frontend no fue compilado,
+la extension muestra una pagina minima que pide ejecutar `bun run build`.
 
-## Performance Tools
+El build de Vite usa `base: "./"` para funcionar dentro de la webview. Los
+plugins locales:
 
-Two local CDP measurement scripts exist under `scripts/`:
+- eliminan PNG source de `dist` cuando existen assets runtime `.webp`;
+- reemplazan el entry module por un bootstrap diferido;
+- reemplazan el CSS por un loader diferido de stylesheet;
+- cargan JS/CSS inmediatamente dentro de VS Code cuando existe
+  `window.__LUMEN_WEBVIEW_BOOTSTRAP__`, y esperan a `window.load` en navegador
+  normal.
+
+## Performance
+
+Scripts disponibles:
 
 ```txt
+bun run perf:harness
+bun run perf:smoke
+bun run perf:baseline
 node scripts/measure-page-load.mjs
 node scripts/measure-vscode-webview.mjs
 ```
 
-`measure-page-load.mjs` targets a browser-served frontend origin
-(`PERF_ORIGIN`, default `http://127.0.0.1:4173`). `measure-vscode-webview.mjs`
-expects a VS Code CDP port and an active Lumen webview target.
+`perf:harness` usa Vite preview + Chromium CDP, mide estados visuales de la
+ruta y escribe resultados bajo `perf/results` y capturas bajo `perf/visual`.
+El provider de VS Code tambien acepta mensajes `perf.report` desde la webview
+y los guarda en `.lumen-perf/vscode-webview.jsonl`.
+
+## Documentacion
+
+La documentacion principal vive en `Architectural-plans/`. Aunque varios
+documentos describen la arquitectura objetivo, cada modulo documentado debe
+indicar el estado actual del repo cuando todavia es mock, planned o parcial.

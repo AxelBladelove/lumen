@@ -19,9 +19,9 @@ Al iniciar, envía `frontend.ready`; también emite `route.node.selected` y
 ejercicio completado, aunque en el estado actual el dato inicial viene del mock.
 
 El build actual no es un Vite default puro: `frontend/vite.config.ts` usa base
-relativa, separa Three.js en chunk manual, inlinea CSS en `dist/index.html`,
-difiere el entry module hasta `window.load` y elimina PNG source de `dist`
-cuando existen assets runtime `.webp`.
+relativa, separa Three.js en chunk manual, reemplaza el entry module por un
+bootstrap diferido, carga el stylesheet con un loader diferido y elimina PNG
+source de `dist` cuando existen assets runtime `.webp`.
 
 No están implementadas todavía las vistas de onboarding, selección de modos,
 Free Mode, colección de ejercicios, Ask Tutor, estados de compilación ni
@@ -108,9 +108,9 @@ frontend/
     App.svelte
     app.css
     brand/
+    webview/
     route-path-view/
     webgl-snake/
-    webview/
   public/
     assets/
     materials/
@@ -121,14 +121,25 @@ El repo actual usa `src/route-path-view`, `src/webgl-snake`, `src/webview` y
 `src/brand`. Las carpetas conceptuales como `exercise-collection-view` o
 `ask-tutor-ui` todavía no existen.
 
+Documentos actuales relacionados:
+
+```txt
+Architectural-plans/frontend/app-shell/app-shell.md
+Architectural-plans/frontend/webview-protocol/webview-protocol.md
+Architectural-plans/frontend/route-path-view/route-path-view.md
+Architectural-plans/frontend/webgl-snake/webgl-snake.md
+Architectural-plans/brand/brand-assets.md
+Architectural-plans/performance/performance-harness.md
+```
+
 ## Submódulos iniciales
 
-`App.svelte` contiene la raíz visual actual de la webview y el puente de
-mensajes con VS Code.
+`App.svelte` contiene la raíz visual actual de la webview, la pantalla de
+entrada, el puente de mensajes con VS Code y la instrumentación `perf.report`.
 
 `route-path-view` contiene la vista tipo Duolingo de rutas y módulos: snake path, nodos, progreso, labels, estados y CTA.
 
-`webgl-snake` contiene el renderer reusable del snake path: geometry, material, postprocess, presets y animación.
+`webgl-snake` contiene el renderer reusable del snake path: geometry, material, postprocess, presets, animación y marks de performance.
 
 Los assets de nodos viven hoy en `frontend/public/assets/route-nodes`.
 

@@ -24,6 +24,10 @@ No implementa todavía pantalla de transición, Zen Mode, selección de modo,
 apertura de archivo activo, keybindings contextuales, restauración del último
 estado útil ni cambio automático al workspace `.lumen`.
 
+La pantalla de entrada visual que existe hoy pertenece al App Shell de la
+webview, no al flujo completo de Lumen Mode. Está documentada en
+`Architectural-plans/frontend/app-shell/app-shell.md`.
+
 Esta feature no documenta el instalador, la estructura completa de carpetas, el funcionamiento interno de Modo Ruta, el funcionamiento interno de Modo Libre ni la lógica profunda de cada comando.
 
 Su responsabilidad es definir, de forma explícita, cómo se entra a Lumen Mode, qué configuración visual se aplica, qué vistas aparecen, qué vistas se ocultan, qué comandos quedan disponibles y cómo se prepara la experiencia inicial del usuario.

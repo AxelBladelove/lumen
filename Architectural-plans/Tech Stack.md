@@ -11,7 +11,11 @@ Lumen como extensión de VS Code:
 - Frontend Svelte 5 + Vite empaquetado dentro de `frontend/dist`.
 - Route Path View mockeada para `Ruta C / Módulo 2: Cadenas de caracteres`.
 - Renderer WebGL con Three.js para el snake path.
-- Scripts locales de medición CDP en `scripts/`.
+- Scripts locales de medición CDP, harness visual y sincronización local en
+  `scripts/`.
+- Resultados y baselines de performance bajo `perf/`.
+- Reportes JSONL de webview real bajo `.lumen-perf/`.
+- Assets de marca en `assets/brand/`, incluyendo logo y wordmark runtime.
 
 Todavía no existe implementación de Local Engine en Rust, SQLite local,
 compilación con `F9`, Ask Tutor, Cloudflare Workers, D1, R2, KV, AI Gateway,
@@ -26,6 +30,7 @@ objetivo, no una lista de módulos ya implementados.
 | Vite                | Dev server y build tool rápido para iterar la UI de Lumen sin fricción.                                                                      |
 | Bun                 | Runtime/tooling rápido para desarrollo, scripts y manejo de paquetes del frontend.                                                           |
 | Webviews de VS Code | Permiten montar la UI inicial de Lumen dentro de VS Code mientras se valida el producto.                                                     |
+| Three.js            | Renderer actual del snake WebGL dentro de Route Path View.                                                                                   |
 | Tauri               | Ruta más probable para el standalone futuro: permite usar UI web con backend Rust sin cargar Electron completo.                              |
 | Monaco Editor       | Opción base para el editor en standalone si Lumen deja de depender de VS Code.                                                               |
 

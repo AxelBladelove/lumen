@@ -22,6 +22,9 @@ tabs, line numbers o panel inferior, no posiciona un panel derecho dedicado y
 no distingue layout real de Modo Ruta vs Modo Libre. Todo lo que sigue en este
 documento es el layout objetivo.
 
+El provider que sirve la webview actual está documentado en
+`Architectural-plans/extension-host/webview-provider/webview-provider.md`.
+
 Este documento no explica cómo se entra a Lumen Mode, ni qué hace cada comando, ni cómo funciona Modo Ruta o Modo Libre por dentro. Su responsabilidad es fijar el layout default de Lumen: qué se muestra, qué se oculta, dónde aparece cada vista y qué configuración visual debe aplicarse.
 
 El layout de Lumen Mode debe ser determinista. No debe depender del layout previo del usuario ni quedar a interpretación de la IA o del programador.

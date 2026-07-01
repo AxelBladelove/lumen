@@ -17,17 +17,21 @@ Lo que existe hoy es un protocolo mínimo entre Extension Host y webview:
   - `frontend.ready`
   - `route.node.selected`
   - `route.continue.requested`
+  - `perf.report`
 - Mensajes extensión -> webview:
   - `extension.ready`
   - `lumen.entry.state`
   - `route.module.snapshot`
   - `route.exercise.completed`
 
-El Extension Host solo registra estos eventos en el output channel `Lumen`,
-responde `extension.ready` cuando el frontend está listo y reenvía el estado de
-entrada si existe. No lanza un binario Rust, no habla JSON-RPC con un engine y
-no implementa operaciones como compilación, colección, route continue real o
-Ask Tutor.
+El Extension Host registra eventos de ruta en el output channel `Lumen`,
+responde `extension.ready` cuando el frontend está listo, reenvía el estado de
+entrada si existe y escribe `perf.report` en `.lumen-perf/vscode-webview.jsonl`.
+No lanza un binario Rust, no habla JSON-RPC con un engine y no implementa
+operaciones como compilación, colección, route continue real o Ask Tutor.
+
+El contrato detallado del protocolo actual vive en
+`Architectural-plans/frontend/webview-protocol/webview-protocol.md`.
 
 Este módulo existe porque Lumen no debe meter toda la lógica dentro del Extension Host ni dentro de la webview.
 

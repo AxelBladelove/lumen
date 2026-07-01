@@ -36,12 +36,15 @@ La vista actual:
 - Renderiza el snake path con `SnakeLayer` y `WebGLSnake`.
 - Divide el snake en dos segmentos: desbloqueado líquido y bloqueado
   graphite/purple.
-- Difiere nodos, progreso, hero y CTA unos 80 ms para mejorar el primer load.
+- Monta nodos, progreso, hero y CTA bajo `deferredVisualsReady`, que hoy se
+  activa inmediatamente y conserva el contrato de estado `routeVisuals`.
 - Permite avanzar localmente al siguiente nodo con animación de ruta,
   transición `complete/unlock` y actualización de progreso.
 - Permite seleccionar nodos completados para estado visual de repetición.
 - Respeta `prefers-reduced-motion` para saltar o apagar animaciones pesadas.
-- Expone marks de performance como `lumen:route-mounted`.
+- Expone marks de performance como `lumen:route-mounted`,
+  `lumen:continue-pressed`, `lumen:route-advance-start` y
+  `lumen:route-advance-first-frame`.
 
 Lo que todavía no existe: datos reales del Local Engine, persistencia,
 desbloqueos reales, explicación de bloqueo, estados de error, fallback WebGL
@@ -287,12 +290,15 @@ El renderer devuelve el snake visual.
 
 Route Path View coloca nodos encima.
 
-En la implementación actual, `SnakeLayer.svelte` carga dinámicamente
-`materialPresets`, construye presets para el tramo desbloqueado y el tramo
-bloqueado, y pasa un arreglo `segments` a `WebGLSnake.svelte`. El renderer
+En la implementación actual, `SnakeLayer.svelte` importa `materialPresets`,
+construye presets para el tramo desbloqueado y el tramo bloqueado, y pasa un
+arreglo `segments` a `WebGLSnake.svelte`. El renderer
 soporta rangos `rangeStart/rangeEnd`, caps líquidos o grises, themes por
 segmento, escala de render reducida para webview/mobile y estadísticas en
 `window.__LUMEN_WEBGL_STATS__`.
+
+Si la URL contiene `lumenPerfVisual`, `SnakeLayer.svelte` congela el tiempo de
+los segmentos para screenshots deterministas.
 
 ## Nodos
 

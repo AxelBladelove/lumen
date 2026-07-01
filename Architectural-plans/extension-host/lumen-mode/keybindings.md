@@ -24,6 +24,9 @@ keybindings para `Esc`, `F9`, `Ctrl + Shift + R`, ni reglas `when` específicas.
 La extensión sí setea `lumen.inMode` y `lumen.mode`, lo cual prepara parte del
 terreno para los keybindings futuros.
 
+Tambien existen scripts npm/Bun para build local y performance, pero no son
+comandos contribuidos a VS Code.
+
 Este documento no explica profundamente qué hace cada feature. No documenta la compilación, Ask Tutor, Exit Mode ni Command Palette por dentro.
 
 Su responsabilidad es fijar qué comandos existen, qué shortcut los activa, cuándo están activos y qué reglas deben seguir para no romper la experiencia normal de VS Code.
