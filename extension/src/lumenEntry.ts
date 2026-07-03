@@ -47,6 +47,9 @@ export async function enterLumenMode(deps: LumenModeDeps) {
   }
 
   session.transitioning = true;
+  // Fase "entering" desde ya: el evento de visibilidad que dispara el reveal
+  // final no debe re-entrar ni volver a cerrar el sidebar de Lumen.
+  provider.setPhase("entering");
   let loadingPanel: vscode.WebviewPanel | undefined;
 
   try {

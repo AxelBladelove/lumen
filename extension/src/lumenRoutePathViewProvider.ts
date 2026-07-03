@@ -131,6 +131,11 @@ export class LumenRoutePathViewProvider implements vscode.WebviewViewProvider {
 
   private maybeAutoEnter() {
     if (this.phase !== "idle") return;
+    // El click en el icono hace que VS Code abra el sidebar por su cuenta.
+    // Cerrarlo se despacha sincronicamente en este mismo turno (antes de
+    // cualquier otro trabajo de la entrada) para que, como mucho, llegue a
+    // pintarse un solo frame antes de la cortina de carga.
+    void vscode.commands.executeCommand("workbench.action.closeSidebar");
     this.onLaunchRequested();
   }
 

@@ -14,6 +14,7 @@
     "Education"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onCommand:lumen.open",
     "onCommand:lumen.enterMode",
     "onCommand:lumen.exitMode",
