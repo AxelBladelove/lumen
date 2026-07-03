@@ -55,15 +55,26 @@
     const isNarrowPanel = availableWidth < 820;
     const compactLayoutWidth = isNarrowPanel ? 700 : 860;
     const compactStageHeight = isNarrowPanel ? 1304 : stage.height;
-    const nextScale = Math.max(
-      0.32,
-      Math.min(1, availableWidth / compactLayoutWidth, availableHeight / compactStageHeight)
-    );
+    const heightFit = Math.min(1, availableHeight / compactStageHeight);
+    const widthFit = availableWidth / compactLayoutWidth;
+    // La compresion horizontal solo puede aplicar un pequeno zoom-out extra
+    // (6%) sobre el encaje por altura, y la escala nunca baja de 0.62: pasado
+    // ese punto la ruta conserva su tamano, el layout sigue compactandose
+    // (cards mas angostas) y el excedente vertical se resuelve con el scroll
+    // de .lumen-route-app en vez de encoger el snake y los nodos.
+    const minScale = Math.min(1, Math.max(0.62, heightFit * 0.94));
+    let nextScale = Math.max(minScale, Math.min(1, heightFit, widthFit));
+    // Zona ultra-angosta: si ni el layout minimo cabe con la escala fijada,
+    // vuelve a encoger proporcionalmente; la UI completa vale mas que el piso.
+    const minLayoutWidth = 540;
+    if (minLayoutWidth * nextScale > availableWidth) {
+      nextScale = Math.max(0.32, availableWidth / minLayoutWidth);
+    }
     const expandedWidth = availableWidth / nextScale;
     compactLayout = isNarrowPanel;
     scale = nextScale;
     layoutHeight = compactStageHeight;
-    layoutWidth = Math.max(compactLayoutWidth, Math.min(2200, expandedWidth));
+    layoutWidth = Math.max(minLayoutWidth, Math.min(2200, expandedWidth));
     contentOffset = (layoutWidth - stage.width) / 2;
     routeArtScale = compactLayout ? 0.9 : 1;
   }

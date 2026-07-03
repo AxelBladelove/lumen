@@ -248,7 +248,8 @@ button {
   position: relative;
   width: 100vw;
   height: 100vh;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   background:
     linear-gradient(90deg, rgba(0, 0, 0, 0.34), transparent 25% 74%, rgba(0, 0, 0, 0.3)),
     linear-gradient(135deg, #010608 0%, #001117 46%, #001019 100%);
@@ -277,6 +278,26 @@ button {
   background:
     linear-gradient(112deg, transparent 0 28%, rgba(0, 245, 212, 0.036) 38%, transparent 52%),
     linear-gradient(72deg, transparent 0 48%, rgba(0, 201, 145, 0.027) 58%, transparent 72%);
+}
+
+/* Scroll vertical discreto cuando la ruta no cabe a lo alto (escala con piso
+   en paneles chicos): los nodos se alcanzan bajando, no encogiendolos. */
+.lumen-route-app::-webkit-scrollbar {
+  width: 10px;
+}
+
+.lumen-route-app::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lumen-route-app::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background: rgba(125, 178, 217, 0.18) padding-box;
+}
+
+.lumen-route-app::-webkit-scrollbar-thumb:hover {
+  background: rgba(125, 178, 217, 0.32) padding-box;
 }
 
 .stage-viewport {
@@ -419,10 +440,14 @@ button {
   top: 44px;
 }
 
+/* En compacto el bloque de titulo se ancla entre las pills y sus fuentes
+   escalan con el ancho del layout, asi el titulo nunca choca con las pills
+   aunque el layout baje hasta su minimo (540px). */
 .route-stage.compact .title-block {
-  left: calc(50% - 218px);
+  left: 126px;
+  right: 126px;
   top: 36px;
-  width: 436px;
+  width: auto;
 }
 
 .route-stage.compact .title-block p {
@@ -432,13 +457,13 @@ button {
 
 .route-stage.compact .title-block h1 {
   top: 34px;
-  font-size: 36px;
+  font-size: clamp(24px, calc((var(--layout-width, 700px) - 252px) * 0.094), 36px);
   line-height: 38px;
 }
 
 .route-stage.compact .title-block span {
   top: 82px;
-  font-size: 23px;
+  font-size: clamp(17px, calc((var(--layout-width, 700px) - 252px) * 0.07), 23px);
   line-height: 24px;
 }
 
