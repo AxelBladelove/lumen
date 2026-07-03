@@ -50,6 +50,14 @@ export async function enterLumenMode(deps: LumenModeDeps) {
   let loadingPanel: vscode.WebviewPanel | undefined;
 
   try {
+    // El click en el icono abre el sidebar con la vista todavia gris a medio
+    // cargar. Se cierra de inmediato y se muestra la cortina: lo primero que
+    // el usuario ve es la pantalla de carga, no el sidebar expandiendose.
+    await vscode.commands
+      .executeCommand("workbench.action.closeSidebar")
+      .then(undefined, () => undefined);
+    loadingPanel = showLumenLoadingPanel(context);
+
     await context.globalState.update(bootIntentKey, {
       requestedAt: Date.now(),
       requestedMode: "route",
@@ -63,7 +71,6 @@ export async function enterLumenMode(deps: LumenModeDeps) {
     provider.setEntryState(entryState);
     await applyLumenModeLayout(context);
 
-    loadingPanel = showLumenLoadingPanel(context);
     await delay(loadingCurtainDurationMs);
 
     await provider.reveal();
