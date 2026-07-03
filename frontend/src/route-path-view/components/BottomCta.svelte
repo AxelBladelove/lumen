@@ -3,6 +3,23 @@
   export let targetTitle: string;
   export let disabled = false;
   export let onContinue: (() => void) | undefined = undefined;
+
+  let handledPointerDown = false;
+
+  function handlePointerDown(event: PointerEvent) {
+    if (disabled || event.button !== 0) return;
+    handledPointerDown = true;
+    onContinue?.();
+  }
+
+  function handleClick(event: MouseEvent) {
+    if (handledPointerDown) {
+      handledPointerDown = false;
+      event.preventDefault();
+      return;
+    }
+    onContinue?.();
+  }
 </script>
 
 <footer class="bottom-cta">
@@ -13,7 +30,7 @@
     <path d="M10 6h9M10 12h9M10 18h9" />
   </svg>
   <p><strong>{label}</strong> {targetTitle}</p>
-  <button type="button" aria-label="Continuar" {disabled} onclick={onContinue}>
+  <button type="button" aria-label="Continuar" {disabled} onpointerdown={handlePointerDown} onclick={handleClick}>
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 19V5" />
       <path d="m6.5 10.5 5.5-5.5 5.5 5.5" />

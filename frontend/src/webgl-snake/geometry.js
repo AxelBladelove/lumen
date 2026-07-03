@@ -1,9 +1,17 @@
+import { getPrecomputedSnakePath } from "../route-path-view/path/snakePathSamples.generated.js";
+
 const sampledPathCache = new Map();
 
 export function sampleSnakePath(pathD, sampleCount = 2600) {
   const cacheKey = `${sampleCount}:${pathD}`;
   const cachedPath = sampledPathCache.get(cacheKey);
   if (cachedPath) return cachedPath;
+
+  const precomputedPath = getPrecomputedSnakePath(pathD, sampleCount);
+  if (precomputedPath) {
+    sampledPathCache.set(cacheKey, precomputedPath);
+    return precomputedPath;
+  }
 
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("d", pathD);

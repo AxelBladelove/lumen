@@ -27,6 +27,35 @@ export type WebviewToExtensionMessage =
         fromNodeId?: string;
         nextNodeId?: string;
       };
+    }
+  | {
+      type: "lumen.exit.requested";
+      payload: Record<string, never>;
+    }
+  | {
+      type: "perf.report";
+      payload: {
+        label: string;
+        navigation: {
+          domContentLoadedMs: number | null;
+          loadMs: number | null;
+        };
+        marks: Record<string, number>;
+        measures?: Record<string, number>;
+        frameStats?: {
+          frames: number;
+          avgFrameMs: number | null;
+          p95FrameMs: number | null;
+          maxFrameMs: number | null;
+          overBudgetFrames: number;
+        };
+        webglStats?: Record<string, unknown> | null;
+        routePresent: boolean;
+        canvasPresent: boolean;
+        nodeCount: number;
+        visibilityState: string;
+        hasFocus: boolean;
+      };
     };
 
 export type ExtensionToWebviewMessage =
@@ -52,6 +81,12 @@ export type ExtensionToWebviewMessage =
           isInLumenWorkspace: boolean;
           action: "ready" | "workspace-switch-pending" | "workspace-missing";
         };
+      };
+    }
+  | {
+      type: "lumen.entry.transition";
+      payload: {
+        phase: "entering" | "active";
       };
     }
   | {

@@ -8,15 +8,24 @@ Archivo: `Architectural-plans/extension-host/lumen-mode/exit-lumen-mode.md`
 
 ## Estado actual del repo
 
-La implementación actual de salida es mínima. `lumen.exitMode` borra el
-`bootIntent`, actualiza context keys (`lumen.inMode = false` y
-`lumen.mode = undefined`) y envía a la webview un `lumen.entry.state` con
-`inMode: false`.
+`lumen.exitMode` implementa la salida mínima de layout: sale de Zen Mode
+(VS Code restaura el layout previo a la entrada), cierra el sidebar de Lumen,
+revierte los settings desde el snapshot guardado al entrar (los `zenMode.*` y
+`workbench.sideBar.location`, que vuelve a su posición original), borra el
+`bootIntent` y actualiza context keys (`lumen.inMode = false`,
+`lumen.mode = undefined`). La vista de Lumen queda registrada y retenida
+(`retainContextWhenHidden`), lista para re-entrar sin recargar.
+
+`Esc` ejecuta `lumen.exitMode` por dos vías equivalentes: un keybinding
+contribuido (activo solo con `lumen.inMode`, con guardas para no robar Escape
+a widgets temporales) cuando el foco está fuera de la webview, y el mensaje de
+protocolo `lumen.exit.requested` que emite el frontend cuando el foco está
+dentro de la webview. Si una sesión muere dentro del modo (reload/crash), la
+siguiente activación de la extensión restaura los settings desde el snapshot.
 
 Todavía no guarda último ejercicio, último archivo, último modo real ni ruta
-activa. Tampoco restaura Zen Mode, layout, paneles, keybindings, compilaciones
-en curso, Ask Tutor ni UI temporal, porque esas piezas todavía no existen en el
-repo actual.
+activa, ni maneja UI temporal (`lumen.temporaryUiOpen`), compilaciones en curso
+o Ask Tutor, porque esas piezas no existen en el repo actual.
 
 Esta feature no documenta cómo se entra a Lumen Mode, ni cómo funciona Modo Ruta, Modo Libre, Ask Tutor o la compilación.
 

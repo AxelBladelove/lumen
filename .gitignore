@@ -10,6 +10,9 @@ extension/out/
 # Local dev/browser state
 .edge-headless-profile/
 frontend/.edge-headless-profile/
+.vscode/
+.lumen-perf/
+perf/
 
 # Logs
 *.log

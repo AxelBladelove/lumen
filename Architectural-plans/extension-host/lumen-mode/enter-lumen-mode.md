@@ -6,27 +6,41 @@
 
 ## Estado actual del repo
 
-La implementación actual de entrada es un mock funcional, no el flujo completo
-de Lumen Mode descrito en este documento.
+La entrada a Lumen Mode ya aplica el layout enfocado default; el contenido
+sigue siendo el mock de Route Path View.
 
-Hoy `lumen.open` y `lumen.enterMode` llaman a
-`extension/src/lumenEntry.ts`. Esa función:
+Hoy `lumen.open` y `lumen.enterMode` llaman a `extension/src/lumenEntry.ts`.
+Esa secuencia:
 
 - Calcula `LumenEntryState` con protocolo `1`, modo `route`, phase
   `mock-route-path-view` y estado del workspace `.lumen`.
 - Guarda un `bootIntent` en `context.globalState`.
 - Activa context keys `lumen.inMode = true` y `lumen.mode = route`.
-- Abre el contenedor de actividad `workbench.view.extension.lumen`.
-- Intenta enfocar la view `lumen.routePath`.
+- Aplica el layout enfocado (`extension/src/lumenLayout.ts`): snapshot de los
+  settings a nivel workspace, escribe los defaults de Lumen Mode
+  (`zenMode.*` con `centerLayout: false`), entra a Zen Mode y mueve el sidebar
+  primario a la derecha (`workbench.sideBar.location: "right"`).
+- Revela la vista `lumen.routePath` del Activity Bar, que renderiza el
+  frontend completo dentro del sidebar (ahora a la derecha), con la pantalla
+  de carga del frontend cubriendo la transición. El archivo que el usuario
+  tuviera abierto permanece en el editor central. El ancho del sidebar lo
+  persiste VS Code de forma nativa.
 - Envía `lumen.entry.state` a la webview.
 
-No implementa todavía pantalla de transición, Zen Mode, selección de modo,
-apertura de archivo activo, keybindings contextuales, restauración del último
-estado útil ni cambio automático al workspace `.lumen`.
+La vista se auto-entra al hacerse visible por click en el icono (con un
+período de gracia medido en uptime del Extension Host para no auto-entrar
+cuando VS Code restaura el sidebar al arrancar).
 
-La pantalla de entrada visual que existe hoy pertenece al App Shell de la
-webview, no al flujo completo de Lumen Mode. Está documentada en
-`Architectural-plans/frontend/app-shell/app-shell.md`.
+`Esc` sale del modo por dos vías equivalentes: keybinding contribuido con
+`when: lumen.inMode` (foco fuera de la webview) y mensaje de protocolo
+`lumen.exit.requested` emitido por el frontend (foco dentro de la webview).
+
+No implementa todavía selección de modo, bienvenida de primera entrada,
+apertura de archivo activo del ejercicio, restauración del último estado útil
+ni cambio automático al workspace `.lumen`.
+
+La pantalla de entrada visual pertenece al App Shell de la webview y está
+documentada en `Architectural-plans/frontend/app-shell/app-shell.md`.
 
 Esta feature no documenta el instalador, la estructura completa de carpetas, el funcionamiento interno de Modo Ruta, el funcionamiento interno de Modo Libre ni la lógica profunda de cada comando.
 
@@ -104,7 +118,7 @@ La configuración default de Lumen Mode debe fijar estos valores:
 
 ```json
 {
-  "zenMode.centerLayout": true,
+  "zenMode.centerLayout": false,
   "zenMode.fullScreen": true,
   "zenMode.hideActivityBar": true,
   "zenMode.hideLineNumbers": true,
@@ -113,6 +127,9 @@ La configuración default de Lumen Mode debe fijar estos valores:
   "zenMode.silentNotifications": true
 }
 ```
+
+`zenMode.centerLayout` queda en `false`: el editor no debe tener márgenes
+centrados dentro de Lumen Mode.
 
 `zenMode.restore` no debe usarse como mecanismo principal de Lumen Mode. Lumen debe controlar su propio estado de entrada y salida mediante `lumen.enterMode` y `lumen.exitMode`.
 

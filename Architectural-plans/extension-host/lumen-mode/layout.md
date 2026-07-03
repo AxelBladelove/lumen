@@ -8,19 +8,29 @@ Archivo: `Architectural-plans/extension-host/lumen-mode/lumen-mode-layout.md`
 
 ## Estado actual del repo
 
-El layout completo de Lumen Mode todavía no está implementado.
+El layout base de Lumen Mode ya está implementado en
+`extension/src/lumenLayout.ts`.
 
-La extensión actual solo contribuye:
+`lumen.enterMode` guarda un snapshot de los settings del workspace, aplica los
+defaults de Lumen Mode (`zenMode.*` con `centerLayout: false`, más
+`zenMode.restore: false`), entra a Zen Mode con `workbench.action.exitZenMode`
++ `workbench.action.toggleZenMode` (entrada determinista), mueve el sidebar
+primario a la derecha (`workbench.sideBar.location: "right"`) y revela la
+vista `lumen.routePath`, que renderiza el frontend completo dentro del sidebar.
 
-- Un contenedor de Activity Bar `lumen`.
-- Una Webview View `lumen.routePath` llamada `Ruta C`.
-- Comandos para abrir, entrar, salir y refrescar la webview.
+El resultado es el layout documentado: código en el centro (el archivo que el
+usuario tuviera abierto permanece), Lumen a la derecha como sidebar, Activity
+Bar, Status Bar, tabs, line numbers y panel inferior ocultos por Zen Mode. El
+ancho del sidebar lo ajusta el usuario con el divisor y lo persiste VS Code de
+forma nativa. El frontend tiene un modo compacto (layout fluido hasta 860px
+con pills solo-icono) para que la UI siga legible en anchos angostos.
 
-`lumen.enterMode` abre `workbench.view.extension.lumen` e intenta enfocar
-`lumen.routePath`, pero no activa Zen Mode, no oculta Activity Bar, Status Bar,
-tabs, line numbers o panel inferior, no posiciona un panel derecho dedicado y
-no distingue layout real de Modo Ruta vs Modo Libre. Todo lo que sigue en este
-documento es el layout objetivo.
+`lumen.exitMode` sale de Zen Mode (VS Code restaura el layout previo), cierra
+el sidebar y revierte los settings desde el snapshot, incluida la posición del
+sidebar.
+
+Falta todavía: layout de Modo Libre (gestor de archivos visible + editor +
+panel derecho) y la apertura automática del archivo de ejercicio.
 
 El provider que sirve la webview actual está documentado en
 `Architectural-plans/extension-host/webview-provider/webview-provider.md`.
@@ -76,7 +86,7 @@ La configuración default de Zen Mode para Lumen debe ser:
 
 ```json
 {
-  "zenMode.centerLayout": true,
+  "zenMode.centerLayout": false,
   "zenMode.fullScreen": true,
   "zenMode.hideActivityBar": true,
   "zenMode.hideLineNumbers": true,
@@ -85,6 +95,9 @@ La configuración default de Zen Mode para Lumen debe ser:
   "zenMode.silentNotifications": true
 }
 ```
+
+`zenMode.centerLayout` queda en `false`: el editor central no debe tener
+márgenes de layout centrado dentro de Lumen Mode.
 
 Estos valores forman parte del default de Lumen Mode.
 

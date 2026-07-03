@@ -5,6 +5,7 @@ export class BloomPipeline {
     this.samples = options.samples ?? 4;
     this.blurPasses = options.blurPasses ?? 7;
     this.bloomScale = options.bloomScale ?? 2;
+    this.targetType = options.targetType ?? THREE.HalfFloatType;
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     this.scene = new THREE.Scene();
     this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null);
@@ -93,7 +94,7 @@ export class BloomPipeline {
       depthBuffer: false,
       stencilBuffer: false,
       samples: this.samples,
-      type: this.THREE.HalfFloatType
+      type: this.targetType
     });
   }
 

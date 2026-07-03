@@ -3,18 +3,90 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="preload" href="%BASE_URL%assets/route-hero/strings-chat-reference-hero.runtime.webp" as="image" type="image/webp" fetchpriority="high" />
-    <link rel="preload" href="%BASE_URL%assets/route-nodes/node-current-empty-green.runtime.webp" as="image" type="image/webp" fetchpriority="high" />
-    <link rel="preload" href="%BASE_URL%assets/route-nodes/node-completed-green.runtime.webp" as="image" type="image/webp" fetchpriority="high" />
-    <link rel="preload" href="%BASE_URL%assets/route-nodes/node-locked-green.runtime.webp" as="image" type="image/webp" fetchpriority="high" />
-    <link rel="preload" href="%BASE_URL%assets/route-nodes/node-challenge-purple.runtime.webp" as="image" type="image/webp" fetchpriority="high" />
-    <link rel="preload" href="%BASE_URL%materials/snake-green/body.runtime.webp" as="image" type="image/webp" fetchpriority="high" />
-    <link rel="preload" href="%BASE_URL%materials/snake-green/cap-left.runtime.webp" as="image" type="image/webp" fetchpriority="high" />
-    <link rel="preload" href="%BASE_URL%materials/snake-green/cap-right.runtime.webp" as="image" type="image/webp" fetchpriority="high" />
     <title>Lumen</title>
+    <style>
+      .lumen-static-intro {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        color: #effffb;
+        background:
+          radial-gradient(ellipse at 50% 42%, rgba(0, 146, 252, 0.18), transparent 34%),
+          radial-gradient(ellipse at 50% 58%, rgba(2, 10, 20, 0.88), rgba(1, 4, 9, 0.98) 70%),
+          #010508;
+      }
+
+      .lumen-static-intro i {
+        width: 156px;
+        height: 4px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(54, 76, 96, 0.42);
+      }
+
+      .lumen-static-intro i::before {
+        content: "";
+        display: block;
+        width: 38%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #0092fc, #5fc8ff);
+        animation: lumenStaticWarmup 980ms cubic-bezier(0.3, 0, 0.2, 1) infinite;
+      }
+
+      @keyframes lumenStaticWarmup {
+        from {
+          transform: translateX(-105%) scaleX(0.76);
+        }
+        55% {
+          transform: translateX(148%) scaleX(1.16);
+        }
+        to {
+          transform: translateX(315%) scaleX(0.84);
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div class="lumen-static-intro" aria-hidden="true"><i></i></div>
+      <main class="lumen-route-app" style="--theme-core:#00c991;--theme-edge:#21f6d2;--theme-glow:#00ffe0;--theme-accent:#eafffb;--snake-tint-strength:0;--node-tint:none">
+        <div class="stage-viewport" style="width:100vw;height:100vh">
+          <section
+            class="route-stage"
+            aria-label="Ruta C, modulo 2: Cadenas de caracteres"
+            style="--stage-scale:0.56;--layout-width:1086px;--content-offset:0px"
+          >
+            <div class="background-layer"></div>
+            <header class="route-header">
+              <button class="glass-pill back-pill" type="button" aria-label="Volver a Ruta C">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M15.5 4.5 8 12l7.5 7.5"></path>
+                  <path d="M8.5 12H20"></path>
+                </svg>
+                <span>Ruta C</span>
+              </button>
+              <div class="title-block">
+                <p>MODULO 2</p>
+                <h1>Cadenas de caracteres</h1>
+                <span>char, strings y texto</span>
+              </div>
+              <button class="glass-pill modules-pill" type="button" aria-label="Ver modulos">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="5" cy="6" r="1.5"></circle>
+                  <circle cx="5" cy="12" r="1.5"></circle>
+                  <circle cx="5" cy="18" r="1.5"></circle>
+                  <path d="M10 6h9M10 12h9M10 18h9"></path>
+                </svg>
+                <span>Modulos</span>
+              </button>
+            </header>
+          </section>
+        </div>
+      </main>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

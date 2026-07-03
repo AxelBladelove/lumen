@@ -71,6 +71,16 @@ nextNodeId
 Hoy no avanza el engine. La ruta ya avanzo localmente en el frontend mock y el
 mensaje queda como telemetria/contrato futuro.
 
+### `lumen.exit.requested`
+
+Se emite cuando el usuario presiona `Escape` con el foco dentro de la webview.
+
+Payload vacio.
+
+El Extension Host lo traduce a `lumen.exitMode`. Existe porque VS Code no
+evalua de forma fiable keybindings de extension mientras el foco esta dentro
+de la webview; asi tecla y comando comparten la misma logica de salida.
+
 ### `perf.report`
 
 Mensaje de instrumentacion local.
@@ -128,6 +138,21 @@ ready
 workspace-switch-pending
 workspace-missing
 ```
+
+### `lumen.entry.transition`
+
+Informa la fase visual de entrada de Lumen Mode.
+
+Payload actual:
+
+```txt
+phase: entering | active
+```
+
+Cuando `phase` es `entering`, el frontend reinicia la pantalla de carga con
+logo, wordmark y barra de progreso aunque la webview haya quedado retenida por
+VS Code desde una entrada anterior. Esto permite cubrir el reacomodo de Zen
+Mode y del sidebar sin recargar toda la webview.
 
 ### `route.module.snapshot`
 

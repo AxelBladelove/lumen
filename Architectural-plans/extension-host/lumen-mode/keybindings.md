@@ -8,8 +8,6 @@ Archivo: `Architectural-plans/extension-host/lumen-mode/lumen-mode-keybindings.m
 
 ## Estado actual del repo
 
-El repo actual no contribuye keybindings.
-
 Los comandos existentes en `package.json` son:
 
 ```txt
@@ -19,10 +17,17 @@ lumen.exitMode
 lumen.refreshWebview
 ```
 
-No existen todavía `lumen.compileCurrentExercise`, `lumen.askTutor`,
-keybindings para `Esc`, `F9`, `Ctrl + Shift + R`, ni reglas `when` específicas.
-La extensión sí setea `lumen.inMode` y `lumen.mode`, lo cual prepara parte del
-terreno para los keybindings futuros.
+El repo contribuye el primer keybinding: `Esc -> lumen.exitMode`, activo solo
+con `lumen.inMode` y con guardas de UI temporal (`!inQuickOpen`,
+`!suggestWidgetVisible`, `!findWidgetVisible`, etc.). Cuando el foco está
+dentro de la webview de Lumen, VS Code no evalúa keybindings de extensión de
+forma fiable, así que el frontend escucha `Escape` y emite el mensaje
+`lumen.exit.requested`; el Extension Host lo traduce a `lumen.exitMode`.
+Botón/tecla y comando comparten así la misma lógica.
+
+No existen todavía `lumen.compileCurrentExercise`, `lumen.askTutor`, ni los
+keybindings de `F9` y `Ctrl + Shift + R`. La extensión setea `lumen.inMode` y
+`lumen.mode`, la base de los `when` futuros.
 
 Tambien existen scripts npm/Bun para build local y performance, pero no son
 comandos contribuidos a VS Code.

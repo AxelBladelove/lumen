@@ -1,8 +1,10 @@
 import lumenLogoUrl from "../../../assets/brand/lumen-logo.svg?url";
+import lumenWordmarkUrl from "../../../assets/brand/lumen-wordmark.webp?url";
 
 export const lumenBrand = {
   name: "Lumen",
-  logoUrl: lumenLogoUrl
+  logoUrl: lumenLogoUrl,
+  wordmarkUrl: lumenWordmarkUrl
 };
 
 export function ensureLumenFavicon(href = lumenLogoUrl) {

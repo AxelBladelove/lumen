@@ -8,8 +8,9 @@ Archivo: `Architectural-plans/extension-host/webview-provider/webview-provider.m
 frontend de Lumen dentro de VS Code.
 
 No define Lumen Mode completo ni el bridge hacia Local Engine. Su
-responsabilidad es explicar como `LumenRoutePathViewProvider` crea la webview,
-inyecta CSP, resuelve assets, recibe mensajes y guarda reportes de performance.
+responsabilidad es explicar como el Extension Host sirve el frontend en una
+webview, inyecta CSP, resuelve assets, recibe mensajes y guarda reportes de
+performance.
 
 ## Estado actual del repo
 
@@ -18,18 +19,23 @@ La implementacion vive en:
 ```txt
 extension/src/extension.ts
 extension/src/lumenRoutePathViewProvider.ts
+extension/src/lumenWebviewContent.ts
+extension/src/lumenLayout.ts
 extension/src/lumenEntry.ts
 extension/src/lumenEntryState.ts
 extension/src/lumenProtocol.ts
 ```
 
-`extension.ts` registra:
+La superficie de Lumen es una sola: la Webview View `lumen.routePath` del
+Activity Bar, servida por `LumenRoutePathViewProvider`. Renderiza el frontend
+completo dentro del sidebar, se registra con `retainContextWhenHidden: true`
+(el WebGL sobrevive al ocultarse) y, al hacerse visible por un gesto del
+usuario, dispara `lumen.enterMode` para aplicar el layout enfocado.
 
-- `LumenRoutePathViewProvider`;
-- `lumen.open`;
-- `lumen.enterMode`;
-- `lumen.exitMode`;
-- `lumen.refreshWebview`.
+`lumenWebviewContent.ts` contiene la construccion de HTML/CSP/nonce.
+
+`extension.ts` registra el provider, mas `lumen.open`, `lumen.enterMode`,
+`lumen.exitMode` y `lumen.refreshWebview`.
 
 ## Carga del Frontend
 
@@ -81,17 +87,9 @@ abrir acceso arbitrario.
 
 ## Estado de Entrada
 
-Cuando la view se resuelve sin `entryState`, el provider activa:
-
-```txt
-lumen.inMode = true
-lumen.mode = route
-```
-
-Luego envia `lumen.entry.state` con `phase: "mock-route-path-view"`.
-
-Este comportamiento es temporal del mock. El layout completo de Lumen Mode
-todavia no esta implementado.
+El estado de entrada lo fija `lumen.enterMode` (ver `enter-lumen-mode.md`): el
+panel recibe `lumen.entry.state` con `phase: "mock-route-path-view"` al crearse
+y en cada `frontend.ready`.
 
 ## Perf Report
 
@@ -112,7 +110,7 @@ Los reportes `steady-frame-sample` tambien se resumen en el output channel
 
 ## Reglas Deterministas
 
-El provider sirve solo `lumen.routePath`.
+El frontend completo se sirve en la view `lumen.routePath`.
 
 El provider no compila ejercicios.
 

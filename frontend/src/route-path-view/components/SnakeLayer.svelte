@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import WebGLSnake from "../../webgl-snake/WebGLSnake.svelte";
   import { buildEffectFeatures, materialEffectsV1 } from "../../webgl-snake/materialPresets";
   import type { ModuleTheme, SnakePathConfig } from "../types/routePath";
@@ -10,6 +11,9 @@
   export let renderScale = 1;
 
   const stageSize = { width: 1086, height: 1448 };
+  const identityTransform = { x: 0, y: 0, scale: 1 };
+  const deterministicVisualTest =
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("lumenPerfVisual");
   const effectFeatures = buildEffectFeatures(materialEffectsV1);
   const lockedMaterialEffects = {
     ...materialEffectsV1,
@@ -30,7 +34,24 @@
     }
   };
   const lockedEffectFeatures = buildEffectFeatures(lockedMaterialEffects);
-  const identityTransform = { x: 0, y: 0, scale: 1 };
+  let webglFirstRender = false;
+
+  onMount(() => {
+    (window as any).__LUMEN_DEFERRED_STATUS__ = {
+      ...(window as any).__LUMEN_DEFERRED_STATUS__,
+      webglSnake: "loading"
+    };
+
+    const handleFirstRender = () => {
+      webglFirstRender = true;
+      (window as any).__LUMEN_DEFERRED_STATUS__.webglSnake = "loaded";
+    };
+    window.addEventListener("lumen:webgl-first-rendered", handleFirstRender);
+
+    return () => {
+      window.removeEventListener("lumen:webgl-first-rendered", handleFirstRender);
+    };
+  });
 
   $: splitT = Math.max(0, Math.min(1, lockedStartT));
   $: snakeSegments = [
@@ -46,7 +67,8 @@
       rangeEnd: splitT,
       showStartCap: true,
       showEndCap: false,
-      capStyle: "liquid" as const
+      capStyle: "liquid" as const,
+      freezeTime: deterministicVisualTest
     },
     {
       id: "locked",
@@ -60,12 +82,13 @@
       rangeEnd: 1,
       showStartCap: false,
       showEndCap: true,
-      capStyle: "gray" as const
+      capStyle: "gray" as const,
+      freezeTime: deterministicVisualTest
     }
   ];
 </script>
 
-<div class="snake-layer" aria-hidden="true">
+<div class:webgl-ready={webglFirstRender} class="snake-layer" aria-hidden="true">
   <WebGLSnake
     pathD={path.pathD}
     size={stageSize}

@@ -1,7 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as vscode from "vscode";
-import { resolveLumenEntryState } from "./lumenEntryState";
 import { lumenWebviewProtocolVersion, type LumenEntryState } from "./lumenProtocol";
+import { getLumenFrontendHtml, getLumenFrontendResourceRoots } from "./lumenWebviewContent";
+
+type LumenModePhase = "idle" | "entering" | "active";
 
 type LumenWebviewMessage =
   | {
@@ -28,28 +30,63 @@ type LumenWebviewMessage =
         fromNodeId?: string;
         nextNodeId?: string;
       };
+    }
+  | {
+      type: "lumen.exit.requested";
+      payload: Record<string, never>;
+    }
+  | {
+      type: "perf.report";
+      payload: {
+        label: string;
+        navigation: {
+          domContentLoadedMs: number | null;
+          loadMs: number | null;
+        };
+        marks: Record<string, number>;
+        measures?: Record<string, number>;
+        frameStats?: {
+          frames: number;
+          avgFrameMs: number | null;
+          p95FrameMs: number | null;
+          maxFrameMs: number | null;
+          overBudgetFrames: number;
+        };
+        webglStats?: Record<string, unknown> | null;
+        routePresent: boolean;
+        canvasPresent: boolean;
+        nodeCount: number;
+        visibilityState: string;
+        hasFocus: boolean;
+      };
     };
 
+/**
+ * Vista principal de Lumen en el Activity Bar. Renderiza el frontend completo
+ * dentro del sidebar (la UI de Lumen ES la vista de la extension). Al hacerse
+ * visible por un gesto del usuario dispara `lumen.enterMode`, que aplica el
+ * layout enfocado y mueve el sidebar a la derecha. VS Code persiste de forma
+ * nativa el ancho del sidebar entre sesiones.
+ */
 export class LumenRoutePathViewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = "lumen.routePath";
 
   private view: vscode.WebviewView | undefined;
+  private phase: LumenModePhase = "idle";
   private entryState: LumenEntryState | undefined;
-  private readonly outputChannel = vscode.window.createOutputChannel("Lumen");
 
-  constructor(private readonly context: vscode.ExtensionContext) {
-    context.subscriptions.push(this.outputChannel);
-  }
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly outputChannel: vscode.OutputChannel,
+    private readonly onLaunchRequested: () => void
+  ) {}
 
   async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
     this.view = webviewView;
 
-    const frontendDistUri = vscode.Uri.joinPath(this.context.extensionUri, "frontend", "dist");
-    const brandAssetsUri = vscode.Uri.joinPath(this.context.extensionUri, "assets");
-
     webviewView.webview.options = {
       enableScripts: true,
-      localResourceRoots: [frontendDistUri, brandAssetsUri]
+      localResourceRoots: getLumenFrontendResourceRoots(this.context)
     };
 
     webviewView.webview.onDidReceiveMessage(
@@ -58,29 +95,60 @@ export class LumenRoutePathViewProvider implements vscode.WebviewViewProvider {
       this.context.subscriptions
     );
 
-    webviewView.webview.html = await this.getHtml(webviewView.webview);
+    webviewView.onDidChangeVisibility(
+      () => {
+        if (webviewView.visible) this.maybeAutoEnter();
+      },
+      undefined,
+      this.context.subscriptions
+    );
 
-    if (!this.entryState) {
-      await vscode.commands.executeCommand("setContext", "lumen.inMode", true);
-      await vscode.commands.executeCommand("setContext", "lumen.mode", "route");
-      this.setEntryState(resolveLumenEntryState(true));
-    }
+    webviewView.webview.html = await getLumenFrontendHtml(this.context, webviewView.webview);
+    this.maybeAutoEnter();
+  }
+
+  setPhase(phase: LumenModePhase) {
+    this.phase = phase;
+    this.postPhase();
+  }
+
+  async reveal() {
+    await vscode.commands
+      .executeCommand(`${LumenRoutePathViewProvider.viewType}.focus`)
+      .then(undefined, () => undefined);
   }
 
   async refresh() {
-    if (!this.view) {
-      await vscode.commands.executeCommand("lumen.open");
-      return;
-    }
-
-    this.view.webview.html = await this.getHtml(this.view.webview);
+    if (!this.view) return false;
+    this.view.webview.html = await getLumenFrontendHtml(this.context, this.view.webview);
+    return true;
   }
 
   setEntryState(entryState: LumenEntryState) {
     this.entryState = entryState;
+    this.postEntryState();
+  }
+
+  private maybeAutoEnter() {
+    if (this.phase !== "idle") return;
+    this.onLaunchRequested();
+  }
+
+  private postEntryState() {
+    if (!this.entryState) return;
     this.postToWebview({
       type: "lumen.entry.state",
-      payload: entryState
+      payload: this.entryState
+    });
+  }
+
+  private postPhase() {
+    if (this.phase === "idle") return;
+    this.postToWebview({
+      type: "lumen.entry.transition",
+      payload: {
+        phase: this.phase
+      }
     });
   }
 
@@ -100,12 +168,8 @@ export class LumenRoutePathViewProvider implements vscode.WebviewViewProvider {
             message: "Lumen Extension Host connected."
           }
         });
-        if (this.entryState) {
-          this.postToWebview({
-            type: "lumen.entry.state",
-            payload: this.entryState
-          });
-        }
+        this.postEntryState();
+        this.postPhase();
         break;
 
       case "route.node.selected":
@@ -121,118 +185,48 @@ export class LumenRoutePathViewProvider implements vscode.WebviewViewProvider {
           }`
         );
         break;
+
+      case "lumen.exit.requested":
+        void vscode.commands.executeCommand("lumen.exitMode");
+        break;
+
+      case "perf.report":
+        void this.writePerfReport(message.payload);
+        break;
+    }
+  }
+
+  private async writePerfReport(payload: Extract<LumenWebviewMessage, { type: "perf.report" }>["payload"]) {
+    const perfDirectory = vscode.Uri.joinPath(this.context.extensionUri, ".lumen-perf");
+    const perfFile = vscode.Uri.joinPath(perfDirectory, "vscode-webview.jsonl");
+    const report = {
+      capturedAt: new Date().toISOString(),
+      viewType: LumenRoutePathViewProvider.viewType,
+      ...payload
+    };
+
+    try {
+      await fs.mkdir(perfDirectory.fsPath, { recursive: true });
+      await fs.appendFile(perfFile.fsPath, `${JSON.stringify(report)}\n`, "utf8");
+      if (payload.label === "steady-frame-sample") {
+        this.outputChannel.appendLine(
+          `Perf steady-frame-sample: load=${payload.navigation.loadMs ?? "n/a"}ms, p95=${
+            payload.frameStats?.p95FrameMs ?? "n/a"
+          }ms, webgl=${formatNumber(payload.webglStats?.lastRenderMs)}ms`
+        );
+      }
+    } catch (error) {
+      this.outputChannel.appendLine(
+        `Unable to write perf report: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
   private postToWebview(message: unknown) {
     this.view?.webview.postMessage(message);
   }
-
-  private async getHtml(webview: vscode.Webview): Promise<string> {
-    const frontendDistUri = vscode.Uri.joinPath(this.context.extensionUri, "frontend", "dist");
-    const indexUri = vscode.Uri.joinPath(frontendDistUri, "index.html");
-    const logoUri = vscode.Uri.joinPath(this.context.extensionUri, "assets", "brand", "lumen-logo.svg");
-    const nonce = createNonce();
-
-    try {
-      const html = await fs.readFile(indexUri.fsPath, "utf8");
-      return this.prepareBuiltFrontendHtml(webview, html, frontendDistUri, logoUri, nonce);
-    } catch {
-      return this.getMissingBuildHtml(webview, logoUri, nonce);
-    }
-  }
-
-  private prepareBuiltFrontendHtml(
-    webview: vscode.Webview,
-    html: string,
-    frontendDistUri: vscode.Uri,
-    logoUri: vscode.Uri,
-    nonce: string
-  ) {
-    const distBase = withTrailingSlash(webview.asWebviewUri(frontendDistUri).toString());
-    const logoWebviewUri = webview.asWebviewUri(logoUri);
-    const csp = this.createContentSecurityPolicy(webview, nonce);
-
-    const headInjection = [
-      `<base href="${distBase}">`,
-      `<meta http-equiv="Content-Security-Policy" content="${csp}">`,
-      `<link rel="icon" type="image/svg+xml" href="${logoWebviewUri}">`,
-      `<script nonce="${nonce}">window.__LUMEN_WEBVIEW_BOOTSTRAP__={protocolVersion:${lumenWebviewProtocolVersion},mode:"mock"};</script>`
-    ].join("\n");
-
-    return html
-      .replace(/<script\b(?![^>]*\bnonce=)/g, `<script nonce="${nonce}"`)
-      .replace(/<head>/i, `<head>\n${headInjection}`);
-  }
-
-  private getMissingBuildHtml(webview: vscode.Webview, logoUri: vscode.Uri, nonce: string) {
-    const logoWebviewUri = webview.asWebviewUri(logoUri);
-    const csp = this.createContentSecurityPolicy(webview, nonce);
-
-    return `<!doctype html>
-<html lang="es">
-  <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="${csp}">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/svg+xml" href="${logoWebviewUri}">
-    <title>Lumen</title>
-    <style>
-      body {
-        display: grid;
-        min-height: 100vh;
-        margin: 0;
-        place-items: center;
-        color: #dff8ff;
-        background: #02070b;
-        font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      }
-      main {
-        width: min(340px, calc(100vw - 40px));
-        text-align: center;
-      }
-      img {
-        width: 58px;
-        height: auto;
-        margin-bottom: 18px;
-      }
-      code {
-        color: #80d8ff;
-      }
-    </style>
-  </head>
-  <body>
-    <main>
-      <img src="${logoWebviewUri}" alt="Lumen">
-      <h1>Lumen</h1>
-      <p>El frontend todavía no está compilado. Ejecuta <code>bun run build</code> en la raíz del repo y vuelve a abrir Lumen.</p>
-    </main>
-  </body>
-</html>`;
-  }
-
-  private createContentSecurityPolicy(webview: vscode.Webview, nonce: string) {
-    return [
-      "default-src 'none'",
-      `img-src ${webview.cspSource} data: blob:`,
-      `font-src ${webview.cspSource}`,
-      `style-src ${webview.cspSource} 'unsafe-inline'`,
-      `script-src ${webview.cspSource} 'nonce-${nonce}'`,
-      `connect-src ${webview.cspSource}`,
-      "worker-src blob:"
-    ].join("; ");
-  }
 }
 
-function createNonce() {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let nonce = "";
-  for (let index = 0; index < 32; index += 1) {
-    nonce += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return nonce;
-}
-
-function withTrailingSlash(value: string) {
-  return value.endsWith("/") ? value : `${value}/`;
+function formatNumber(value: unknown) {
+  return typeof value === "number" ? Math.round(value * 10) / 10 : "n/a";
 }

@@ -16,8 +16,13 @@ export type PathSampler = {
 };
 
 const identityTransform: PathTransform = { x: 0, y: 0, scale: 1 };
+const samplerCache = new Map<string, PathSampler>();
 
 export function createPathSampler(pathD: string, transform: PathTransform = identityTransform): PathSampler {
+  const cacheKey = `${transform.x}:${transform.y}:${transform.scale}:${pathD}`;
+  const cachedSampler = samplerCache.get(cacheKey);
+  if (cachedSampler) return cachedSampler;
+
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("d", pathD);
   const rawLength = path.getTotalLength();
@@ -29,7 +34,7 @@ export function createPathSampler(pathD: string, transform: PathTransform = iden
     y: point.y * transform.scale + transform.y
   });
 
-  return {
+  const sampler = {
     totalLength,
     pointAt(pathT: number) {
       const rawDistance = Math.max(0, Math.min(1, pathT)) * rawLength;
@@ -54,4 +59,7 @@ export function createPathSampler(pathD: string, transform: PathTransform = iden
       };
     }
   };
+
+  samplerCache.set(cacheKey, sampler);
+  return sampler;
 }

@@ -34,6 +34,216 @@ button {
   font: inherit;
 }
 
+.lumen-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--text-hot);
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(0, 146, 252, 0.18), transparent 34%),
+    radial-gradient(ellipse at 50% 58%, rgba(2, 10, 20, 0.88), rgba(1, 4, 9, 0.98) 70%),
+    #010508;
+  transform-origin: 50% 50%;
+  will-change: opacity, transform, filter;
+}
+
+.lumen-intro::before,
+.lumen-intro::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lumen-intro::before {
+  opacity: 0.34;
+  background:
+    linear-gradient(112deg, transparent 0 32%, rgba(0, 146, 252, 0.08) 46%, transparent 62%),
+    repeating-linear-gradient(90deg, rgba(125, 178, 217, 0.014) 0 1px, transparent 1px 82px);
+}
+
+.lumen-intro::after {
+  background: radial-gradient(ellipse at center, transparent 0 42%, rgba(0, 0, 0, 0.62) 100%);
+}
+
+.lumen-intro-mark {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  opacity: 0;
+  transform: translateY(2px) scale(0.985);
+  will-change: opacity, transform, filter;
+}
+
+.lumen-intro.intro-assets-ready .lumen-intro-mark {
+  animation: lumenIntroMark 1.4s cubic-bezier(0.18, 0.88, 0.22, 1) both;
+}
+
+.lumen-intro-mark img.lumen-intro-logo {
+  width: 92px;
+  height: 92px;
+  object-fit: contain;
+  filter:
+    drop-shadow(0 0 18px rgba(0, 146, 252, 0.46))
+    drop-shadow(0 18px 38px rgba(0, 0, 0, 0.62));
+}
+
+.lumen-intro-mark img.lumen-intro-wordmark {
+  width: auto;
+  height: 40px;
+  object-fit: contain;
+  filter:
+    drop-shadow(0 0 16px rgba(0, 146, 252, 0.34))
+    drop-shadow(0 8px 24px rgba(0, 0, 0, 0.65));
+}
+
+.lumen-intro-bar {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: calc(50% + 104px);
+  width: min(232px, calc(100vw - 96px));
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(54, 76, 96, 0.42);
+  box-shadow:
+    inset 0 1px 1px rgba(244, 252, 251, 0.12),
+    0 0 24px rgba(0, 146, 252, 0.14);
+  transform: translateX(-50%);
+}
+
+.lumen-intro-bar i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse at 72% 50%, rgba(244, 252, 251, 0.86), transparent 48%),
+    linear-gradient(90deg, #0092fc, #5fc8ff);
+  box-shadow:
+    0 0 18px rgba(0, 146, 252, 0.5),
+    inset 0 1px 1px rgba(244, 252, 251, 0.4);
+  animation: lumenIntroProgressFill 400ms linear both;
+  transform: scaleX(0.01);
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.lumen-intro-percent {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: calc(50% + 118px);
+  transform: translateX(-50%);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.4px;
+  color: color-mix(in srgb, var(--text-hot) 72%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.lumen-intro.intro-exiting {
+  pointer-events: none;
+  animation: lumenIntroCurtainOut 860ms cubic-bezier(0.18, 0.78, 0.16, 1) both;
+}
+
+.lumen-intro.intro-exiting .lumen-intro-mark {
+  animation: lumenIntroMarkDive 860ms cubic-bezier(0.18, 0.78, 0.16, 1) both;
+}
+
+.lumen-intro.intro-exiting .lumen-intro-bar,
+.lumen-intro.intro-exiting .lumen-intro-percent {
+  animation: lumenIntroControlsOut 360ms cubic-bezier(0.22, 0.72, 0.2, 1) both;
+}
+
+@keyframes lumenIntroMark {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-12px) scale(1);
+  }
+}
+
+@keyframes lumenIntroMarkDive {
+  0% {
+    opacity: 1;
+    filter:
+      drop-shadow(0 0 16px rgba(0, 146, 252, 0.34))
+      drop-shadow(0 8px 24px rgba(0, 0, 0, 0.65));
+    transform: translateY(-12px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    filter:
+      blur(8px)
+      drop-shadow(0 0 52px rgba(95, 200, 255, 0.46));
+    transform: translateY(-12px) scale(3.08);
+  }
+}
+
+@keyframes lumenIntroControlsOut {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(18px) scale(0.92);
+  }
+}
+
+@keyframes lumenIntroProgressFill {
+  from {
+    transform: scaleX(0.01);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes lumenIntroCurtainOut {
+  0% {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(13px);
+    transform: scale(1.18);
+  }
+}
+
+.lumen-ui-revealing .lumen-route-app {
+  transform-origin: 50% 46%;
+  animation: lumenUiZoomReveal 860ms cubic-bezier(0.18, 0.78, 0.16, 1) both;
+  will-change: transform, filter, opacity, clip-path;
+}
+
+@keyframes lumenUiZoomReveal {
+  0% {
+    opacity: 0.64;
+    clip-path: inset(42% 46% 42% 46% round 18px);
+    filter: blur(16px) saturate(1.16) brightness(0.82);
+    transform: scale(1.34);
+  }
+  100% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0 round 0);
+    filter: blur(0) saturate(1) brightness(1);
+    transform: scale(1);
+  }
+}
+
 .lumen-route-app {
   position: relative;
   width: 100vw;
@@ -82,7 +292,7 @@ button {
   left: 0;
   top: 0;
   width: var(--layout-width, 1086px);
-  height: 1448px;
+  height: var(--stage-height, 1448px);
   overflow: hidden;
   isolation: isolate;
   transform: scale(var(--stage-scale));
@@ -185,6 +395,51 @@ button {
   top: 21px;
   font-size: 22px;
   line-height: 23px;
+}
+
+/* Layout compacto (panel angosto): pills solo-icono para no chocar con el
+   titulo centrado. */
+.route-stage.compact .back-pill,
+.route-stage.compact .modules-pill {
+  width: 86px;
+}
+
+.route-stage.compact .back-pill span,
+.route-stage.compact .modules-pill span {
+  display: none;
+}
+
+.route-stage.compact .back-pill {
+  left: 32px;
+  top: 44px;
+}
+
+.route-stage.compact .modules-pill {
+  right: 32px;
+  top: 44px;
+}
+
+.route-stage.compact .title-block {
+  left: calc(50% - 218px);
+  top: 36px;
+  width: 436px;
+}
+
+.route-stage.compact .title-block p {
+  font-size: 18px;
+  line-height: 18px;
+}
+
+.route-stage.compact .title-block h1 {
+  top: 34px;
+  font-size: 36px;
+  line-height: 38px;
+}
+
+.route-stage.compact .title-block span {
+  top: 82px;
+  font-size: 23px;
+  line-height: 24px;
 }
 
 .title-block {
@@ -369,6 +624,48 @@ button {
   min-width: 15px;
 }
 
+.route-stage.compact .progress-card {
+  left: 38px;
+  right: 38px;
+  top: 172px;
+  height: 104px;
+  border-radius: 18px;
+}
+
+.route-stage.compact .progress-metric {
+  top: 24px;
+}
+
+.route-stage.compact .progress-metric.left {
+  left: 24px;
+}
+
+.route-stage.compact .progress-metric.right {
+  right: 24px;
+}
+
+.route-stage.compact .progress-metric strong {
+  font-size: 25px;
+  line-height: 27px;
+}
+
+.route-stage.compact .progress-metric span {
+  font-size: 19px;
+  line-height: 22px;
+}
+
+.route-stage.compact .progress-segments {
+  left: 24px;
+  right: 24px;
+  top: 67px;
+  gap: 6px;
+}
+
+.route-stage.compact .progress-segments span {
+  min-width: 0;
+  height: 10px;
+}
+
 .code-ghost {
   left: calc(var(--content-offset, 0px) + 30px);
   top: 525px;
@@ -396,6 +693,12 @@ button {
   contain: layout paint style;
   pointer-events: none;
   transform: translateZ(0);
+}
+
+.route-stage.compact .snake-layer,
+.route-stage.compact .node-overlay {
+  transform: translateY(-18px) scale(var(--route-art-scale, 0.9));
+  transform-origin: 50% 55%;
 }
 
 .snake-layer .webgl-host {
@@ -477,8 +780,8 @@ button {
 }
 
 .node-contact-rim.review-repeat {
-  opacity: 0.68;
-  filter: blur(5px);
+  opacity: 0.5;
+  filter: blur(6px);
 }
 
 .node-contact-rim.active.review-muted {
@@ -496,6 +799,8 @@ button {
   opacity: 1;
   mix-blend-mode: normal;
   transform-origin: center;
+  contain: paint;
+  backface-visibility: hidden;
 }
 
 .node-shadow.active {
@@ -522,6 +827,8 @@ button {
   pointer-events: auto;
   isolation: isolate;
   overflow: visible;
+  contain: paint;
+  backface-visibility: hidden;
 }
 
 .route-node::before,
@@ -563,6 +870,7 @@ button {
 }
 
 .route-node.completed.review-repeat {
+  contain: none;
   filter:
     drop-shadow(0 14px 14px rgba(0, 0, 0, 0.58))
     drop-shadow(0 0 10px color-mix(in srgb, var(--theme-glow) 54%, transparent))
@@ -625,7 +933,7 @@ button {
 .active-text-icon.motion-unlock,
 .node-motion-sheen,
 .node-motion-spark {
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
 }
 
 .route-node.motion-complete {
@@ -637,9 +945,6 @@ button {
   background:
     radial-gradient(circle at 50% 52%, color-mix(in srgb, var(--theme-glow) 0%, transparent) 0 38%, color-mix(in srgb, var(--theme-core) 28%, transparent) 54%, transparent 74%),
     linear-gradient(125deg, transparent 0 31%, rgba(244, 255, 251, 0.38) 42%, color-mix(in srgb, var(--theme-glow) 32%, transparent) 49%, transparent 61% 100%);
-  filter:
-    blur(0.15px)
-    drop-shadow(0 0 5px color-mix(in srgb, var(--theme-glow) 34%, transparent));
   mix-blend-mode: soft-light;
   animation: nodeCompleteSurfaceSweep 560ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
 }
@@ -649,9 +954,6 @@ button {
   background:
     radial-gradient(circle at 50% 50%, transparent 0 49%, color-mix(in srgb, #ffffff 42%, var(--theme-glow)) 52%, color-mix(in srgb, var(--theme-core) 18%, transparent) 57%, transparent 66%),
     radial-gradient(circle at 35% 31%, rgba(244, 255, 251, 0.54), transparent 18%);
-  filter:
-    blur(0.45px)
-    drop-shadow(0 0 6px color-mix(in srgb, var(--theme-glow) 36%, transparent));
   mix-blend-mode: screen;
   animation: nodeCompleteInnerPulse 560ms cubic-bezier(0.18, 0.88, 0.22, 1) both;
 }
@@ -669,9 +971,6 @@ button {
   background:
     radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--theme-glow) 9%, transparent), transparent 63%),
     linear-gradient(118deg, transparent 0 30%, rgba(244, 255, 251, 0.58) 42%, color-mix(in srgb, var(--theme-glow) 42%, transparent) 49%, transparent 62% 100%);
-  filter:
-    blur(0.22px)
-    drop-shadow(0 0 8px color-mix(in srgb, var(--theme-glow) 36%, transparent));
   mix-blend-mode: screen;
   animation: nodeUnlockSurfaceWake 650ms cubic-bezier(0.18, 0.9, 0.22, 1) both;
 }
@@ -683,9 +982,6 @@ button {
     radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--theme-glow) 22%, transparent) 0 35%, color-mix(in srgb, #ffffff 14%, transparent) 50%, transparent 69%),
     radial-gradient(circle at 67% 28%, rgba(244, 255, 251, 0.42), transparent 20%);
   border-radius: 999px;
-  filter:
-    blur(1px)
-    drop-shadow(0 0 8px color-mix(in srgb, var(--theme-glow) 28%, transparent));
   mix-blend-mode: soft-light;
   animation: nodeUnlockCoreBloom 640ms cubic-bezier(0.17, 0.88, 0.22, 1) 20ms both;
 }
@@ -707,9 +1003,8 @@ button {
     radial-gradient(ellipse at 33% 24%, rgba(244, 255, 251, 0.38), transparent 20%),
     linear-gradient(118deg, transparent 0 29%, rgba(244, 255, 251, 0.58) 42%, color-mix(in srgb, var(--theme-glow) 48%, transparent) 48%, transparent 61% 100%),
     radial-gradient(circle at 52% 54%, color-mix(in srgb, var(--theme-core) 24%, transparent), transparent 64%);
-  filter:
-    blur(0.24px)
-    drop-shadow(0 0 5px color-mix(in srgb, var(--theme-glow) 24%, transparent));
+  contain: paint;
+  backface-visibility: hidden;
 }
 
 .node-motion-sheen::before,
@@ -771,6 +1066,8 @@ button {
   z-index: 5;
   pointer-events: none;
   mix-blend-mode: screen;
+  contain: paint;
+  backface-visibility: hidden;
 }
 
 .node-motion-sparks::before {
@@ -801,11 +1098,9 @@ button {
   border-radius: 999px;
   background:
     radial-gradient(circle at 38% 34%, rgba(244, 255, 251, 0.95) 0 16%, color-mix(in srgb, var(--theme-glow) 72%, #ffffff) 34%, color-mix(in srgb, var(--theme-core) 28%, transparent) 62%, transparent 74%);
-  box-shadow:
-    0 0 4px color-mix(in srgb, var(--theme-glow) 46%, transparent),
-    0 0 9px color-mix(in srgb, var(--theme-core) 22%, transparent);
   opacity: 0;
   transform: translate3d(-50%, -50%, 0) scale(0.45);
+  backface-visibility: hidden;
 }
 
 .node-motion-sparks.motion-complete .node-motion-spark {
@@ -844,6 +1139,8 @@ button {
     drop-shadow(0 0 4px rgba(244, 252, 251, 0.3))
     drop-shadow(0 0 9px color-mix(in srgb, var(--theme-glow) 22%, transparent));
   pointer-events: none;
+  contain: paint;
+  backface-visibility: hidden;
 }
 
 .active-text-icon.motion-unlock {
@@ -859,7 +1156,6 @@ button {
   background:
     radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--theme-glow) 22%, transparent), transparent 58%),
     conic-gradient(from 130deg, transparent 0 18%, rgba(244, 255, 251, 0.62) 23%, color-mix(in srgb, var(--theme-glow) 34%, transparent) 28%, transparent 38% 100%);
-  filter: blur(1px);
   mix-blend-mode: screen;
   animation: nodeIconMicroCharge 540ms cubic-bezier(0.18, 0.88, 0.22, 1) 70ms both;
   pointer-events: none;
@@ -978,6 +1274,13 @@ button {
   transform-origin: 50% 70%;
   pointer-events: none;
   will-change: transform;
+}
+
+.route-stage.compact .hero-text-input {
+  left: calc(var(--content-offset, 0px) + 686px);
+  top: 350px;
+  width: 340px;
+  height: 340px;
 }
 
 .hero-sticker-shell {
@@ -1273,16 +1576,10 @@ button {
 @keyframes nodeCompleteSettle {
   0% {
     transform: scale(1.42);
-    filter:
-      drop-shadow(0 16px 16px rgba(0, 0, 0, 0.56))
-      drop-shadow(0 0 22px color-mix(in srgb, var(--theme-glow) 52%, transparent));
   }
 
   42% {
     transform: scale(0.92);
-    filter:
-      drop-shadow(0 10px 10px rgba(0, 0, 0, 0.62))
-      drop-shadow(0 0 18px color-mix(in srgb, var(--theme-core) 46%, transparent));
   }
 
   68% {
@@ -1358,15 +1655,15 @@ button {
 
 @keyframes nodeCompleteAssetSeal {
   0% {
-    filter: var(--node-tint) brightness(1.18) saturate(1.12);
+    opacity: 0.94;
   }
 
   38% {
-    filter: var(--node-tint) brightness(1.44) saturate(1.22);
+    opacity: 1;
   }
 
   100% {
-    filter: var(--node-tint);
+    opacity: 1;
   }
 }
 
@@ -1374,18 +1671,11 @@ button {
   0% {
     opacity: 0.92;
     transform: scale(0.72);
-    filter:
-      drop-shadow(0 12px 14px rgba(0, 0, 0, 0.58))
-      drop-shadow(0 0 8px rgba(160, 142, 204, 0.22));
   }
 
   42% {
     opacity: 1;
     transform: scale(1.08);
-    filter:
-      drop-shadow(0 17px 17px rgba(0, 0, 0, 0.56))
-      drop-shadow(0 0 13px color-mix(in srgb, var(--theme-glow) 56%, transparent))
-      drop-shadow(0 0 24px color-mix(in srgb, var(--theme-glow) 20%, transparent));
   }
 
   72% {
@@ -1443,15 +1733,15 @@ button {
 
 @keyframes nodeUnlockAssetReveal {
   0% {
-    filter: var(--node-tint) brightness(0.72) saturate(0.82);
+    opacity: 0.9;
   }
 
   34% {
-    filter: var(--node-tint) brightness(1.38) saturate(1.18);
+    opacity: 1;
   }
 
   100% {
-    filter: var(--node-tint);
+    opacity: 1;
   }
 }
 
@@ -1552,19 +1842,16 @@ button {
   0% {
     opacity: 0;
     transform: scale(0.62);
-    filter: blur(0.5px);
   }
 
   42% {
     opacity: 0.62;
     transform: scale(0.92);
-    filter: blur(0);
   }
 
   100% {
     opacity: 0;
     transform: scale(1.08);
-    filter: blur(0.7px);
   }
 }
 
@@ -1605,7 +1892,6 @@ button {
   0% {
     opacity: 0;
     transform: translate3d(-50%, -50%, 0) scale(0.45);
-    filter: blur(0);
   }
 
   28% {
@@ -1616,7 +1902,6 @@ button {
   100% {
     opacity: 0;
     transform: translate3d(calc(-50% + var(--spark-dx)), calc(-50% + var(--spark-dy)), 0) scale(0.58);
-    filter: blur(0.7px);
   }
 }
 
@@ -1624,7 +1909,6 @@ button {
   0% {
     opacity: 0;
     transform: translate3d(-50%, -50%, 0) scale(0.34);
-    filter: blur(0.2px);
   }
 
   22% {
@@ -1634,13 +1918,11 @@ button {
   48% {
     opacity: 0.9;
     transform: translate3d(calc(-50% + var(--spark-dx) * 0.42), calc(-50% + var(--spark-dy) * 0.42), 0) scale(1.08);
-    filter: blur(0);
   }
 
   100% {
     opacity: 0;
     transform: translate3d(calc(-50% + var(--spark-dx) * 1.08), calc(-50% + var(--spark-dy) * 1.08), 0) scale(0.62);
-    filter: blur(0.8px);
   }
 }
 
@@ -1648,13 +1930,11 @@ button {
   0% {
     opacity: 1;
     transform: rotate(var(--node-shadow-angle)) scale(1.22);
-    filter: blur(5px);
   }
 
   100% {
     opacity: 1;
     transform: rotate(var(--node-shadow-angle)) scale(1);
-    filter: blur(3.75px);
   }
 }
 
@@ -1662,19 +1942,16 @@ button {
   0% {
     opacity: 0.74;
     transform: rotate(var(--node-shadow-angle)) scale(0.74);
-    filter: blur(2.5px);
   }
 
   48% {
     opacity: 1;
     transform: rotate(var(--node-shadow-angle)) scale(1.12);
-    filter: blur(4.6px);
   }
 
   100% {
     opacity: 1;
     transform: rotate(var(--node-shadow-angle)) scale(1);
-    filter: blur(4.25px);
   }
 }
 
@@ -1694,19 +1971,16 @@ button {
   0% {
     opacity: 0.58;
     transform: translate3d(-10px, 5px, 0) scale(0.96);
-    filter: blur(0.5px);
   }
 
   50% {
     opacity: 1;
     transform: translate3d(2px, -2px, 0) scale(1.02);
-    filter: blur(0);
   }
 
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
-    filter: blur(0);
   }
 }
 
@@ -1714,9 +1988,6 @@ button {
   0% {
     opacity: 0;
     transform: translate3d(0, 5px, 0) scale(0.78);
-    filter:
-      drop-shadow(0 0 2px rgba(244, 252, 251, 0.18))
-      drop-shadow(0 0 4px color-mix(in srgb, var(--theme-glow) 10%, transparent));
   }
 
   54% {
@@ -1843,6 +2114,44 @@ button {
     inset 0 -20px 38px rgba(0, 0, 0, 0.22),
     0 -22px 62px rgba(0, 0, 0, 0.24),
     0 0 34px color-mix(in srgb, var(--theme-glow) 4%, transparent);
+}
+
+.route-stage.compact .bottom-cta {
+  left: 48px;
+  right: 48px;
+  top: 1188px;
+  height: 86px;
+  border-radius: 18px;
+}
+
+.route-stage.compact .bottom-cta .menu-icon {
+  left: 28px;
+  top: 27px;
+  width: 32px;
+  height: 32px;
+}
+
+.route-stage.compact .bottom-cta p {
+  left: 84px;
+  right: 96px;
+  top: 29px;
+  font-size: 19px;
+  line-height: 24px;
+}
+
+.route-stage.compact .bottom-cta button {
+  right: 18px;
+  top: 16px;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+}
+
+.route-stage.compact .bottom-cta button svg {
+  left: 11px;
+  top: 11px;
+  width: 32px;
+  height: 32px;
 }
 
 .bottom-cta .menu-icon {

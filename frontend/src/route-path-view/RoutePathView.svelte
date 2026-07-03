@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import BottomCta from "./components/BottomCta.svelte";
+  import HeroTextSticker from "./components/HeroTextSticker.svelte";
   import NodeOverlay from "./components/NodeOverlay.svelte";
   import ProgressCard from "./components/ProgressCard.svelte";
-  import HeroTextSticker from "./components/HeroTextSticker.svelte";
   import RouteHeader from "./components/RouteHeader.svelte";
   import SnakeLayer from "./components/SnakeLayer.svelte";
   import { createPathSampler, type PathSampler } from "./path/pathMetrics";
@@ -19,7 +19,10 @@
   const stage = { width: 1086, height: 1448 };
   let scale = 1;
   let layoutWidth = stage.width;
+  let layoutHeight = stage.height;
   let contentOffset = 0;
+  let compactLayout = false;
+  let routeArtScale = 1;
   let displayedLockedStartT = 0;
   let splitAnimationFrame = 0;
   let splitAnimationTarget = -1;
@@ -27,7 +30,11 @@
   let isAdvancing = false;
   let advanceCommitDone = false;
   let mounted = false;
-  let pathSampler: PathSampler | null = null;
+  let deferredVisualsReady = false;
+  let pathSampler: PathSampler | null =
+    typeof document !== "undefined" && module?.path?.pathD
+      ? createPathSampler(module.path.pathD, module.path.transform)
+      : null;
   let nodeMotionById: Record<string, NodeMotion> = {};
   let nodeMotionTimers: number[] = [];
   let reviewNodeId: string | null = null;
@@ -40,25 +47,37 @@
   function updateScale() {
     const marginX = 28;
     const marginY = 22;
+    const availableWidth = window.innerWidth - marginX;
+    const availableHeight = window.innerHeight - marginY;
+    // En paneles angostos (Lumen como columna derecha del editor) el layout se
+    // compacta antes de bajar la escala global: el chrome anclado a bordes
+    // conserva tamano legible y la ruta/snake absorbe el ajuste visual.
+    const isNarrowPanel = availableWidth < 820;
+    const compactLayoutWidth = isNarrowPanel ? 700 : 860;
+    const compactStageHeight = isNarrowPanel ? 1304 : stage.height;
     const nextScale = Math.max(
       0.32,
-      Math.min(1, (window.innerWidth - marginX) / stage.width, (window.innerHeight - marginY) / stage.height)
+      Math.min(1, availableWidth / compactLayoutWidth, availableHeight / compactStageHeight)
     );
-    const expandedWidth = (window.innerWidth - marginX) / nextScale;
+    const expandedWidth = availableWidth / nextScale;
+    compactLayout = isNarrowPanel;
     scale = nextScale;
-    layoutWidth = Math.max(stage.width, Math.min(2200, expandedWidth));
+    layoutHeight = compactStageHeight;
+    layoutWidth = Math.max(compactLayoutWidth, Math.min(2200, expandedWidth));
     contentOffset = (layoutWidth - stage.width) / 2;
+    routeArtScale = compactLayout ? 0.9 : 1;
   }
 
   onMount(() => {
+    performance.mark("lumen:route-mounted");
     mounted = true;
-    pathSampler = createPathSampler(module.path.pathD, module.path.transform);
     updateScale();
     window.addEventListener("resize", updateScale);
     window.addEventListener("lumen:exercise-completed", handleExerciseCompletedEvent);
     displayedLockedStartT = lockedStartT;
     splitAnimationTarget = lockedStartT;
     splitAnimationReady = true;
+    loadDeferredVisuals();
 
     return () => {
       window.removeEventListener("resize", updateScale);
@@ -68,7 +87,7 @@
     };
   });
 
-  $: if (mounted && module?.path?.pathD) {
+  $: if (module?.path?.pathD) {
     pathSampler = createPathSampler(module.path.pathD, module.path.transform);
   }
 
@@ -84,6 +103,16 @@
   ];
 
   const heroAsset = publicAsset("assets/route-hero/strings-chat-reference-hero.runtime.webp");
+
+  function loadDeferredVisuals() {
+    (window as any).__LUMEN_DEFERRED_STATUS__ = {
+      ...(window as any).__LUMEN_DEFERRED_STATUS__,
+      routeVisuals: "loading"
+    };
+
+    deferredVisualsReady = true;
+    (window as any).__LUMEN_DEFERRED_STATUS__.routeVisuals = "loaded";
+  }
 
   let activeNodeIndex = -1;
 
@@ -122,11 +151,14 @@
   }
 
   function continueToNextNode() {
-    onContinueRequest?.({
-      fromNodeId: activeNode?.id,
-      nextNodeId: nextNode?.id
-    });
+    performance.mark("lumen:continue-pressed");
+    const fromNodeId = activeNode?.id;
+    const nextNodeId = nextNode?.id;
     completeActiveExercise();
+    onContinueRequest?.({
+      fromNodeId,
+      nextNodeId
+    });
   }
 
   function handleNodeSelect(node: RoutePathNode) {
@@ -162,6 +194,8 @@
     isAdvancing = true;
     advanceCommitDone = false;
     reviewNodeId = null;
+    performance.mark("lumen:route-advance-start");
+    window.dispatchEvent(new CustomEvent("lumen:route-advance-started"));
     const commitAtT = nodeEdgeCommitT(displayedLockedStartT, targetNode);
 
     animateUnlockedRoute(displayedLockedStartT, targetNode.pathT, commitAtT, () => {
@@ -233,8 +267,14 @@
     const duration = routeAnimationDuration;
     const startKick = routeStartKick;
     displayedLockedStartT = from + (to - from) * startKick;
+    performance.mark("lumen:route-advance-kick");
+    progressFrameNotMarked = true;
 
     function tick(now: number) {
+      if (progressFrameNotMarked) {
+        performance.mark("lumen:route-advance-first-frame");
+        progressFrameNotMarked = false;
+      }
       const progress = Math.min(1, (now - startTime) / duration);
       const easedProgress = startKick + (1 - startKick) * easeRouteTravel(progress);
       displayedLockedStartT = from + (to - from) * easedProgress;
@@ -254,24 +294,29 @@
 
     splitAnimationFrame = requestAnimationFrame(tick);
   }
+
+  let progressFrameNotMarked = false;
 </script>
 
 <main class="lumen-route-app" style={themeVars(module.theme)}>
   <div
     class="stage-viewport"
-    style={`width:${layoutWidth * scale}px; height:${stage.height * scale}px;`}
+    style={`width:${layoutWidth * scale}px; height:${layoutHeight * scale}px;`}
   >
     <section
       class="route-stage"
+      class:compact={compactLayout}
       aria-label={`${module.routeTitle}, módulo ${module.moduleNumber}: ${module.title}`}
-      style={`--stage-scale:${scale}; --layout-width:${layoutWidth}px; --content-offset:${contentOffset}px;`}
+      style={`--stage-scale:${scale}; --layout-width:${layoutWidth}px; --stage-height:${layoutHeight}px; --content-offset:${contentOffset}px; --route-art-scale:${routeArtScale};`}
     >
       <div class="background-layer"></div>
-      <div class="code-ghost" aria-hidden="true">
-        {#each codeLines as line}
-          <span>{line || "\u00a0"}</span>
-        {/each}
-      </div>
+      {#if deferredVisualsReady}
+        <div class="code-ghost" aria-hidden="true">
+          {#each codeLines as line}
+            <span>{line || "\u00a0"}</span>
+          {/each}
+        </div>
+      {/if}
 
       <RouteHeader
         routeTitle={module.routeTitle}
@@ -280,27 +325,35 @@
         subtitle={module.subtitle}
       />
 
-      <ProgressCard completed={completedCount} total={module.total} percent={completionPercent} />
+      {#if deferredVisualsReady}
+        <ProgressCard completed={completedCount} total={module.total} percent={completionPercent} />
+      {/if}
 
       <SnakeLayer path={module.path} theme={module.theme} lockedStartT={displayedLockedStartT} renderScale={scale} />
-      <NodeOverlay
-        path={module.path}
-        nodes={interactiveNodes}
-        theme={module.theme}
-        isReviewing={Boolean(reviewNodeId)}
-        onNodeSelect={handleNodeSelect}
-      />
+      {#if deferredVisualsReady}
+        <NodeOverlay
+          path={module.path}
+          nodes={interactiveNodes}
+          theme={module.theme}
+          isReviewing={Boolean(reviewNodeId)}
+          onNodeSelect={handleNodeSelect}
+        />
+      {/if}
 
       <div class="hero-text-input">
-        <HeroTextSticker src={heroAsset} />
+        {#if deferredVisualsReady}
+          <HeroTextSticker src={heroAsset} />
+        {/if}
       </div>
 
-      <BottomCta
-        label={module.nextAction.label}
-        targetTitle={nextTargetTitle}
-        disabled={!canContinue}
-        onContinue={continueToNextNode}
-      />
+      {#if deferredVisualsReady}
+        <BottomCta
+          label={module.nextAction.label}
+          targetTitle={nextTargetTitle}
+          disabled={!canContinue}
+          onContinue={continueToNextNode}
+        />
+      {/if}
     </section>
   </div>
 </main>

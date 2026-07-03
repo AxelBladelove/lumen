@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import NodeStringInputIcon from "./NodeStringInputIcon.svelte";
   import { createPathSampler, type PathSampler } from "../path/pathMetrics";
   import { publicAsset } from "../theme/moduleTheme";
@@ -11,8 +10,10 @@
   export let isReviewing = false;
   export let onNodeSelect: ((node: RoutePathNode) => void) | undefined = undefined;
 
-  let sampler: PathSampler | null = null;
-  let mounted = false;
+  let sampler: PathSampler | null =
+    typeof document !== "undefined" && path?.pathD
+      ? createPathSampler(path.pathD, path.transform)
+      : null;
   let placedNodes: Array<{ node: RoutePathNode; place: ReturnType<typeof placement> }> = [];
 
   const assets = {
@@ -39,12 +40,7 @@
     { x: 14, y: 44, dx: -16, dy: -2, size: 2.9, delay: 130 }
   ];
 
-  onMount(() => {
-    mounted = true;
-    sampler = createPathSampler(path.pathD, path.transform);
-  });
-
-  $: if (mounted && path?.pathD) {
+  $: if (path?.pathD) {
     sampler = createPathSampler(path.pathD, path.transform);
   }
 
@@ -200,9 +196,9 @@
       <img
         src={assets[node.status]}
         alt=""
-        loading="eager"
+        loading="lazy"
         decoding="async"
-        fetchpriority={node.status === "active" || node.status === "completed" ? "high" : "auto"}
+        fetchpriority="low"
         draggable="false"
       />
       {#if node.status === "active"}
