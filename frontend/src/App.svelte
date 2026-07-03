@@ -12,10 +12,11 @@
   import { createVscodeBridge } from "./webview/vscodeBridge";
 
   const bridge = createVscodeBridge();
+  const runningInExtensionHost = bridge.isConnected;
   const holdIntroForVisualTest =
     typeof window !== "undefined" && new URLSearchParams(window.location.search).has("lumenPerfHoldIntro");
   let routeModule = createInitialRouteModule();
-  let introVisible = true;
+  let introVisible = holdIntroForVisualTest || !runningInExtensionHost;
   let introExiting = false;
   let introAssetsReady = false;
   let introProgressVisible = false;
@@ -349,6 +350,8 @@
   }
 
   function setupIntroGate() {
+    if (!introVisible) return () => {};
+
     const timers: number[] = [];
     let readyToReveal = routeVisualReady;
     let progressComplete = false;
@@ -397,6 +400,8 @@
   // This is a deliberate visual warmup, not a literal readiness meter. It only
   // starts once the intro can run to completion without waiting on app work.
   function setupIntroProgress() {
+    if (!introVisible) return () => {};
+
     let settleFrame = 0;
     let progressTimer = 0;
     let progressInterval = 0;

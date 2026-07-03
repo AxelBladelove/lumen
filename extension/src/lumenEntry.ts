@@ -5,7 +5,6 @@ import { showLumenLoadingPanel } from "./lumenLoadingPanel";
 import type { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
 
 const bootIntentKey = "lumen.bootIntent";
-const loadingPaintDelayMs = 90;
 const loadingCurtainDurationMs = 1800;
 const loadingRevealSettleMs = 120;
 
@@ -48,8 +47,7 @@ export async function enterLumenMode(deps: LumenModeDeps) {
   }
 
   session.transitioning = true;
-  provider.setPhase("entering");
-  const loadingPanel = showLumenLoadingPanel(context);
+  let loadingPanel: vscode.WebviewPanel | undefined;
 
   try {
     await context.globalState.update(bootIntentKey, {
@@ -63,10 +61,11 @@ export async function enterLumenMode(deps: LumenModeDeps) {
     await vscode.commands.executeCommand("setContext", "lumen.mode", "route");
 
     provider.setEntryState(entryState);
-    await delay(loadingPaintDelayMs);
-
     await applyLumenModeLayout(context);
+
+    loadingPanel = showLumenLoadingPanel(context);
     await delay(loadingCurtainDurationMs);
+
     await provider.reveal();
 
     session.active = true;
@@ -80,7 +79,7 @@ export async function enterLumenMode(deps: LumenModeDeps) {
     await vscode.commands.executeCommand("setContext", "lumen.inMode", false);
     await vscode.commands.executeCommand("setContext", "lumen.mode", undefined);
     provider.setPhase("idle");
-    loadingPanel.dispose();
+    loadingPanel?.dispose();
     throw error;
   } finally {
     session.transitioning = false;

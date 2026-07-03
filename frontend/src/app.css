@@ -248,9 +248,7 @@ button {
   position: relative;
   width: 100vw;
   height: 100vh;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding-bottom: 132px;
+  overflow: auto;
   background:
     linear-gradient(90deg, rgba(0, 0, 0, 0.34), transparent 25% 74%, rgba(0, 0, 0, 0.3)),
     linear-gradient(135deg, #010608 0%, #001117 46%, #001019 100%);
@@ -282,9 +280,11 @@ button {
 }
 
 .stage-viewport {
-  position: relative;
+  position: absolute;
   z-index: 1;
-  margin: 12px auto 0;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
 }
 
 .route-stage {
@@ -697,7 +697,7 @@ button {
 
 .route-stage.compact .snake-layer,
 .route-stage.compact .node-overlay {
-  transform: scale(var(--route-art-scale, 1));
+  transform: translateY(-18px) scale(var(--route-art-scale, 0.9));
   transform-origin: 50% 55%;
 }
 
@@ -2116,28 +2116,42 @@ button {
     0 0 34px color-mix(in srgb, var(--theme-glow) 4%, transparent);
 }
 
-.bottom-cta-shell {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 20;
-  display: flex;
-  justify-content: center;
-  padding: 14px 48px 24px;
-  pointer-events: none;
-  background:
-    linear-gradient(180deg, transparent 0%, rgba(0, 5, 8, 0.72) 54%, rgba(0, 5, 8, 0.92) 100%);
+.route-stage.compact .bottom-cta {
+  left: 48px;
+  right: 48px;
+  top: 1188px;
+  height: 86px;
+  border-radius: 18px;
 }
 
-.bottom-cta-shell .bottom-cta {
-  position: relative;
-  left: auto;
-  right: auto;
-  top: auto;
-  width: min(942px, calc(100vw - 96px));
-  height: 100px;
-  pointer-events: auto;
+.route-stage.compact .bottom-cta .menu-icon {
+  left: 28px;
+  top: 27px;
+  width: 32px;
+  height: 32px;
+}
+
+.route-stage.compact .bottom-cta p {
+  left: 84px;
+  right: 96px;
+  top: 29px;
+  font-size: 19px;
+  line-height: 24px;
+}
+
+.route-stage.compact .bottom-cta button {
+  right: 18px;
+  top: 16px;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+}
+
+.route-stage.compact .bottom-cta button svg {
+  left: 11px;
+  top: 11px;
+  width: 32px;
+  height: 32px;
 }
 
 .bottom-cta .menu-icon {
@@ -2213,44 +2227,4 @@ button {
   stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.lumen-route-app.compact-route .bottom-cta-shell {
-  padding: 12px 38px 20px;
-}
-
-.lumen-route-app.compact-route .bottom-cta-shell .bottom-cta {
-  width: calc(100vw - 76px);
-  height: 86px;
-  border-radius: 18px;
-}
-
-.lumen-route-app.compact-route .bottom-cta .menu-icon {
-  left: 28px;
-  top: 27px;
-  width: 32px;
-  height: 32px;
-}
-
-.lumen-route-app.compact-route .bottom-cta p {
-  left: 84px;
-  right: 96px;
-  top: 29px;
-  font-size: 19px;
-  line-height: 24px;
-}
-
-.lumen-route-app.compact-route .bottom-cta button {
-  right: 18px;
-  top: 16px;
-  width: 54px;
-  height: 54px;
-  border-radius: 16px;
-}
-
-.lumen-route-app.compact-route .bottom-cta button svg {
-  left: 11px;
-  top: 11px;
-  width: 32px;
-  height: 32px;
 }

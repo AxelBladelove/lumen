@@ -46,17 +46,26 @@
 
   function updateScale() {
     const marginX = 28;
+    const marginY = 22;
     const availableWidth = window.innerWidth - marginX;
+    const availableHeight = window.innerHeight - marginY;
+    // En paneles angostos (Lumen como columna derecha del editor) el layout se
+    // compacta antes de bajar la escala global: el chrome anclado a bordes
+    // conserva tamano legible y la ruta/snake absorbe el ajuste visual.
     const isNarrowPanel = availableWidth < 820;
-    const compactLayoutWidth = isNarrowPanel ? 560 : 860;
-    const nextScale = Math.max(0.68, Math.min(1, availableWidth / compactLayoutWidth));
+    const compactLayoutWidth = isNarrowPanel ? 700 : 860;
+    const compactStageHeight = isNarrowPanel ? 1304 : stage.height;
+    const nextScale = Math.max(
+      0.32,
+      Math.min(1, availableWidth / compactLayoutWidth, availableHeight / compactStageHeight)
+    );
     const expandedWidth = availableWidth / nextScale;
     compactLayout = isNarrowPanel;
     scale = nextScale;
-    layoutHeight = stage.height;
+    layoutHeight = compactStageHeight;
     layoutWidth = Math.max(compactLayoutWidth, Math.min(2200, expandedWidth));
     contentOffset = (layoutWidth - stage.width) / 2;
-    routeArtScale = 1;
+    routeArtScale = compactLayout ? 0.9 : 1;
   }
 
   onMount(() => {
@@ -289,7 +298,7 @@
   let progressFrameNotMarked = false;
 </script>
 
-<main class:compact-route={compactLayout} class="lumen-route-app" style={themeVars(module.theme)}>
+<main class="lumen-route-app" style={themeVars(module.theme)}>
   <div
     class="stage-viewport"
     style={`width:${layoutWidth * scale}px; height:${layoutHeight * scale}px;`}
@@ -337,17 +346,14 @@
         {/if}
       </div>
 
+      {#if deferredVisualsReady}
+        <BottomCta
+          label={module.nextAction.label}
+          targetTitle={nextTargetTitle}
+          disabled={!canContinue}
+          onContinue={continueToNextNode}
+        />
+      {/if}
     </section>
   </div>
-
-  {#if deferredVisualsReady}
-    <div class="bottom-cta-shell">
-      <BottomCta
-        label={module.nextAction.label}
-        targetTitle={nextTargetTitle}
-        disabled={!canContinue}
-        onContinue={continueToNextNode}
-      />
-    </div>
-  {/if}
 </main>
