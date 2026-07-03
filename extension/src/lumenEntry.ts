@@ -1,10 +1,13 @@
 import * as vscode from "vscode";
 import { resolveLumenEntryState } from "./lumenEntryState";
 import { applyLumenModeLayout, restoreLumenModeLayout } from "./lumenLayout";
+import { showLumenLoadingPanel } from "./lumenLoadingPanel";
 import type { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
 
 const bootIntentKey = "lumen.bootIntent";
-const entryTransitionLeadInMs = 160;
+const loadingPaintDelayMs = 90;
+const loadingCurtainDurationMs = 1800;
+const loadingRevealSettleMs = 120;
 
 type LumenModeDeps = {
   context: vscode.ExtensionContext;
@@ -46,6 +49,7 @@ export async function enterLumenMode(deps: LumenModeDeps) {
 
   session.transitioning = true;
   provider.setPhase("entering");
+  const loadingPanel = showLumenLoadingPanel(context);
 
   try {
     await context.globalState.update(bootIntentKey, {
@@ -59,14 +63,16 @@ export async function enterLumenMode(deps: LumenModeDeps) {
     await vscode.commands.executeCommand("setContext", "lumen.mode", "route");
 
     provider.setEntryState(entryState);
-    await provider.reveal();
-    await delay(entryTransitionLeadInMs);
+    await delay(loadingPaintDelayMs);
 
     await applyLumenModeLayout(context);
+    await delay(loadingCurtainDurationMs);
     await provider.reveal();
 
     session.active = true;
     provider.setPhase("active");
+    await delay(loadingRevealSettleMs);
+    loadingPanel.dispose();
   } catch (error) {
     // Entrada fallida: no dejar el workspace a medio camino.
     session.active = false;
@@ -74,6 +80,7 @@ export async function enterLumenMode(deps: LumenModeDeps) {
     await vscode.commands.executeCommand("setContext", "lumen.inMode", false);
     await vscode.commands.executeCommand("setContext", "lumen.mode", undefined);
     provider.setPhase("idle");
+    loadingPanel.dispose();
     throw error;
   } finally {
     session.transitioning = false;

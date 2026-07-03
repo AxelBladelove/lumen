@@ -47,6 +47,10 @@
     if (message.type === "lumen.entry.transition" && message.payload.phase === "entering") {
       restartIntroCycle();
     }
+
+    if (message.type === "lumen.entry.transition" && message.payload.phase === "active") {
+      dismissIntroNow();
+    }
   });
 
   bridge.post({
@@ -117,6 +121,16 @@
 
     stopIntroGate = setupIntroGate();
     stopIntroProgress = setupIntroProgress();
+  }
+
+  function dismissIntroNow() {
+    stopIntroGate();
+    stopIntroProgress();
+    document.documentElement.classList.remove("lumen-ui-revealing");
+    introVisible = false;
+    introExiting = false;
+    introProgressVisible = false;
+    introProgress = 100;
   }
 
   function setupPerfReporting() {
