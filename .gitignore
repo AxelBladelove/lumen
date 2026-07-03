@@ -11,6 +11,8 @@ extension/out/
 .edge-headless-profile/
 frontend/.edge-headless-profile/
 .vscode/
+.claude/
+.codex/
 .lumen-perf/
 perf/
 
