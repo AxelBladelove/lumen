@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { resolveLumenEntryState } from "./lumenEntryState";
-import { applyLumenModeLayout, restoreLumenModeLayout } from "./lumenLayout";
+import { activateLumenModeZen, prepareLumenModeLayout, restoreLumenModeLayout } from "./lumenLayout";
 import { showLumenLoadingPanel } from "./lumenLoadingPanel";
 import type { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
 
@@ -51,12 +51,11 @@ export async function enterLumenMode(deps: LumenModeDeps) {
 
   try {
     // El click en el icono abre el sidebar con la vista todavia gris a medio
-    // cargar. Se cierra de inmediato y se muestra la cortina: lo primero que
-    // el usuario ve es la pantalla de carga, no el sidebar expandiendose.
+    // cargar. Se cierra de inmediato: mientras dura la preparacion invisible
+    // (settings, snapshot, contextos) el usuario no ve ningun cambio.
     await vscode.commands
       .executeCommand("workbench.action.closeSidebar")
       .then(undefined, () => undefined);
-    loadingPanel = showLumenLoadingPanel(context);
 
     await context.globalState.update(bootIntentKey, {
       requestedAt: Date.now(),
@@ -69,7 +68,13 @@ export async function enterLumenMode(deps: LumenModeDeps) {
     await vscode.commands.executeCommand("setContext", "lumen.mode", "route");
 
     provider.setEntryState(entryState);
-    await applyLumenModeLayout(context);
+    await prepareLumenModeLayout(context);
+
+    // Cortina y Zen Mode en el mismo turno, sin awaits entre medio: el panel
+    // de carga no llega a verse como una pestana normal del editor porque el
+    // chrome se oculta en el mismo ciclo de render.
+    loadingPanel = showLumenLoadingPanel(context);
+    await activateLumenModeZen();
 
     await delay(loadingCurtainDurationMs);
 

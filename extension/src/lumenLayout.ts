@@ -42,7 +42,7 @@ type LayoutRestoreState = {
   workspaceValues: Record<string, unknown>;
 };
 
-export async function applyLumenModeLayout(context: vscode.ExtensionContext) {
+export async function prepareLumenModeLayout(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration();
 
   // Snapshot para Exit Mode. Si ya existe uno (sesion anterior que no llego a
@@ -58,20 +58,21 @@ export async function applyLumenModeLayout(context: vscode.ExtensionContext) {
     } satisfies LayoutRestoreState);
   }
 
-  for (const [key, value] of Object.entries(lumenZenModeSettings)) {
+  // Todas las escrituras de settings son lentas pero invisibles: Zen todavia
+  // no se activo y enter-lumen-mode ya cerro el sidebar, asi que mover su
+  // posicion aqui tampoco produce saltos. Lo visible (cortina + Zen) ocurre
+  // despues, junto, en activateLumenModeZen().
+  for (const [key, value] of Object.entries(allLumenLayoutSettings)) {
     await updateWorkspaceSetting(config, key, value);
   }
 
   // Entrada determinista a Zen Mode: exitZenMode tiene precondicion inZenMode
   // (no-op fuera de Zen), asi el toggle siguiente siempre significa "entrar".
   await executeCommandSafely("workbench.action.exitZenMode");
-  await executeCommandSafely("workbench.action.toggleZenMode");
+}
 
-  // Con el sidebar oculto por Zen, moverlo a la derecha no produce saltos
-  // visibles; enter-lumen-mode lo reabre despues enfocando la vista de Lumen.
-  for (const [key, value] of Object.entries(lumenSidebarSettings)) {
-    await updateWorkspaceSetting(config, key, value);
-  }
+export async function activateLumenModeZen() {
+  await executeCommandSafely("workbench.action.toggleZenMode");
 }
 
 export async function restoreLumenModeLayout(
