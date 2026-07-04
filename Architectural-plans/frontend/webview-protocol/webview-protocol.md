@@ -152,7 +152,7 @@ phase: entering | active
 Cuando `phase` es `entering`, el frontend reinicia la pantalla de carga con
 logo, wordmark y barra de progreso aunque la webview haya quedado retenida por
 VS Code desde una entrada anterior. Esto permite cubrir el reacomodo de Zen
-Mode y del sidebar sin recargar toda la webview.
+Mode y del grupo de editor derecho sin recargar toda la webview.
 
 ### `route.module.snapshot`
 

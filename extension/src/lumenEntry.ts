@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { resolveLumenEntryState } from "./lumenEntryState";
 import { activateLumenModeZen, prepareLumenModeLayout, restoreLumenModeLayout } from "./lumenLayout";
 import { showLumenLoadingPanel } from "./lumenLoadingPanel";
+import type { LumenPanelController } from "./lumenPanel";
 import type { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
 
 const bootIntentKey = "lumen.bootIntent";
@@ -10,7 +11,8 @@ const loadingRevealSettleMs = 120;
 
 type LumenModeDeps = {
   context: vscode.ExtensionContext;
-  provider: LumenRoutePathViewProvider;
+  launcher: LumenRoutePathViewProvider;
+  panel: LumenPanelController;
 };
 
 /**
@@ -29,27 +31,28 @@ export function isLumenModeActive() {
 /**
  * Secuencia de entrada (enter-lumen-mode.md):
  * click en icono / comando -> Zen Mode (editor al centro, sin distracciones)
- * -> sidebar a la derecha -> revelar la vista de Lumen en el sidebar derecho.
- * El archivo que el usuario tuviera abierto permanece en el editor. Si Lumen
- * Mode ya esta activo, solo revela la vista existente.
+ * -> panel de editor a la derecha. El archivo que el usuario tuviera abierto
+ * permanece en el grupo izquierdo. Si Lumen Mode ya esta activo, solo revela
+ * el panel existente.
  */
 export async function enterLumenMode(deps: LumenModeDeps) {
-  const { context, provider } = deps;
+  const { context, launcher, panel } = deps;
 
   if (session.transitioning) return;
 
   const entryState = resolveLumenEntryState();
 
   if (session.active) {
-    provider.setEntryState(entryState);
-    await provider.reveal();
+    panel.setEntryState(entryState);
+    await panel.reveal();
     return;
   }
 
   session.transitioning = true;
-  // Fase "entering" desde ya: el evento de visibilidad que dispara el reveal
-  // final no debe re-entrar ni volver a cerrar el sidebar de Lumen.
-  provider.setPhase("entering");
+  // Fase "entering" desde ya: el evento de visibilidad del launcher no debe
+  // re-entrar ni volver a cerrar el sidebar de Lumen.
+  launcher.setPhase("entering");
+  panel.setPhase("entering");
   let loadingPanel: vscode.WebviewPanel | undefined;
 
   try {
@@ -70,7 +73,7 @@ export async function enterLumenMode(deps: LumenModeDeps) {
     await vscode.commands.executeCommand("setContext", "lumen.inMode", true);
     await vscode.commands.executeCommand("setContext", "lumen.mode", "route");
 
-    provider.setEntryState(entryState);
+    panel.setEntryState(entryState);
     await prepareLumenModeLayout(context);
 
     // Cortina y Zen Mode en el mismo turno, sin awaits entre medio: el panel
@@ -81,10 +84,11 @@ export async function enterLumenMode(deps: LumenModeDeps) {
 
     await delay(loadingCurtainDurationMs);
 
-    await provider.reveal();
+    await panel.reveal();
 
     session.active = true;
-    provider.setPhase("active");
+    launcher.setPhase("active");
+    panel.setPhase("active");
     await delay(loadingRevealSettleMs);
     loadingPanel.dispose();
   } catch (error) {
@@ -93,7 +97,8 @@ export async function enterLumenMode(deps: LumenModeDeps) {
     await restoreLumenModeLayout(context, { exitZen: true }).catch(() => undefined);
     await vscode.commands.executeCommand("setContext", "lumen.inMode", false);
     await vscode.commands.executeCommand("setContext", "lumen.mode", undefined);
-    provider.setPhase("idle");
+    launcher.setPhase("idle");
+    panel.setPhase("idle");
     loadingPanel?.dispose();
     throw error;
   } finally {
@@ -106,12 +111,11 @@ function delay(ms: number) {
 }
 
 /**
- * Salida minima (exit-lumen-mode.md): salir de Zen Mode (VS Code restaura el
- * layout previo), cerrar el sidebar de Lumen, revertir los overrides de
- * settings (incluida la posicion del sidebar) y limpiar context keys.
+ * Salida minima (exit-lumen-mode.md): cerrar el panel de Lumen, salir de Zen
+ * Mode, revertir los overrides de settings y limpiar context keys.
  */
 export async function exitLumenMode(deps: LumenModeDeps) {
-  const { context, provider } = deps;
+  const { context, launcher, panel } = deps;
 
   if (session.transitioning) return;
   session.transitioning = true;
@@ -119,13 +123,15 @@ export async function exitLumenMode(deps: LumenModeDeps) {
   try {
     session.active = false;
 
+    await panel.disposeForExit();
     await restoreLumenModeLayout(context, { exitZen: true });
 
     await context.globalState.update(bootIntentKey, undefined);
     await vscode.commands.executeCommand("setContext", "lumen.inMode", false);
     await vscode.commands.executeCommand("setContext", "lumen.mode", undefined);
 
-    provider.setPhase("idle");
+    launcher.setPhase("idle");
+    panel.setPhase("idle");
   } finally {
     session.transitioning = false;
   }

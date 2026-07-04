@@ -1,27 +1,31 @@
 import * as vscode from "vscode";
 import { enterLumenMode, exitLumenMode } from "./lumenEntry";
 import { cleanupStaleLumenLayout } from "./lumenLayout";
+import { LumenPanelController } from "./lumenPanel";
 import { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
 
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Lumen");
   context.subscriptions.push(outputChannel);
 
-  const provider = new LumenRoutePathViewProvider(context, outputChannel, () => {
+  const launcher = new LumenRoutePathViewProvider(() => {
     void vscode.commands.executeCommand("lumen.enterMode");
   });
+  const panel = new LumenPanelController(context, outputChannel, () => {
+    void vscode.commands.executeCommand("lumen.exitMode");
+  });
 
-  const deps = { context, provider };
+  const deps = { context, launcher, panel };
 
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(LumenRoutePathViewProvider.viewType, provider, {
+    vscode.window.registerWebviewViewProvider(LumenRoutePathViewProvider.viewType, launcher, {
       webviewOptions: { retainContextWhenHidden: true }
     }),
     vscode.commands.registerCommand("lumen.open", () => enterLumenMode(deps)),
     vscode.commands.registerCommand("lumen.enterMode", () => enterLumenMode(deps)),
     vscode.commands.registerCommand("lumen.exitMode", () => exitLumenMode(deps)),
     vscode.commands.registerCommand("lumen.refreshWebview", async () => {
-      const refreshed = await provider.refresh();
+      const refreshed = await panel.refresh();
       if (!refreshed) await enterLumenMode(deps);
     })
   );

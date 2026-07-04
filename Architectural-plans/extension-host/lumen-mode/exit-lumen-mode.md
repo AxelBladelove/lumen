@@ -8,13 +8,17 @@ Archivo: `Architectural-plans/extension-host/lumen-mode/exit-lumen-mode.md`
 
 ## Estado actual del repo
 
-`lumen.exitMode` implementa la salida mínima de layout: sale de Zen Mode
-(VS Code restaura el layout previo a la entrada), cierra el sidebar de Lumen,
-revierte los settings desde el snapshot guardado al entrar (los `zenMode.*` y
-`workbench.sideBar.location`, que vuelve a su posición original), borra el
+`lumen.exitMode` implementa la salida mínima de layout: cierra el
+`WebviewPanel` de Lumen y su grupo de editor, sale de Zen Mode, revierte los
+settings desde el snapshot guardado al entrar (los `zenMode.*`), borra el
 `bootIntent` y actualiza context keys (`lumen.inMode = false`,
-`lumen.mode = undefined`). La vista de Lumen queda registrada y retenida
-(`retainContextWhenHidden`), lista para re-entrar sin recargar.
+`lumen.mode = undefined`). La vista del Activity Bar `lumen.routePath` queda
+como launcher liviano, lista para iniciar otra entrada.
+
+`workbench.sideBar.location` ya no se escribe en sesiones nuevas porque la UI
+principal no vive en el sidebar. Si una sesión previa dejó esa clave dentro del
+snapshot de restauración, la limpieza la restaura igualmente para migrar el
+estado viejo.
 
 `Esc` ejecuta `lumen.exitMode` por dos vías equivalentes: un keybinding
 contribuido (activo solo con `lumen.inMode`, con guardas para no robar Escape
@@ -80,7 +84,7 @@ Al ejecutar `lumen.exitMode`, Lumen debe seguir esta secuencia:
 4. Guardar el último modo usado.
 5. Guardar el último ejercicio activo, si existe.
 6. Guardar el archivo activo, si aplica.
-7. Cerrar o esconder la UI enfocada de Lumen.
+7. Cerrar el panel de editor de Lumen y el grupo vacío que queda a la derecha.
 8. Desactivar los keybindings contextuales de Lumen.
 9. Desactivar el estado interno `lumen.inMode`.
 10. Restaurar la interfaz normal de VS Code tanto como sea posible.

@@ -146,7 +146,7 @@ El panel derecho de Lumen debe mostrar información útil del ejercicio actual: 
 
 Si el usuario cambia manualmente de archivo dentro del gestor de archivos, Lumen debe intentar entender si ese archivo pertenece al ejercicio activo, a otro ejercicio libre o a un archivo no reconocido.
 
-Si el archivo no pertenece a un ejercicio reconocido, Lumen puede mostrar una opción para ocultar el sidebar de lumen, o botones en el sidebar para mostrar comandos, crear ejercicio o ir a la colección de ejercicios.
+Si el archivo no pertenece a un ejercicio reconocido, Lumen puede mostrar una opción para ocultar el panel de Lumen, o botones en el panel derecho para mostrar comandos, crear ejercicio o ir a la colección de ejercicios.
 
 ## Gestor de archivos en Free Mode
 

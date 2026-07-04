@@ -18,18 +18,20 @@ Esa secuencia:
 - Activa context keys `lumen.inMode = true` y `lumen.mode = route`.
 - Aplica el layout enfocado (`extension/src/lumenLayout.ts`): snapshot de los
   settings a nivel workspace, escribe los defaults de Lumen Mode
-  (`zenMode.*` con `centerLayout: false`), entra a Zen Mode y mueve el sidebar
-  primario a la derecha (`workbench.sideBar.location: "right"`).
-- Revela la vista `lumen.routePath` del Activity Bar, que renderiza el
-  frontend completo dentro del sidebar (ahora a la derecha), con la pantalla
-  de carga del frontend cubriendo la transición. El archivo que el usuario
-  tuviera abierto permanece en el editor central. El ancho del sidebar lo
-  persiste VS Code de forma nativa.
+  (`zenMode.*` con `centerLayout: false`) y entra a Zen Mode.
+- Muestra una cortina de carga como `WebviewPanel` de editor mientras se
+  prepara el modo.
+- Crea/revela el panel principal de Lumen como `WebviewPanel` de editor
+  (`lumen.routePathPanel`) en un grupo a la derecha, con el frontend completo
+  y sin el header nativo del sidebar. El archivo que el usuario tuviera abierto
+  permanece en el grupo izquierdo. El ancho se ajusta arrastrando el sash entre
+  grupos de editor.
 - Envía `lumen.entry.state` a la webview.
 
-La vista se auto-entra al hacerse visible por click en el icono (con un
-período de gracia medido en uptime del Extension Host para no auto-entrar
-cuando VS Code restaura el sidebar al arrancar).
+La vista contribuida `lumen.routePath` del Activity Bar sigue existiendo, pero
+ahora es solo un launcher liviano: cuando VS Code la hace visible por el click
+del usuario, la extensión cierra el sidebar y ejecuta `lumen.enterMode`. Esa
+vista no carga el frontend.
 
 `Esc` sale del modo por dos vías equivalentes: keybinding contribuido con
 `when: lumen.inMode` (foco fuera de la webview) y mensaje de protocolo
@@ -54,7 +56,8 @@ Lumen debe aparecer en el Activity Bar de VS Code con su icono oficial.
 
 El icono debe usar el logo SVG de Lumen y funcionar como la entrada principal del producto dentro de VS Code.
 
-Al presionar el icono de Lumen, la extensión debe ejecutar el comando:
+Al presionar el icono de Lumen, VS Code abre la vista contribuida
+`lumen.routePath`; esa vista funciona como stub launcher y ejecuta el comando:
 
 ```txt
 lumen.enterMode
@@ -197,7 +200,11 @@ Al entrar a Lumen Mode, la extensión debe preparar las vistas propias de Lumen.
 
 Lumen debe tener una vista principal en el Activity Bar usando el icono oficial.
 
-Dentro de esa vista, Lumen debe poder mostrar su panel principal como Webview View.
+Esa vista del Activity Bar no debe renderizar la UI principal. Sirve solo como
+entrada al modo para conservar el gesto de usuario esperado.
+
+La UI principal de Lumen debe mostrarse como `WebviewPanel` de editor a la
+derecha del editor del usuario.
 
 El panel principal de Lumen debe ser capaz de renderizar diferentes estados:
 

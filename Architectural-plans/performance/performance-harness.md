@@ -51,8 +51,11 @@ iteraciones rapidas fuera de VS Code.
 
 ### `measure-vscode-webview.mjs`
 
-Se conecta a un target CDP de VS Code y mide la webview real `lumen.routePath`.
-Sirve para comparar el navegador normal contra la runtime real de VS Code.
+Se conecta a un target CDP de VS Code y mide la webview real del panel de
+editor `lumen.routePathPanel`. El script detecta el target por contenido
+observable de Lumen, no por el id del panel. Los reportes JSONL siguen
+escribiendo `viewType: "lumen.routePath"` por compatibilidad con resultados y
+harnesses previos.
 
 ## Scripts de package.json
 

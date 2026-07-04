@@ -20,19 +20,8 @@ const lumenZenModeSettings: Record<string, unknown> = {
   "zenMode.restore": false
 };
 
-/**
- * Dentro de Lumen Mode el sidebar primario (donde vive la vista de Lumen) se
- * mueve a la derecha: codigo en el centro, Lumen a la derecha. Se aplica
- * mientras Zen Mode tiene el sidebar oculto para que el usuario no vea el
- * salto, y se revierte al salir.
- */
-const lumenSidebarSettings: Record<string, unknown> = {
-  "workbench.sideBar.location": "right"
-};
-
 const allLumenLayoutSettings: Record<string, unknown> = {
-  ...lumenZenModeSettings,
-  ...lumenSidebarSettings
+  ...lumenZenModeSettings
 };
 
 const layoutRestoreKey = "lumen.layoutRestore";
@@ -59,9 +48,8 @@ export async function prepareLumenModeLayout(context: vscode.ExtensionContext) {
   }
 
   // Todas las escrituras de settings son lentas pero invisibles: Zen todavia
-  // no se activo y enter-lumen-mode ya cerro el sidebar, asi que mover su
-  // posicion aqui tampoco produce saltos. Lo visible (cortina + Zen) ocurre
-  // despues, junto, en activateLumenModeZen().
+  // no se activo y enter-lumen-mode ya cerro el sidebar. Lo visible (cortina +
+  // Zen) ocurre despues, junto, en activateLumenModeZen().
   for (const [key, value] of Object.entries(allLumenLayoutSettings)) {
     await updateWorkspaceSetting(config, key, value);
   }
@@ -105,7 +93,12 @@ async function restoreLumenLayoutSettings(context: vscode.ExtensionContext) {
   const stored = context.workspaceState.get<LayoutRestoreState>(layoutRestoreKey);
   const config = vscode.workspace.getConfiguration();
 
-  for (const key of Object.keys(allLumenLayoutSettings)) {
+  const keysToRestore = new Set([
+    ...Object.keys(allLumenLayoutSettings),
+    ...Object.keys(stored?.workspaceValues ?? {})
+  ]);
+
+  for (const key of keysToRestore) {
     const previous = stored?.workspaceValues?.[key];
     await updateWorkspaceSetting(config, key, previous ?? undefined);
   }

@@ -7,7 +7,10 @@ Lumen como extensión de VS Code:
 
 - Extension Host en TypeScript con comandos `lumen.open`, `lumen.enterMode`,
   `lumen.exitMode` y `lumen.refreshWebview`.
-- Webview View `lumen.routePath` dentro del contenedor de Activity Bar `Lumen`.
+- Webview View `lumen.routePath` dentro del contenedor de Activity Bar `Lumen`
+  como launcher liviano.
+- WebviewPanel de editor `lumen.routePathPanel` como superficie real del
+  frontend de Lumen.
 - Frontend Svelte 5 + Vite empaquetado dentro de `frontend/dist`.
 - Route Path View mockeada para `Ruta C / Módulo 2: Cadenas de caracteres`.
 - Renderer WebGL con Three.js para el snake path.

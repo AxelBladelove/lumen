@@ -13,21 +13,29 @@ El layout base de Lumen Mode ya está implementado en
 
 `lumen.enterMode` guarda un snapshot de los settings del workspace, aplica los
 defaults de Lumen Mode (`zenMode.*` con `centerLayout: false`, más
-`zenMode.restore: false`), entra a Zen Mode con `workbench.action.exitZenMode`
-+ `workbench.action.toggleZenMode` (entrada determinista), mueve el sidebar
-primario a la derecha (`workbench.sideBar.location: "right"`) y revela la
-vista `lumen.routePath`, que renderiza el frontend completo dentro del sidebar.
+`zenMode.restore: false`) y entra a Zen Mode con
+`workbench.action.exitZenMode` + `workbench.action.toggleZenMode` (entrada
+determinista). La UI real de Lumen se crea como `WebviewPanel` de editor
+(`lumen.routePathPanel`) en un grupo a la derecha.
 
-El resultado es el layout documentado: código en el centro (el archivo que el
-usuario tuviera abierto permanece), Lumen a la derecha como sidebar, Activity
-Bar, Status Bar, tabs, line numbers y panel inferior ocultos por Zen Mode. El
-ancho del sidebar lo ajusta el usuario con el divisor y lo persiste VS Code de
-forma nativa. El frontend tiene un modo compacto (layout fluido hasta 860px
-con pills solo-icono) para que la UI siga legible en anchos angostos.
+El resultado es el layout documentado: código en el grupo izquierdo (el
+archivo que el usuario tuviera abierto permanece), Lumen a la derecha como
+grupo de editor, Activity Bar, Status Bar, tabs, line numbers y panel inferior
+ocultos por Zen Mode. El ancho inicial se fija cerca de 2/3 editor y 1/3
+Lumen mediante `vscode.setEditorLayout`; después el usuario lo ajusta
+arrastrando el sash entre grupos. El frontend tiene un modo compacto (layout
+fluido hasta 860px con pills solo-icono) para que la UI siga legible en anchos
+angostos.
 
-`lumen.exitMode` sale de Zen Mode (VS Code restaura el layout previo), cierra
-el sidebar y revierte los settings desde el snapshot, incluida la posición del
-sidebar.
+El grupo de Lumen se bloquea con `workbench.action.lockEditorGroup` para que
+abrir archivos desde el flujo normal de VS Code no aterrice dentro del panel
+de Lumen. Ese bloqueo ocurre durante la transición de carga, cuando el breve
+cambio de foco queda cubierto visualmente.
+
+`lumen.exitMode` cierra el panel/grupo de Lumen, sale de Zen Mode y revierte
+los settings desde el snapshot. `workbench.sideBar.location` ya no se escribe
+en entradas nuevas; si existe en un snapshot viejo, la restauración lo consume
+para migrar sesiones previas.
 
 Falta todavía: layout de Modo Libre (gestor de archivos visible + editor +
 panel derecho) y la apertura automática del archivo de ejercicio.
@@ -73,7 +81,7 @@ El orden esperado es:
 4. Lumen aplica la configuración de Zen Mode.
 5. Lumen abre u oculta las vistas necesarias según el modo.
 6. Lumen abre el archivo activo si corresponde.
-7. Lumen coloca el panel principal de Lumen a la derecha.
+7. Lumen coloca el panel principal de Lumen en un grupo de editor a la derecha.
 8. La transición desaparece cuando el workspace ya está listo.
 
 El usuario debe pasar de la pantalla de transición a un layout final ya colocado.
@@ -122,7 +130,8 @@ Si una vista no ayuda directamente al ejercicio actual, al banco de ejercicios, 
 
 ## Panel de Lumen
 
-El panel principal de Lumen debe estar a la derecha.
+El panel principal de Lumen debe estar a la derecha como grupo de editor,
+no como vista del sidebar.
 
 Esta vista funciona como centro de control del modo activo.
 
@@ -141,7 +150,9 @@ Según el estado, el panel de Lumen puede mostrar:
 * Ask Tutor.
 * Estados de carga o recuperación.
 
-El panel de Lumen no debe sentirse como una vista secundaria. Debe sentirse como la interfaz principal de Lumen dentro de VS Code.
+El panel de Lumen no debe sentirse como una vista secundaria. Debe sentirse
+como la interfaz principal de Lumen dentro de VS Code y ocupar el alto completo
+del área de editor, sin fila de título nativa encima.
 
 ## Editor central
 
@@ -224,6 +235,11 @@ La vista derecha de Lumen debe ser persistente durante Lumen Mode.
 No debe cerrarse accidentalmente al abrir un archivo.
 
 No debe competir con el editor central.
+
+La implementación usa un `WebviewPanel` con `retainContextWhenHidden: true`.
+No registra `WebviewPanelSerializer`: tras un reload de ventana no se debe
+resucitar el panel fuera de la secuencia de entrada. En ese caso,
+`cleanupStaleLumenLayout` restaura los overrides de layout pendientes.
 
 No debe moverse de posición sin que el usuario lo configure explícitamente.
 

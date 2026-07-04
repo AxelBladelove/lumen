@@ -18,7 +18,9 @@ La implementacion vive en:
 
 ```txt
 extension/src/extension.ts
+extension/src/lumenPanel.ts
 extension/src/lumenRoutePathViewProvider.ts
+extension/src/lumenWebviewHost.ts
 extension/src/lumenWebviewContent.ts
 extension/src/lumenLayout.ts
 extension/src/lumenEntry.ts
@@ -26,11 +28,19 @@ extension/src/lumenEntryState.ts
 extension/src/lumenProtocol.ts
 ```
 
-La superficie de Lumen es una sola: la Webview View `lumen.routePath` del
-Activity Bar, servida por `LumenRoutePathViewProvider`. Renderiza el frontend
-completo dentro del sidebar, se registra con `retainContextWhenHidden: true`
-(el WebGL sobrevive al ocultarse) y, al hacerse visible por un gesto del
-usuario, dispara `lumen.enterMode` para aplicar el layout enfocado.
+La entrada de Lumen sigue siendo la Webview View `lumen.routePath` del
+Activity Bar, servida por `LumenRoutePathViewProvider`, pero esa vista es solo
+un launcher liviano. No renderiza el frontend completo: cuando se hace visible
+por el gesto del usuario, cierra el sidebar y dispara `lumen.enterMode`.
+
+La superficie real de Lumen es el `WebviewPanel` de editor
+`lumen.routePathPanel`, controlado por `LumenPanelController`. Se crea en un
+grupo de editor a la derecha, usa `retainContextWhenHidden: true` y sirve el
+frontend completo sin el header nativo del sidebar.
+
+`lumenWebviewHost.ts` contiene la logica compartida de mensajes, estado de
+entrada, fases y reportes de performance para el webview que ejecuta el
+frontend.
 
 `lumenWebviewContent.ts` contiene la construccion de HTML/CSP/nonce.
 
@@ -39,7 +49,7 @@ usuario, dispara `lumen.enterMode` para aplicar el layout enfocado.
 
 ## Carga del Frontend
 
-El provider busca:
+El panel busca:
 
 ```txt
 frontend/dist/index.html
@@ -93,7 +103,7 @@ y en cada `frontend.ready`.
 
 ## Perf Report
 
-El provider acepta mensajes `perf.report`.
+El host de webview acepta mensajes `perf.report`.
 
 Cada reporte se escribe como JSONL en:
 
@@ -110,16 +120,16 @@ Los reportes `steady-frame-sample` tambien se resumen en el output channel
 
 ## Reglas Deterministas
 
-El frontend completo se sirve en la view `lumen.routePath`.
+El frontend completo se sirve en el panel `lumen.routePathPanel`.
 
-El provider no compila ejercicios.
+El provider/host no compila ejercicios.
 
-El provider no decide progreso.
+El provider/host no decide progreso.
 
-El provider no ejecuta Local Engine.
+El provider/host no ejecuta Local Engine.
 
-El provider si es responsable de CSP, bootstrap, fallback de build y mensajes
-webview.
+El panel y el host si son responsables de CSP, bootstrap, fallback de build y
+mensajes webview. El launcher del Activity Bar solo inicia la entrada.
 
 `perf.report` debe seguir siendo diagnostico local, no producto final.
 
