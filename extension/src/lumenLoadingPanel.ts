@@ -7,7 +7,7 @@ export function showLumenLoadingPanel(context: vscode.ExtensionContext) {
     "Lumen",
     vscode.ViewColumn.Active,
     {
-      enableScripts: false,
+      enableScripts: true,
       retainContextWhenHidden: true,
       localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, "assets")]
     }
@@ -136,9 +136,25 @@ function getLoadingHtml(context: vscode.ExtensionContext, webview: vscode.Webvie
         box-shadow:
           0 0 18px rgba(0, 146, 252, 0.5),
           inset 0 1px 1px rgba(244, 252, 251, 0.4);
-        animation: loaderProgressFill 1.8s linear both;
-        transform: scaleX(0.01);
+        transform: scaleX(0);
         transform-origin: left center;
+      }
+
+      .loader-percent {
+        position: absolute;
+        z-index: 1;
+        left: 50%;
+        top: calc(50% + 124px);
+        min-width: 4ch;
+        margin: 0;
+        transform: translateX(-50%);
+        color: rgba(239, 255, 251, 0.92);
+        font-size: 14px;
+        font-weight: 650;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        text-align: center;
+        text-shadow: 0 0 14px rgba(0, 146, 252, 0.55);
       }
 
       @keyframes loaderMarkIn {
@@ -152,14 +168,6 @@ function getLoadingHtml(context: vscode.ExtensionContext, webview: vscode.Webvie
         }
       }
 
-      @keyframes loaderProgressFill {
-        from {
-          transform: scaleX(0.01);
-        }
-        to {
-          transform: scaleX(1);
-        }
-      }
     </style>
   </head>
   <body>
@@ -168,8 +176,37 @@ function getLoadingHtml(context: vscode.ExtensionContext, webview: vscode.Webvie
         <img class="loader-logo" src="${logoUri}" alt="">
         <img class="loader-wordmark" src="${wordmarkUri}" alt="Lumen">
       </div>
-      <div class="loader-bar" aria-hidden="true"><i></i></div>
+      <div
+        class="loader-bar"
+        role="progressbar"
+        aria-label="Progreso de carga"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+      ><i id="loader-progress-fill"></i></div>
+      <p class="loader-percent"><span id="loader-percent-value">0</span>%</p>
     </main>
+    <script nonce="${nonce}">
+      (() => {
+        const durationMs = 1800;
+        const value = document.getElementById("loader-percent-value");
+        const fill = document.getElementById("loader-progress-fill");
+        const progressbar = document.querySelector(".loader-bar");
+        if (!value || !fill || !progressbar) return;
+        const startedAt = performance.now();
+
+        function render() {
+          const progress = Math.min(1, (performance.now() - startedAt) / durationMs);
+          const percent = progress >= 1 ? 100 : Math.floor(progress * 100);
+          value.textContent = String(percent);
+          fill.style.transform = "scaleX(" + progress + ")";
+          progressbar.setAttribute("aria-valuenow", String(percent));
+          if (progress < 1) requestAnimationFrame(render);
+        }
+
+        requestAnimationFrame(render);
+      })();
+    </script>
   </body>
 </html>`;
 }

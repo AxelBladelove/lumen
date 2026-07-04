@@ -83,6 +83,8 @@ export class LumenRoutePathViewProvider implements vscode.WebviewViewProvider {
 
   async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
     this.view = webviewView;
+    webviewView.title = " ";
+    webviewView.description = "";
 
     webviewView.webview.options = {
       enableScripts: true,

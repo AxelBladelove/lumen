@@ -57,7 +57,7 @@
       "activitybar": [
         {
           "id": "lumen",
-          "title": "Lumen",
+          "title": " ",
           "icon": "assets/brand/lumen-activitybar-icon.svg"
         }
       ]
@@ -74,7 +74,7 @@
       "lumen": [
         {
           "id": "lumen.routePath",
-          "name": "Ruta C",
+          "name": " ",
           "type": "webview"
         }
       ]

@@ -20,7 +20,7 @@
   let introExiting = false;
   let introAssetsReady = false;
   let introProgressVisible = false;
-  let introProgress = 1;
+  let introProgress = 0;
   let introCycle = 0;
   let routeVisualReady = false;
   let stopIntroGate = () => {};
@@ -118,7 +118,7 @@
     introVisible = true;
     introExiting = false;
     introProgressVisible = false;
-    introProgress = 1;
+    introProgress = 0;
 
     stopIntroGate = setupIntroGate();
     stopIntroProgress = setupIntroProgress();
@@ -423,12 +423,12 @@
     function updateProgress() {
       if (completed) return;
       const progress = Math.min(1, (performance.now() - progressStartedAt) / introProgressDurationMs);
-      introProgress = progress >= 1 ? 100 : Math.max(1, Math.floor(progress * 100));
+      introProgress = progress >= 1 ? 100 : Math.floor(progress * 100);
       if (progress >= 1) completeProgress();
     }
 
     function beginProgress() {
-      introProgress = 1;
+      introProgress = 0;
       introProgressVisible = true;
       progressStartedAt = performance.now();
       progressInterval = window.setInterval(updateProgress, 8);
@@ -535,7 +535,7 @@
         />
       </div>
       {#if introProgressVisible}
-        <div class="lumen-intro-bar"><i></i></div>
+        <div class="lumen-intro-bar"><i style:transform={`scaleX(${introProgress / 100})`}></i></div>
         <p class="lumen-intro-percent">{Math.round(introProgress)}%</p>
       {/if}
     </div>

@@ -129,8 +129,7 @@ button {
   box-shadow:
     0 0 18px rgba(0, 146, 252, 0.5),
     inset 0 1px 1px rgba(244, 252, 251, 0.4);
-  animation: lumenIntroProgressFill 400ms linear both;
-  transform: scaleX(0.01);
+  transform: scaleX(0);
   transform-origin: left center;
   will-change: transform;
 }
@@ -198,15 +197,6 @@ button {
   to {
     opacity: 0;
     transform: translateX(-50%) translateY(18px) scale(0.92);
-  }
-}
-
-@keyframes lumenIntroProgressFill {
-  from {
-    transform: scaleX(0.01);
-  }
-  to {
-    transform: scaleX(1);
   }
 }
 
