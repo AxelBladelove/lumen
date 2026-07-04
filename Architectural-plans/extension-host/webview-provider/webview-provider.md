@@ -34,9 +34,18 @@ un launcher liviano. No renderiza el frontend completo: cuando se hace visible
 por el gesto del usuario, cierra el sidebar y dispara `lumen.enterMode`.
 
 La superficie real de Lumen es el `WebviewPanel` de editor
-`lumen.routePathPanel`, controlado por `LumenPanelController`. Se crea en un
-grupo de editor a la derecha, usa `retainContextWhenHidden: true` y sirve el
-frontend completo sin el header nativo del sidebar.
+`lumen.routePathPanel`, controlado por `LumenPanelController`. Se crea a
+pantalla completa en el grupo activo (su HTML incluye la cortina estática de
+entrada), usa `retainContextWhenHidden: true` y sirve el frontend completo sin
+el header nativo del sidebar. El controlador arma un watchdog de boot
+(reintenta el HTML una vez si `frontend.ready` no llega en 5s) y expone
+señales `frontend.ready`/`frontend.revealed` que `lumenEntry.ts` usa para
+mover el panel al grupo derecho solo cuando ya no hay módulos cargando.
+
+Detalle de robustez: dentro de `onDidDispose` no debe leerse `panel.webview`
+(el getter lanza "Webview is disposed"); el controlador captura la referencia
+del webview al crear el panel y limpia estado con esa referencia. Un throw ahí
+dejaba un panel fantasma que rompía todas las entradas siguientes.
 
 `lumenWebviewHost.ts` contiene la logica compartida de mensajes, estado de
 entrada, fases y reportes de performance para el webview que ejecuta el

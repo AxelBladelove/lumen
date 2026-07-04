@@ -66,6 +66,44 @@ function inlineCriticalIndexAssets() {
   };
 }
 
+/**
+ * La cortina estatica de index.html referencia el logo/wordmark con
+ * placeholders (__LUMEN_BRAND_LOGO__/__LUMEN_BRAND_WORDMARK__): en dev se
+ * resuelven a los assets fuente via /@fs/, y en build a los archivos
+ * hasheados que Vite emitio en dist/assets (los mismos que usa lumenBrand.ts).
+ */
+function injectStaticIntroBrandAssets() {
+  return {
+    name: "lumen-inject-static-intro-brand-assets",
+    enforce: "post" as const,
+    transformIndexHtml: {
+      order: "post" as const,
+      handler(html: string, ctx: { server?: unknown }) {
+        if (!ctx.server) return html;
+        const brandRoot = join(frontendRoot, "..", "assets", "brand").replace(/\\/g, "/");
+        return html
+          .replace("__LUMEN_BRAND_LOGO__", `/@fs/${brandRoot}/lumen-logo.svg`)
+          .replace("__LUMEN_BRAND_WORDMARK__", `/@fs/${brandRoot}/lumen-wordmark.webp`);
+      }
+    },
+    closeBundle() {
+      const distDirectory = join(frontendRoot, "dist");
+      const indexPath = join(distDirectory, "index.html");
+      const assetsDirectory = join(distDirectory, "assets");
+      if (!existsSync(indexPath) || !existsSync(assetsDirectory)) return;
+
+      const assetFiles = readdirSync(assetsDirectory);
+      const logoFile = assetFiles.find((name) => /^lumen-logo-.+\.svg$/.test(name));
+      const wordmarkFile = assetFiles.find((name) => /^lumen-wordmark-.+\.webp$/.test(name));
+
+      let html = readFileSync(indexPath, "utf8");
+      if (logoFile) html = html.replace("__LUMEN_BRAND_LOGO__", `./assets/${logoFile}`);
+      if (wordmarkFile) html = html.replace("__LUMEN_BRAND_WORDMARK__", `./assets/${wordmarkFile}`);
+      writeFileSync(indexPath, html);
+    }
+  };
+}
+
 function relocateInlinedModuleUrls(source: string) {
   return source
     .replace(/(["'`])\.\/(?!assets\/)([^"'`]+?\.(?:js|css))\1/g, "$1./assets/$2$1")
@@ -111,7 +149,7 @@ import "./${assetPath}";
 
 export default defineConfig({
   base: "./",
-  plugins: [svelte(), pruneDistSourceAssets(), inlineCriticalIndexAssets()],
+  plugins: [svelte(), pruneDistSourceAssets(), inlineCriticalIndexAssets(), injectStaticIntroBrandAssets()],
   server: {
     fs: {
       allow: [".."]

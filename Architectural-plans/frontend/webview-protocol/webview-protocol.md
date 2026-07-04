@@ -43,6 +43,18 @@ dataSource
 La extension responde con `extension.ready` y reenvia `lumen.entry.state` si
 ya lo tiene.
 
+### `frontend.revealed`
+
+Se emite una sola vez por ciclo de intro, cuando la cortina de entrada termino
+de ocultarse: la ruta ya rindio (WebGL incluido) y no quedan modulos cargando.
+
+Payload vacio.
+
+El Extension Host la usa como señal de que es seguro ejecutar el cambio de
+layout de la entrada (mover el panel al grupo derecho y bloquearlo). Mutar el
+layout de editores antes de esta señal puede interrumpir la carga de modulos
+del webview.
+
 ### `route.node.selected`
 
 Se emite cuando el usuario selecciona un nodo visual de la ruta.

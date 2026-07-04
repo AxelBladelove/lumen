@@ -80,13 +80,47 @@ export async function restoreLumenModeLayout(
 
 /**
  * Limpieza al activar la extension: si una sesion anterior murio dentro de
- * Lumen Mode (reload/crash), los overrides de zenMode.* seguirian aplicados.
- * Se restauran desde el snapshot sin tocar el layout visible.
+ * Lumen Mode (reload/crash), los overrides de zenMode.* seguirian aplicados y
+ * el grupo (bloqueado) que alojaba al panel puede haber quedado vacio en el
+ * layout persistido. Se restauran los settings y se cierran esos huecos.
  */
 export async function cleanupStaleLumenLayout(context: vscode.ExtensionContext) {
   if (!context.workspaceState.get<LayoutRestoreState>(layoutRestoreKey)) return false;
   await restoreLumenLayoutSettings(context);
+  await closeEmptyEditorGroups();
   return true;
+}
+
+const focusGroupCommands = [
+  "workbench.action.focusFirstEditorGroup",
+  "workbench.action.focusSecondEditorGroup",
+  "workbench.action.focusThirdEditorGroup",
+  "workbench.action.focusFourthEditorGroup",
+  "workbench.action.focusFifthEditorGroup",
+  "workbench.action.focusSixthEditorGroup",
+  "workbench.action.focusSeventhEditorGroup",
+  "workbench.action.focusEighthEditorGroup"
+];
+
+/**
+ * Cierra grupos de editor sin tabs. VS Code lo hace solo para grupos normales
+ * (workbench.editor.closeEmptyGroups), pero los grupos BLOQUEADOS —como el
+ * que aloja el panel de Lumen— sobreviven vacios a un reload/crash; hay que
+ * desbloquearlos antes de cerrarlos.
+ */
+export async function closeEmptyEditorGroups() {
+  for (let attempt = 0; attempt < focusGroupCommands.length; attempt++) {
+    const groups = vscode.window.tabGroups.all;
+    if (groups.length <= 1) return;
+    const emptyIndex = groups.findIndex((group) => group.tabs.length === 0);
+    if (emptyIndex < 0 || emptyIndex >= focusGroupCommands.length) return;
+
+    await executeCommandSafely(focusGroupCommands[emptyIndex]);
+    await executeCommandSafely("workbench.action.unlockEditorGroup");
+    await executeCommandSafely("workbench.action.closeGroup");
+
+    if (vscode.window.tabGroups.all.length >= groups.length) return;
+  }
 }
 
 async function restoreLumenLayoutSettings(context: vscode.ExtensionContext) {

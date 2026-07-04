@@ -18,14 +18,24 @@ Esa secuencia:
 - Activa context keys `lumen.inMode = true` y `lumen.mode = route`.
 - Aplica el layout enfocado (`extension/src/lumenLayout.ts`): snapshot de los
   settings a nivel workspace, escribe los defaults de Lumen Mode
-  (`zenMode.*` con `centerLayout: false`) y entra a Zen Mode.
-- Muestra una cortina de carga como `WebviewPanel` de editor mientras se
-  prepara el modo.
-- Crea/revela el panel principal de Lumen como `WebviewPanel` de editor
-  (`lumen.routePathPanel`) en un grupo a la derecha, con el frontend completo
-  y sin el header nativo del sidebar. El archivo que el usuario tuviera abierto
-  permanece en el grupo izquierdo. El ancho se ajusta arrastrando el sash entre
-  grupos de editor.
+  (`zenMode.*` con `centerLayout: false`).
+- Crea el panel de Lumen (`lumen.routePathPanel`, `WebviewPanel` de editor)
+  A PANTALLA COMPLETA en el grupo activo y activa Zen Mode en el mismo turno.
+  La cortina de entrada (logo + wordmark + barra + porcentaje) vive DENTRO del
+  HTML del panel como intro estático, así que no existe un panel de cortina
+  separado y —crítico— ninguna mutación de layout ocurre mientras el webview
+  carga sus módulos. (Un cambio de layout de editor a mitad del boot corrompía
+  la carga del bundle: el chunk llegaba roto con un SyntaxError de
+  identificador duplicado y la cortina quedaba congelada.)
+- El frontend bootea detrás de su propia cortina; la app Svelte retoma el
+  porcentaje del intro estático (`window.__LUMEN_STATIC_INTRO__`) y lo lleva a
+  100 con sus señales reales de listo. Un watchdog en el panel reintenta el
+  HTML una vez si `frontend.ready` no llega en 5s.
+- Cuando el frontend confirma que la ruta está pintada (`frontend.revealed`),
+  se ejecuta el único cambio de layout de la entrada: el panel se mueve a un
+  grupo derecho (~1/3, bloqueado si queda solo) y el archivo del usuario queda
+  a la izquierda. Sin header nativo, alto completo; el ancho se ajusta con el
+  sash entre grupos.
 - Envía `lumen.entry.state` a la webview.
 
 La vista contribuida `lumen.routePath` del Activity Bar sigue existiendo, pero

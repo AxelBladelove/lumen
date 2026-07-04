@@ -29,6 +29,10 @@ export type WebviewToExtensionMessage =
       };
     }
   | {
+      type: "frontend.revealed";
+      payload: Record<string, never>;
+    }
+  | {
       type: "lumen.exit.requested";
       payload: Record<string, never>;
     }

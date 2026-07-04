@@ -15,13 +15,19 @@
   const runningInExtensionHost = bridge.isConnected;
   const holdIntroForVisualTest =
     typeof window !== "undefined" && new URLSearchParams(window.location.search).has("lumenPerfHoldIntro");
+  // La cortina estatica de index.html corre desde el primer frame del webview;
+  // al montar, la app retoma su porcentaje para que el contador sea continuo.
+  const staticIntroProgress = readStaticIntroProgress();
   let routeModule = createInitialRouteModule();
-  let introVisible = holdIntroForVisualTest || !runningInExtensionHost;
+  // El intro arranca visible siempre: en el host el panel solo existe durante
+  // la entrada a Lumen Mode, y fuera del host es la unica pantalla de carga.
+  let introVisible = true;
   let introExiting = false;
   let introAssetsReady = false;
-  let introProgressVisible = false;
-  let introProgress = 0;
+  let introProgressVisible = staticIntroProgress > 0;
+  let introProgress = staticIntroProgress;
   let introCycle = 0;
+  let revealedPosted = false;
   let routeVisualReady = false;
   let stopIntroGate = () => {};
   let stopIntroProgress = () => {};
@@ -46,7 +52,11 @@
     }
 
     if (message.type === "lumen.entry.transition" && message.payload.phase === "entering") {
-      restartIntroCycle();
+      // Idempotente: si el intro del boot inicial sigue corriendo no se
+      // reinicia (perderia el porcentaje heredado de la cortina estatica).
+      // Solo re-entra cuando el intro ya se descarto (reveal de una sesion
+      // previa) o esta saliendo.
+      if (!introVisible || introExiting) restartIntroCycle();
     }
 
     if (message.type === "lumen.entry.transition" && message.payload.phase === "active") {
@@ -119,6 +129,7 @@
     introExiting = false;
     introProgressVisible = false;
     introProgress = 0;
+    revealedPosted = false;
 
     stopIntroGate = setupIntroGate();
     stopIntroProgress = setupIntroProgress();
@@ -132,6 +143,25 @@
     introExiting = false;
     introProgressVisible = false;
     introProgress = 100;
+    postRevealedOnce();
+  }
+
+  function readStaticIntroProgress() {
+    if (typeof window === "undefined") return 0;
+    const progress = Number((window as any).__LUMEN_STATIC_INTRO__?.progress ?? 0);
+    if (!Number.isFinite(progress)) return 0;
+    return Math.min(92, Math.max(0, progress));
+  }
+
+  // El Extension Host espera esta señal para pasar del layout de carga (panel
+  // a pantalla completa detras de la cortina) al layout final (split derecho).
+  // Se emite cuando el intro termino de ocultarse: en ese punto la ruta ya
+  // rindio (webgl incluido) y no quedan modulos cargando que una mutacion de
+  // layout pueda interrumpir.
+  function postRevealedOnce() {
+    if (revealedPosted) return;
+    revealedPosted = true;
+    bridge.post({ type: "frontend.revealed", payload: {} });
   }
 
   function setupPerfReporting() {
@@ -368,6 +398,7 @@
           introVisible = false;
           performance.mark("lumen:intro-hidden");
           document.documentElement.classList.remove("lumen-ui-revealing");
+          postRevealedOnce();
         }, 860);
         timers.push(hiddenTimer);
       }, 120);
@@ -420,15 +451,19 @@
       window.dispatchEvent(new Event("lumen:intro-progress-complete"));
     }
 
+    let progressBase = 0;
+
     function updateProgress() {
       if (completed) return;
       const progress = Math.min(1, (performance.now() - progressStartedAt) / introProgressDurationMs);
-      introProgress = progress >= 1 ? 100 : Math.floor(progress * 100);
+      introProgress = progress >= 1 ? 100 : Math.floor(progressBase + (100 - progressBase) * progress);
       if (progress >= 1) completeProgress();
     }
 
     function beginProgress() {
-      introProgress = 0;
+      // Continua desde el porcentaje actual (heredado de la cortina estatica)
+      // en vez de reiniciar a 0: el contador es uno solo de punta a punta.
+      progressBase = Math.min(96, Math.max(0, introProgress));
       introProgressVisible = true;
       progressStartedAt = performance.now();
       progressInterval = window.setInterval(updateProgress, 8);

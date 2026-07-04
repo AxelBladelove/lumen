@@ -9,21 +9,40 @@ export function getLumenFrontendResourceRoots(context: vscode.ExtensionContext) 
   ];
 }
 
+/**
+ * Lee el index.html compilado del frontend por adelantado. Permite crear el
+ * panel y asignarle el HTML en el mismo turno (sin awaits entre medio), que es
+ * lo que evita frames intermedios visibles durante la entrada a Lumen Mode.
+ */
+export async function readLumenFrontendIndexHtml(context: vscode.ExtensionContext) {
+  const indexUri = vscode.Uri.joinPath(context.extensionUri, "frontend", "dist", "index.html");
+  try {
+    return await fs.readFile(indexUri.fsPath, "utf8");
+  } catch {
+    return undefined;
+  }
+}
+
+export function prepareLumenFrontendHtml(
+  context: vscode.ExtensionContext,
+  webview: vscode.Webview,
+  rawHtml: string | undefined
+) {
+  const frontendDistUri = vscode.Uri.joinPath(context.extensionUri, "frontend", "dist");
+  const logoUri = vscode.Uri.joinPath(context.extensionUri, "assets", "brand", "lumen-logo.svg");
+  const nonce = createNonce();
+
+  if (typeof rawHtml === "string") {
+    return prepareBuiltFrontendHtml(webview, rawHtml, frontendDistUri, logoUri, nonce);
+  }
+  return getMissingBuildHtml(webview, logoUri, nonce);
+}
+
 export async function getLumenFrontendHtml(
   context: vscode.ExtensionContext,
   webview: vscode.Webview
 ): Promise<string> {
-  const frontendDistUri = vscode.Uri.joinPath(context.extensionUri, "frontend", "dist");
-  const indexUri = vscode.Uri.joinPath(frontendDistUri, "index.html");
-  const logoUri = vscode.Uri.joinPath(context.extensionUri, "assets", "brand", "lumen-logo.svg");
-  const nonce = createNonce();
-
-  try {
-    const html = await fs.readFile(indexUri.fsPath, "utf8");
-    return prepareBuiltFrontendHtml(webview, html, frontendDistUri, logoUri, nonce);
-  } catch {
-    return getMissingBuildHtml(webview, logoUri, nonce);
-  }
+  return prepareLumenFrontendHtml(context, webview, await readLumenFrontendIndexHtml(context));
 }
 
 function prepareBuiltFrontendHtml(

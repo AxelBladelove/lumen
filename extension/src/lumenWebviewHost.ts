@@ -31,6 +31,10 @@ export type LumenWebviewMessage =
       };
     }
   | {
+      type: "frontend.revealed";
+      payload: Record<string, never>;
+    }
+  | {
       type: "lumen.exit.requested";
       payload: Record<string, never>;
     }
@@ -64,6 +68,10 @@ type LumenWebviewHostOptions = {
   context: vscode.ExtensionContext;
   outputChannel: vscode.OutputChannel;
   onExitRequested: () => void;
+  /** El frontend evaluó su bundle y conectó el protocolo. */
+  onFrontendReady?: () => void;
+  /** El intro terminó: la ruta está pintada y no quedan módulos en vuelo. */
+  onFrontendRevealed?: () => void;
   perfViewType: string;
 };
 
@@ -133,6 +141,11 @@ export class LumenWebviewHost {
         });
         this.postEntryState();
         this.postPhase();
+        this.options.onFrontendReady?.();
+        break;
+
+      case "frontend.revealed":
+        this.options.onFrontendRevealed?.();
         break;
 
       case "route.node.selected":

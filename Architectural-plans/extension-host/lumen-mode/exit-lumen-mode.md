@@ -8,12 +8,20 @@ Archivo: `Architectural-plans/extension-host/lumen-mode/exit-lumen-mode.md`
 
 ## Estado actual del repo
 
-`lumen.exitMode` implementa la salida mínima de layout: cierra el
-`WebviewPanel` de Lumen y su grupo de editor, sale de Zen Mode, revierte los
-settings desde el snapshot guardado al entrar (los `zenMode.*`), borra el
+`lumen.exitMode` implementa la salida mínima de layout: desbloquea el grupo
+del panel de Lumen, cierra el `WebviewPanel` y su grupo de editor, sale de Zen
+Mode, revierte los settings desde el snapshot guardado al entrar (los
+`zenMode.*`), cierra los grupos de editor que hayan quedado vacíos, borra el
 `bootIntent` y actualiza context keys (`lumen.inMode = false`,
 `lumen.mode = undefined`). La vista del Activity Bar `lumen.routePath` queda
 como launcher liviano, lista para iniciar otra entrada.
+
+La limpieza post-crash (`cleanupStaleLumenLayout`, en la activación) también
+cierra los grupos vacíos que hubieran quedado bloqueados: VS Code no los
+cierra solo (el auto-close de grupos vacíos no aplica a grupos con lock) y un
+grupo bloqueado residual desviaría la próxima entrada del panel fuera del
+grupo activo. Por la misma razón, la entrada desbloquea el grupo activo antes
+de crear el panel.
 
 `workbench.sideBar.location` ya no se escribe en sesiones nuevas porque la UI
 principal no vive en el sidebar. Si una sesión previa dejó esa clave dentro del

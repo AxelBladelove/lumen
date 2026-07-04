@@ -16,21 +16,28 @@ defaults de Lumen Mode (`zenMode.*` con `centerLayout: false`, más
 `zenMode.restore: false`) y entra a Zen Mode con
 `workbench.action.exitZenMode` + `workbench.action.toggleZenMode` (entrada
 determinista). La UI real de Lumen se crea como `WebviewPanel` de editor
-(`lumen.routePathPanel`) en un grupo a la derecha.
+(`lumen.routePathPanel`) a pantalla completa en el grupo activo — su propia
+cortina estática cubre el boot — y solo cuando el frontend reporta
+`frontend.revealed` el panel se mueve a un grupo a la derecha. Esa regla de
+orden es deliberada: mutar el layout de editores mientras el webview carga
+módulos corrompía la carga (chunk con SyntaxError de identificador duplicado)
+y dejaba la cortina congelada.
 
 El resultado es el layout documentado: código en el grupo izquierdo (el
 archivo que el usuario tuviera abierto permanece), Lumen a la derecha como
 grupo de editor, Activity Bar, Status Bar, tabs, line numbers y panel inferior
-ocultos por Zen Mode. El ancho inicial se fija cerca de 2/3 editor y 1/3
-Lumen mediante `vscode.setEditorLayout`; después el usuario lo ajusta
-arrastrando el sash entre grupos. El frontend tiene un modo compacto (layout
-fluido hasta 860px con pills solo-icono) para que la UI siga legible en anchos
-angostos.
+ocultos por Zen Mode. El ancho se fija cerca de 2/3 editor y 1/3 Lumen
+mediante `vscode.setEditorLayout` (solo cuando quedan exactamente dos grupos;
+con layouts multi-grupo del usuario se respeta su distribución); después el
+usuario lo ajusta arrastrando el sash entre grupos. El frontend tiene un modo
+compacto (layout fluido hasta 860px con pills solo-icono) para que la UI siga
+legible en anchos angostos.
 
 El grupo de Lumen se bloquea con `workbench.action.lockEditorGroup` para que
 abrir archivos desde el flujo normal de VS Code no aterrice dentro del panel
-de Lumen. Ese bloqueo ocurre durante la transición de carga, cuando el breve
-cambio de foco queda cubierto visualmente.
+de Lumen. Solo se bloquea si el panel quedó solo en su grupo, y la salida (y
+la limpieza post-crash) desbloquea y cierra los grupos vacíos para no dejar
+un grupo bloqueado residual que desviaría entradas futuras.
 
 `lumen.exitMode` cierra el panel/grupo de Lumen, sale de Zen Mode y revierte
 los settings desde el snapshot. `workbench.sideBar.location` ya no se escribe
