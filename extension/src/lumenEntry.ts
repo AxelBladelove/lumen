@@ -18,6 +18,7 @@ const bootIntentKey = "lumen.bootIntent";
  * cubren un boot normal y un reintento completo antes de rendirse.
  */
 const frontendReadyTimeoutMs = 12_000;
+const frontendLoadingCompleteTimeoutMs = 10_000;
 const frontendRevealTimeoutMs = 10_000;
 
 type LumenModeDeps = {
@@ -50,10 +51,17 @@ export function isLumenModeActive() {
  * (Un cambio de layout a mitad del boot corrompia la carga del bundle y la
  * cortina quedaba congelada para siempre.)
  *
- * Cuando el frontend confirma que la ruta esta pintada (frontend.revealed),
- * se hace el unico cambio de layout: panel al grupo derecho (1/3, bloqueado)
- * con el archivo del usuario a la izquierda. Si Lumen Mode ya esta activo,
- * solo se revela el panel existente.
+ * Orden critico del final (fix del salto fullscreen): el layout se coloca
+ * ANTES de revelar la UI. Cuando el frontend reporta que la barra llego a 100%
+ * y la ruta ya rindio (frontend.loadingComplete) —con la cortina todavia a
+ * pantalla completa— se hace el unico cambio de layout: panel al grupo derecho
+ * (1/3, bloqueado) con un editor a la izquierda. Recien entonces se le ordena
+ * al frontend revelar (signalReveal): el fade descubre la UI ya en la vista
+ * dividida, sin pasar por un frame del modulo a pantalla completa. Si el usuario
+ * entra sin ningun archivo abierto, el grupo izquierdo queda vacio y se mantiene
+ * asi gracias a `workbench.editor.closeEmptyGroups: false` (ver lumenLayout) —
+ * sin abrir ningun documento placeholder. Si Lumen Mode ya esta activo, solo se
+ * revela el panel existente.
  */
 export async function enterLumenMode(deps: LumenModeDeps) {
   const { context, launcher, panel } = deps;
@@ -120,13 +128,22 @@ export async function enterLumenMode(deps: LumenModeDeps) {
       throw new Error("Lumen frontend did not become ready in time");
     }
 
-    // La ruta esta pintada cuando el intro se descarta; si la señal no llega
-    // (p. ej. WebGL degradado), se continua igual y el frontend recibira la
-    // fase "active" que fuerza el descarte del intro.
-    await panel.waitForRevealed(frontendRevealTimeoutMs);
+    // La barra llego a 100% y la ruta ya rindio, pero la cortina sigue a
+    // pantalla completa (el frontend espera el OK del layout para revelar). Si
+    // la señal no llega (p. ej. WebGL degradado), se continua igual: el frontend
+    // tiene su propio fallback de revelado y aqui igual se coloca el layout.
+    await panel.waitForLoadingComplete(frontendLoadingCompleteTimeoutMs);
 
-    // Unico cambio de layout de toda la entrada, ya sin cargas en vuelo.
+    // Unico cambio de layout de toda la entrada, ya sin cargas en vuelo y
+    // TODAVIA detras de la cortina: al terminar, el split ya esta colocado.
     await panel.moveAsideAndLock();
+
+    // Layout listo: ahora si se revela. El fade descubre la UI ya dividida,
+    // sin frame intermedio del modulo a pantalla completa.
+    panel.signalReveal();
+
+    // Confirmacion de que el fade termino antes de marcar la sesion activa.
+    await panel.waitForRevealed(frontendRevealTimeoutMs);
 
     session.active = true;
     launcher.setPhase("active");

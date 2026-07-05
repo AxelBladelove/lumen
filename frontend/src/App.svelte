@@ -35,6 +35,15 @@
   const introStableFrameDelayMs = 120;
   const introStableFrameBudgetMs = 26;
 
+  // Handshake de layout: dentro del Extension Host el fade final espera a que la
+  // extension confirme que el split ya esta colocado (mensaje `lumen.reveal`).
+  // Asi la UI se descubre ya en editor-izquierda + Lumen-derecha, sin un frame
+  // intermedio del modulo a pantalla completa. Fuera del host (Modo Libre /
+  // navegador) no hay layout que colocar y se revela directo.
+  let layoutPlaced = false;
+  let layoutPlacedResolvers: Array<() => void> = [];
+  const layoutPlacedFallbackMs = 1600;
+
   performance.mark("lumen:app-mounted");
   window.setTimeout(() => ensureLumenFavicon(), 80);
 
@@ -61,6 +70,11 @@
 
     if (message.type === "lumen.entry.transition" && message.payload.phase === "active") {
       dismissIntroNow();
+    }
+
+    // El layout final ya esta colocado detras de la cortina: se libera el fade.
+    if (message.type === "lumen.reveal") {
+      resolveLayoutPlaced();
     }
   });
 
@@ -130,12 +144,17 @@
     introProgressVisible = false;
     introProgress = 0;
     revealedPosted = false;
+    // Nueva entrada: el layout se vuelve a colocar, asi que el fade debe volver
+    // a esperar la confirmacion de la extension.
+    layoutPlaced = false;
+    layoutPlacedResolvers = [];
 
     stopIntroGate = setupIntroGate();
     stopIntroProgress = setupIntroProgress();
   }
 
   function dismissIntroNow() {
+    resolveLayoutPlaced();
     stopIntroGate();
     stopIntroProgress();
     document.documentElement.classList.remove("lumen-ui-revealing");
@@ -162,6 +181,28 @@
     if (revealedPosted) return;
     revealedPosted = true;
     bridge.post({ type: "frontend.revealed", payload: {} });
+  }
+
+  function resolveLayoutPlaced() {
+    if (layoutPlaced) return;
+    layoutPlaced = true;
+    const resolvers = layoutPlacedResolvers;
+    layoutPlacedResolvers = [];
+    resolvers.forEach((resolve) => resolve());
+  }
+
+  // Se resuelve cuando la extension confirma el layout (`lumen.reveal`) o, como
+  // red de seguridad, tras un fallback para no colgar el revelado si la señal
+  // nunca llega (host lento, build vieja de la extension, etc.).
+  function waitForLayoutPlaced() {
+    return new Promise<void>((resolve) => {
+      if (layoutPlaced) {
+        resolve();
+        return;
+      }
+      layoutPlacedResolvers.push(resolve);
+      window.setTimeout(resolve, layoutPlacedFallbackMs);
+    });
   }
 
   function setupPerfReporting() {
@@ -386,10 +427,10 @@
     let readyToReveal = routeVisualReady;
     let progressComplete = false;
     let completed = false;
+    let cancelled = false;
 
-    const finishIntro = () => {
-      if (completed) return;
-      completed = true;
+    const beginReveal = () => {
+      if (cancelled) return;
       const exitTimer = window.setTimeout(() => {
         performance.mark("lumen:intro-exit-start");
         document.documentElement.classList.add("lumen-ui-revealing");
@@ -403,6 +444,22 @@
         timers.push(hiddenTimer);
       }, 120);
       timers.push(exitTimer);
+    };
+
+    const finishIntro = () => {
+      if (completed) return;
+      completed = true;
+      performance.mark("lumen:intro-loading-complete");
+      // La carga termino con la cortina todavia a pantalla completa. Dentro del
+      // host se avisa a la extension para que coloque el split ANTES de revelar
+      // (el fade aterriza entonces en la vista dividida, no en un frame del
+      // modulo fullscreen). Fuera del host no hay layout que colocar: directo.
+      if (!runningInExtensionHost) {
+        beginReveal();
+        return;
+      }
+      bridge.post({ type: "frontend.loadingComplete", payload: {} });
+      waitForLayoutPlaced().then(beginReveal);
     };
 
     const markReadyToReveal = () => {
@@ -421,6 +478,7 @@
     timers.push(fallbackTimer);
 
     return () => {
+      cancelled = true;
       window.removeEventListener("lumen:route-visual-complete", markReadyToReveal);
       window.removeEventListener("lumen:intro-progress-complete", markProgressComplete);
       document.documentElement.classList.remove("lumen-ui-revealing");

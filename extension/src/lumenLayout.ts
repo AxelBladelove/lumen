@@ -20,8 +20,23 @@ const lumenZenModeSettings: Record<string, unknown> = {
   "zenMode.restore": false
 };
 
+/**
+ * Con el default (`true`), al mover el panel de Lumen al grupo derecho cuando el
+ * usuario entra SIN ningun archivo abierto, el grupo izquierdo queda vacio y VS
+ * Code lo cierra al instante, devolviendo Lumen a pantalla completa. En `false`
+ * el grupo izquierdo vacio persiste de forma estable, dejando el layout base
+ * editor-izquierda + Lumen-derecha sin necesidad de abrir ningun documento
+ * placeholder (nada de `Untitled`). Se aplica como override de workspace, se
+ * snapshotea junto al resto y se revierte al salir; ademas `closeEmptyEditorGroups`
+ * limpia el hueco explicitamente en Exit Mode y en la limpieza post-crash.
+ */
+const lumenEmptyGroupSettings: Record<string, unknown> = {
+  "workbench.editor.closeEmptyGroups": false
+};
+
 const allLumenLayoutSettings: Record<string, unknown> = {
-  ...lumenZenModeSettings
+  ...lumenZenModeSettings,
+  ...lumenEmptyGroupSettings
 };
 
 const layoutRestoreKey = "lumen.layoutRestore";

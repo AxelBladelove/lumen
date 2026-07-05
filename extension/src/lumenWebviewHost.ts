@@ -35,6 +35,10 @@ export type LumenWebviewMessage =
       payload: Record<string, never>;
     }
   | {
+      type: "frontend.loadingComplete";
+      payload: Record<string, never>;
+    }
+  | {
       type: "lumen.exit.requested";
       payload: Record<string, never>;
     }
@@ -70,6 +74,12 @@ type LumenWebviewHostOptions = {
   onExitRequested: () => void;
   /** El frontend evaluó su bundle y conectó el protocolo. */
   onFrontendReady?: () => void;
+  /**
+   * La barra de carga llegó a 100% y la ruta ya rindió, pero la cortina sigue
+   * a pantalla completa (aún no se reveló). Es el punto seguro para colocar el
+   * layout final ANTES de que el fade descubra la UI.
+   */
+  onFrontendLoadingComplete?: () => void;
   /** El intro terminó: la ruta está pintada y no quedan módulos en vuelo. */
   onFrontendRevealed?: () => void;
   perfViewType: string;
@@ -103,6 +113,15 @@ export class LumenWebviewHost {
   setEntryState(entryState: LumenEntryState) {
     this.entryState = entryState;
     this.postEntryState();
+  }
+
+  /**
+   * Le indica al frontend que el layout final ya está colocado y puede correr
+   * su fade de revelado. El frontend mantiene la cortina fullscreen hasta
+   * recibir esto, de modo que la UI se descubre ya en la vista dividida.
+   */
+  postReveal() {
+    this.postToWebview({ type: "lumen.reveal", payload: {} });
   }
 
   private postEntryState() {
@@ -142,6 +161,10 @@ export class LumenWebviewHost {
         this.postEntryState();
         this.postPhase();
         this.options.onFrontendReady?.();
+        break;
+
+      case "frontend.loadingComplete":
+        this.options.onFrontendLoadingComplete?.();
         break;
 
       case "frontend.revealed":

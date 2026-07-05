@@ -33,6 +33,10 @@ export type WebviewToExtensionMessage =
       payload: Record<string, never>;
     }
   | {
+      type: "frontend.loadingComplete";
+      payload: Record<string, never>;
+    }
+  | {
       type: "lumen.exit.requested";
       payload: Record<string, never>;
     }
@@ -92,6 +96,10 @@ export type ExtensionToWebviewMessage =
       payload: {
         phase: "entering" | "active";
       };
+    }
+  | {
+      type: "lumen.reveal";
+      payload: Record<string, never>;
     }
   | {
       type: "route.module.snapshot";

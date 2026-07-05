@@ -41,6 +41,7 @@ export class LumenPanelController {
   private watchdogTimer: ReturnType<typeof setTimeout> | undefined;
   private watchdogRebooted = false;
   private readySignal = createSignal();
+  private loadingCompleteSignal = createSignal();
   private revealedSignal = createSignal();
 
   constructor(
@@ -56,6 +57,7 @@ export class LumenPanelController {
         this.clearWatchdog();
         this.readySignal.resolve();
       },
+      onFrontendLoadingComplete: () => this.loadingCompleteSignal.resolve(),
       onFrontendRevealed: () => this.revealedSignal.resolve(),
       perfViewType: LumenRoutePathViewProvider.viewType
     });
@@ -92,6 +94,7 @@ export class LumenPanelController {
     }
 
     this.readySignal = createSignal();
+    this.loadingCompleteSignal = createSignal();
     this.revealedSignal = createSignal();
     this.watchdogRebooted = false;
 
@@ -146,9 +149,27 @@ export class LumenPanelController {
     return this.readySignal.wait(timeoutMs);
   }
 
+  /**
+   * Espera `frontend.loadingComplete` (barra al 100%, cortina aún fullscreen);
+   * false si no llega dentro del timeout. Es el punto en el que el layout final
+   * debe colocarse, detras de la cortina, antes de revelar.
+   */
+  waitForLoadingComplete(timeoutMs: number) {
+    return this.loadingCompleteSignal.wait(timeoutMs);
+  }
+
   /** Espera `frontend.revealed`; false si no llega dentro del timeout. */
   waitForRevealed(timeoutMs: number) {
     return this.revealedSignal.wait(timeoutMs);
+  }
+
+  /**
+   * Ordena al frontend descartar la cortina con su fade. Se llama solo despues
+   * de que el layout final quedo colocado, para que el revelado aterrice en la
+   * vista dividida y no en un frame del modulo a pantalla completa.
+   */
+  signalReveal() {
+    this.host.postReveal();
   }
 
   /**
