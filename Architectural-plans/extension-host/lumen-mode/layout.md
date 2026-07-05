@@ -18,10 +18,12 @@ defaults de Lumen Mode (`zenMode.*` con `centerLayout: false`, más
 determinista). La UI real de Lumen se crea como `WebviewPanel` de editor
 (`lumen.routePathPanel`) a pantalla completa en el grupo activo — su propia
 cortina estática cubre el boot — y solo cuando el frontend reporta
-`frontend.revealed` el panel se mueve a un grupo a la derecha. Esa regla de
-orden es deliberada: mutar el layout de editores mientras el webview carga
-módulos corrompía la carga (chunk con SyntaxError de identificador duplicado)
-y dejaba la cortina congelada.
+`frontend.loadingComplete` el panel se mueve a un grupo a la derecha. En ese
+momento la ruta ya rindió y no quedan módulos críticos en vuelo, pero la
+cortina sigue fullscreen; después la extensión envía `lumen.reveal` para que
+el fade descubra la UI ya dividida. Esa regla de orden es deliberada: mutar el
+layout de editores mientras el webview carga módulos corrompía la carga (chunk
+con SyntaxError de identificador duplicado) y dejaba la cortina congelada.
 
 El resultado es el layout documentado: código en el grupo izquierdo (el
 archivo que el usuario tuviera abierto permanece), Lumen a la derecha como

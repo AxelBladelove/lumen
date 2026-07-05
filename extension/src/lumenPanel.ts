@@ -29,9 +29,10 @@ const bootWatchdogMs = 5000;
  *    asigna el HTML en el mismo turno; la cortina estatica del propio HTML
  *    cubre el editor desde el primer frame.
  * 2. El frontend bootea a pantalla completa sin que se toque el layout.
- * 3. Cuando el intro termina (`frontend.revealed`), `moveAsideAndLock()`
- *    ejecuta el unico cambio de layout: mover el panel a un grupo derecho,
- *    fijar 2/3 + 1/3 y bloquear el grupo.
+ * 3. Cuando la carga termina detras de la cortina (`frontend.loadingComplete`),
+ *    `moveAsideAndLock()` ejecuta el unico cambio de layout: mover el panel a
+ *    un grupo derecho, fijar 2/3 + 1/3 y bloquear el grupo. Solo despues el
+ *    frontend recibe `lumen.reveal` y corre el fade final.
  */
 export class LumenPanelController {
   private readonly host: LumenWebviewHost;
@@ -175,8 +176,9 @@ export class LumenPanelController {
   /**
    * Unico cambio de layout de la entrada: panel al grupo derecho, proporcion
    * 2/3 editor + 1/3 Lumen y grupo bloqueado para que abrir archivos no
-   * aterrice sobre la UI. Se ejecuta solo cuando el frontend ya revelo (o el
-   * caller decidio no esperar mas): a esta altura no hay modulos en vuelo.
+   * aterrice sobre la UI. Se ejecuta cuando el frontend reporta
+   * `frontend.loadingComplete`: la ruta ya rindio y no hay modulos en vuelo,
+   * pero la cortina sigue cubriendo la UI hasta `signalReveal()`.
    */
   async moveAsideAndLock() {
     const panel = this.panel;

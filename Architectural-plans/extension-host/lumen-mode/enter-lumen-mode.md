@@ -31,12 +31,16 @@ Esa secuencia:
   porcentaje del intro estático (`window.__LUMEN_STATIC_INTRO__`) y lo lleva a
   100 con sus señales reales de listo. Un watchdog en el panel reintenta el
   HTML una vez si `frontend.ready` no llega en 5s.
-- Cuando el frontend confirma que la ruta está pintada (`frontend.revealed`),
-  se ejecuta el único cambio de layout de la entrada: el panel se mueve a un
-  grupo derecho (~1/3, bloqueado si queda solo) y el archivo del usuario queda
-  a la izquierda. Sin header nativo, alto completo; el ancho se ajusta con el
-  sash entre grupos.
-- Envía `lumen.entry.state` a la webview.
+- Cuando el frontend confirma `frontend.loadingComplete` (barra al 100 y ruta
+  ya pintada, pero cortina todavía fullscreen), se ejecuta el único cambio de
+  layout de la entrada: el panel se mueve a un grupo derecho (~1/3, bloqueado
+  si queda solo) y el archivo del usuario queda a la izquierda. Sin header
+  nativo, alto completo; el ancho se ajusta con el sash entre grupos.
+- Con el layout ya colocado, la extension envía `lumen.reveal`; recién ahí el
+  frontend corre el fade final. `frontend.revealed` solo confirma que la
+  cortina terminó de salir y permite marcar la sesión como activa.
+- Envía `lumen.entry.state` a la webview al crear la entrada y después de cada
+  `frontend.ready`.
 
 La vista contribuida `lumen.routePath` del Activity Bar sigue existiendo, pero
 ahora es solo un launcher liviano: cuando VS Code la hace visible por el click

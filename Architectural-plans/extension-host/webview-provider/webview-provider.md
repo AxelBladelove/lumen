@@ -39,8 +39,11 @@ pantalla completa en el grupo activo (su HTML incluye la cortina estática de
 entrada), usa `retainContextWhenHidden: true` y sirve el frontend completo sin
 el header nativo del sidebar. El controlador arma un watchdog de boot
 (reintenta el HTML una vez si `frontend.ready` no llega en 5s) y expone
-señales `frontend.ready`/`frontend.revealed` que `lumenEntry.ts` usa para
-mover el panel al grupo derecho solo cuando ya no hay módulos cargando.
+señales `frontend.ready`, `frontend.loadingComplete` y `frontend.revealed`.
+`lumenEntry.ts` espera `frontend.loadingComplete` para mover el panel al grupo
+derecho mientras la cortina sigue tapando la UI, envía `lumen.reveal` cuando el
+layout ya quedó colocado y usa `frontend.revealed` solo como confirmación de
+que el fade final terminó.
 
 Detalle de robustez: dentro de `onDidDispose` no debe leerse `panel.webview`
 (el getter lanza "Webview is disposed"); el controlador captura la referencia
@@ -48,10 +51,12 @@ del webview al crear el panel y limpia estado con esa referencia. Un throw ahí
 dejaba un panel fantasma que rompía todas las entradas siguientes.
 
 `lumenWebviewHost.ts` contiene la logica compartida de mensajes, estado de
-entrada, fases y reportes de performance para el webview que ejecuta el
-frontend.
+entrada, fases, handshake de revelado y reportes de performance para el
+webview que ejecuta el frontend.
 
-`lumenWebviewContent.ts` contiene la construccion de HTML/CSP/nonce.
+`lumenWebviewContent.ts` contiene la construccion de HTML/CSP/nonce, la
+inyeccion de `<base>`, favicon, bootstrap de protocolo y fallback cuando falta
+`frontend/dist/index.html`.
 
 `extension.ts` registra el provider, mas `lumen.open`, `lumen.enterMode`,
 `lumen.exitMode` y `lumen.refreshWebview`.
@@ -109,6 +114,15 @@ abrir acceso arbitrario.
 El estado de entrada lo fija `lumen.enterMode` (ver `enter-lumen-mode.md`): el
 panel recibe `lumen.entry.state` con `phase: "mock-route-path-view"` al crearse
 y en cada `frontend.ready`.
+
+El handshake de entrada actual es:
+
+```txt
+frontend.ready -> extension.ready + estado/fase
+frontend.loadingComplete -> mover panel al grupo derecho y bloquearlo
+lumen.reveal -> frontend corre el fade de la cortina
+frontend.revealed -> la extension marca la sesion activa
+```
 
 ## Perf Report
 

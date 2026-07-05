@@ -38,6 +38,8 @@ monta `App.svelte`.
 - muestra la pantalla de entrada de Lumen encima de la ruta;
 - precarga logo y wordmark;
 - decide cuando esconder el intro;
+- en VS Code espera `lumen.reveal` antes de correr el fade final, despues de
+  emitir `frontend.loadingComplete`;
 - emite reportes `perf.report`.
 
 ## Pantalla de entrada
@@ -57,7 +59,9 @@ El intro se mantiene visible hasta que:
 
 - los assets de marca estan listos o vence un fallback corto;
 - la ruta marca `lumen:route-visual-complete`;
-- la barra visual de progreso completa su animacion.
+- la barra visual de progreso completa su animacion;
+- si corre dentro del Extension Host, llega `lumen.reveal` confirmando que el
+  panel ya esta en el layout final.
 
 Si la URL contiene `lumenPerfHoldIntro`, el intro se mantiene para capturas de
 performance visual.

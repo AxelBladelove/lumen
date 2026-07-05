@@ -1,7 +1,7 @@
 # Lumen
 
 Lumen es, en este estado del repo, una extension de VS Code que empaqueta un
-frontend Svelte/Vite dentro de la webview `lumen.routePath`.
+frontend Svelte/Vite dentro de un `WebviewPanel` de editor.
 
 El slice implementado es un mock visual de `Ruta C / Modulo 2: Cadenas de
 caracteres`. Sirve para validar la experiencia de Route Path View, el snake
@@ -12,7 +12,12 @@ performance.
 
 - Paquete raiz de la extension: `package.json`.
 - Entry point de la extension: `extension/src/extension.ts`.
-- Webview provider: `extension/src/lumenRoutePathViewProvider.ts`.
+- Secuencia de entrada/salida: `extension/src/lumenEntry.ts`.
+- Layout enfocado de VS Code: `extension/src/lumenLayout.ts`.
+- Panel principal de editor: `extension/src/lumenPanel.ts`.
+- Host de mensajes webview: `extension/src/lumenWebviewHost.ts`.
+- HTML/CSP de la webview: `extension/src/lumenWebviewContent.ts`.
+- Launcher del Activity Bar: `extension/src/lumenRoutePathViewProvider.ts`.
 - Estado de entrada/workspace: `extension/src/lumenEntryState.ts`.
 - App frontend: `frontend/src/App.svelte`.
 - Vista de ruta: `frontend/src/route-path-view/RoutePathView.svelte`.
@@ -21,8 +26,12 @@ performance.
 - Assets de marca: `assets/brand/`.
 - Scripts de performance e instalacion local: `scripts/`.
 
-La extension contribuye el contenedor de Activity Bar `Lumen`, la vista
-webview `Ruta C` y los comandos:
+La extension contribuye el contenedor de Activity Bar `Lumen` y la vista
+`lumen.routePath`, pero esa vista ya no renderiza la UI principal: funciona
+como launcher liviano. Al hacer click en el icono, la extension cierra el
+sidebar, entra a Lumen Mode, crea el panel `lumen.routePathPanel` a pantalla
+completa, activa Zen Mode y, cuando el frontend termina su carga detras de la
+cortina, mueve el panel al grupo derecho. Los comandos disponibles son:
 
 ```txt
 lumen.open
@@ -60,8 +69,9 @@ recargarse con `Developer: Reload Window` para tomar la nueva copia.
 
 ## Build de la Webview
 
-El provider lee `frontend/dist/index.html`. Si el frontend no fue compilado,
-la extension muestra una pagina minima que pide ejecutar `bun run build`.
+El panel lee `frontend/dist/index.html` mediante `lumenWebviewContent.ts`. Si
+el frontend no fue compilado, la extension muestra una pagina minima que pide
+ejecutar `bun run build`.
 
 El build de Vite usa `base: "./"` para funcionar dentro de la webview. Los
 plugins locales:
@@ -87,8 +97,8 @@ node scripts/measure-vscode-webview.mjs
 
 `perf:harness` usa Vite preview + Chromium CDP, mide estados visuales de la
 ruta y escribe resultados bajo `perf/results` y capturas bajo `perf/visual`.
-El provider de VS Code tambien acepta mensajes `perf.report` desde la webview
-y los guarda en `.lumen-perf/vscode-webview.jsonl`.
+El host de webview de VS Code tambien acepta mensajes `perf.report` desde la
+webview y los guarda en `.lumen-perf/vscode-webview.jsonl`.
 
 ## Documentacion
 

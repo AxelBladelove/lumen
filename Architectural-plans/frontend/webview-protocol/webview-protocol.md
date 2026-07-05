@@ -10,7 +10,8 @@ Extension Host.
 Este documento no define el bridge completo hacia Local Engine. Solo describe
 los mensajes que existen hoy entre `frontend/src/webview/messages.ts`,
 `frontend/src/webview/vscodeBridge.ts` y
-`extension/src/lumenRoutePathViewProvider.ts`.
+`extension/src/lumenWebviewHost.ts`, con el panel principal controlado por
+`extension/src/lumenPanel.ts`.
 
 ## Estado actual del repo
 
@@ -43,17 +44,30 @@ dataSource
 La extension responde con `extension.ready` y reenvia `lumen.entry.state` si
 ya lo tiene.
 
-### `frontend.revealed`
+### `frontend.loadingComplete`
 
-Se emite una sola vez por ciclo de intro, cuando la cortina de entrada termino
-de ocultarse: la ruta ya rindio (WebGL incluido) y no quedan modulos cargando.
+Se emite una vez por ciclo de intro cuando la barra llega a 100 y la ruta ya
+rindio lo suficiente para mostrar la UI, pero la cortina de entrada sigue a
+pantalla completa.
 
 Payload vacio.
 
-El Extension Host la usa como señal de que es seguro ejecutar el cambio de
-layout de la entrada (mover el panel al grupo derecho y bloquearlo). Mutar el
+El Extension Host la usa como punto seguro para ejecutar el unico cambio de
+layout de la entrada: mover `lumen.routePathPanel` al grupo derecho, ajustar la
+proporcion de grupos y bloquear el grupo de Lumen si quedo solo. Mutar el
 layout de editores antes de esta señal puede interrumpir la carga de modulos
 del webview.
+
+### `frontend.revealed`
+
+Se emite una sola vez por ciclo de intro, cuando la cortina de entrada termino
+de ocultarse: la ruta ya esta visible en el layout final y no quedan modulos
+cargando.
+
+Payload vacio.
+
+El Extension Host la usa como confirmacion de que el fade final termino antes
+de marcar la sesion como activa.
 
 ### `route.node.selected`
 
@@ -165,6 +179,13 @@ Cuando `phase` es `entering`, el frontend reinicia la pantalla de carga con
 logo, wordmark y barra de progreso aunque la webview haya quedado retenida por
 VS Code desde una entrada anterior. Esto permite cubrir el reacomodo de Zen
 Mode y del grupo de editor derecho sin recargar toda la webview.
+
+### `lumen.reveal`
+
+Indica que el layout final ya quedo colocado detras de la cortina. El frontend
+usa este mensaje para liberar el fade de salida del intro; asi la UI aparece
+directamente en editor-izquierda + Lumen-derecha, sin un frame intermedio del
+modulo a pantalla completa.
 
 ### `route.module.snapshot`
 
