@@ -19,9 +19,12 @@ Al iniciar, envía `frontend.ready`; también emite `route.node.selected` y
 ejercicio completado, aunque en el estado actual el dato inicial viene del mock.
 
 El build actual no es un Vite default puro: `frontend/vite.config.ts` usa base
-relativa, separa Three.js en chunk manual, reemplaza el entry module por un
-bootstrap diferido, carga el stylesheet con un loader diferido y elimina PNG
-source de `dist` cuando existen assets runtime `.webp`.
+relativa, separa Three.js en chunk manual, reemplaza el tag del entry module
+por un bootstrap inline que importa el bundle principal, carga el stylesheet
+con `window.__LUMEN_LOAD_STYLES__` y elimina PNG source de `dist` cuando
+existen assets runtime `.webp`. El CSS se carga de inmediato dentro de VS Code
+cuando existe `window.__LUMEN_WEBVIEW_BOOTSTRAP__`, pero se difiere hasta
+`window.load` en navegador normal; el JS principal no espera ese evento.
 
 No están implementadas todavía las vistas de onboarding, selección de modos,
 Free Mode, colección de ejercicios, Ask Tutor, estados de compilación ni

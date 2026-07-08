@@ -57,6 +57,14 @@ observable de Lumen, no por el id del panel. Los reportes JSONL siguen
 escribiendo `viewType: "lumen.routePath"` por compatibilidad con resultados y
 harnesses previos.
 
+Por default usa `VSCODE_RESET_MODE=process`: escribe el sentinel
+`.lumen-perf-auto-open`, reinicia el proceso de VS Code con remote debugging,
+espera que la extension autoabra Lumen y luego mide los estados del panel. Los
+modos alternativos son `window` (reload de ventana) y `webview` (reload del
+runtime de la webview existente). Las capturas de VS Code se guardan bajo
+`perf/visual/<timestamp>/vscode/` y sus baselines bajo
+`perf/baselines/vscode-visual/`.
+
 ## Scripts de package.json
 
 ```txt
@@ -75,6 +83,7 @@ Variables principales:
 
 ```txt
 CHROME_PATH
+CDP_PORT
 PERF_CDP_PORT
 PERF_PREVIEW_PORT
 PERF_ORIGIN
@@ -83,17 +92,30 @@ PERF_WARMUPS
 PERF_WIDTH
 PERF_HEIGHT
 PERF_DSF
+PERF_HEADLESS
+PERF_SETTLE_TIMEOUT_MS
 PERF_VISUAL_THRESHOLD
 PERF_VISUAL_CHANNEL_THRESHOLD
 PERF_KEEP_PREVIEW
 ```
 
+`CDP_PORT`, `PERF_HEADLESS` y `PERF_SETTLE_TIMEOUT_MS` pertenecen a
+`measure-page-load.mjs`; `PERF_CDP_PORT`, `PERF_PREVIEW_PORT`,
+`PERF_DSF`, `PERF_VISUAL_THRESHOLD`, `PERF_VISUAL_CHANNEL_THRESHOLD` y
+`PERF_KEEP_PREVIEW` pertenecen a `perf-harness.mjs`. Comparten
+`CHROME_PATH`, `PERF_ORIGIN`, `PERF_ITERATIONS`, `PERF_WARMUPS`,
+`PERF_WIDTH` y `PERF_HEIGHT`.
+
 Para VS Code webview:
 
 ```txt
+VSCODE_CODE_EXE
 VSCODE_CDP_PORT
 VSCODE_PERF_ITERATIONS
 VSCODE_PERF_WARMUPS
+VSCODE_RESET_MODE
+VSCODE_VISUAL_THRESHOLD
+VSCODE_VISUAL_CHANNEL_THRESHOLD
 VSCODE_WEBVIEW_TARGET
 ```
 

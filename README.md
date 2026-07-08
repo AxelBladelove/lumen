@@ -77,11 +77,13 @@ El build de Vite usa `base: "./"` para funcionar dentro de la webview. Los
 plugins locales:
 
 - eliminan PNG source de `dist` cuando existen assets runtime `.webp`;
-- reemplazan el entry module por un bootstrap diferido;
-- reemplazan el CSS por un loader diferido de stylesheet;
-- cargan JS/CSS inmediatamente dentro de VS Code cuando existe
-  `window.__LUMEN_WEBVIEW_BOOTSTRAP__`, y esperan a `window.load` en navegador
-  normal.
+- reemplazan el entry module por un bootstrap inline que importa el bundle
+  principal desde el HTML;
+- reemplazan el CSS por `window.__LUMEN_LOAD_STYLES__`, un loader diferido de
+  stylesheet;
+- cargan el CSS de inmediato dentro de VS Code cuando existe
+  `window.__LUMEN_WEBVIEW_BOOTSTRAP__`, y lo esperan hasta `window.load` en
+  navegador normal. El JS principal no espera a `window.load`.
 
 ## Performance
 
