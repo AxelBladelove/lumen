@@ -11,6 +11,12 @@ import type { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
 import { readLumenFrontendIndexHtml } from "./lumenWebviewContent";
 
 const bootIntentKey = "lumen.bootIntent";
+const bootIntentMaxAgeMs = 2 * 60 * 1000;
+
+type LumenBootIntent = {
+  pendingOpen: true;
+  requestedAt: number;
+};
 
 /**
  * Presupuestos de espera de la entrada. `frontend.ready` tiene ademas un
@@ -38,6 +44,31 @@ const session = {
 
 export function isLumenModeActive() {
   return session.active;
+}
+
+/**
+ * Retoma una entrada solicitada antes de `vscode.openFolder`. El intent se
+ * consume siempre: solo uno reciente y ya dentro de ~/.lumen puede autoabrir.
+ */
+export async function resumePendingLumenOpen(deps: LumenModeDeps) {
+  const bootIntent = deps.context.globalState.get<unknown>(bootIntentKey);
+  if (bootIntent === undefined) return false;
+
+  const workspaceState = resolveLumenEntryState().workspace;
+  const shouldResume = isRecentBootIntent(bootIntent) && workspaceState.isInLumenWorkspace;
+
+  try {
+    await deps.context.globalState.update(bootIntentKey, undefined);
+  } catch (error) {
+    console.error("Failed to clear Lumen boot intent", error);
+    await vscode.window.showErrorMessage(
+      "Lumen no pudo limpiar la solicitud de inicio pendiente. Intenta abrir Lumen nuevamente."
+    );
+    return true;
+  }
+
+  if (shouldResume) await enterLumenMode(deps);
+  return true;
 }
 
 /**
@@ -90,15 +121,15 @@ export async function enterLumenMode(deps: LumenModeDeps) {
       .executeCommand("workbench.action.closeSidebar")
       .then(undefined, () => undefined);
 
+    if (entryState.workspace.action !== "ready") {
+      await switchToLumenWorkspace(context, entryState.workspace);
+      launcher.setPhase("idle");
+      panel.setPhase("idle");
+      return;
+    }
+
     // HTML preleido: la creacion del panel y su contenido comparten turno.
     const rawHtml = await readLumenFrontendIndexHtml(context);
-
-    await context.globalState.update(bootIntentKey, {
-      requestedAt: Date.now(),
-      requestedMode: "route",
-      phase: "mock-route-path-view",
-      workspaceAction: entryState.workspace.action
-    });
 
     await vscode.commands.executeCommand("setContext", "lumen.inMode", true);
     await vscode.commands.executeCommand("setContext", "lumen.mode", "route");
@@ -161,6 +192,99 @@ export async function enterLumenMode(deps: LumenModeDeps) {
   } finally {
     session.transitioning = false;
   }
+}
+
+async function switchToLumenWorkspace(
+  context: vscode.ExtensionContext,
+  workspaceState: ReturnType<typeof resolveLumenEntryState>["workspace"]
+) {
+  if (!(await saveDirtyDocuments())) return;
+  if (!(await ensureOfficialWorkspaceExists(workspaceState))) return;
+
+  const bootIntent: LumenBootIntent = {
+    pendingOpen: true,
+    requestedAt: Date.now()
+  };
+
+  try {
+    await context.globalState.update(bootIntentKey, bootIntent);
+  } catch (error) {
+    console.error("Failed to persist Lumen boot intent", error);
+    await vscode.window.showErrorMessage(
+      "Lumen no pudo preparar el cambio de workspace. Tu proyecto actual permanece abierto."
+    );
+    return;
+  }
+
+  try {
+    await vscode.commands.executeCommand(
+      "vscode.openFolder",
+      vscode.Uri.file(workspaceState.officialWorkspacePath),
+      { forceReuseWindow: true }
+    );
+  } catch (error) {
+    console.error("Failed to open the Lumen workspace", error);
+    await context.globalState.update(bootIntentKey, undefined).then(undefined, () => undefined);
+    await vscode.window.showErrorMessage(
+      "Lumen no pudo abrir su workspace. Revisa que la carpeta exista y que VS Code tenga permisos para abrirla."
+    );
+  }
+}
+
+async function saveDirtyDocuments() {
+  if (!hasDirtyDocuments()) return true;
+
+  try {
+    const saved = await vscode.workspace.saveAll(false);
+    if (saved && !hasDirtyDocuments()) return true;
+  } catch (error) {
+    console.error("Failed to save dirty documents before opening Lumen", error);
+  }
+
+  await vscode.window.showWarningMessage(
+    "Lumen no cambió de workspace porque quedó trabajo sin guardar. Guarda o cierra los documentos pendientes e inténtalo de nuevo."
+  );
+  return false;
+}
+
+function hasDirtyDocuments() {
+  return (
+    vscode.workspace.textDocuments.some((document) => document.isDirty) ||
+    vscode.workspace.notebookDocuments.some((document) => document.isDirty)
+  );
+}
+
+async function ensureOfficialWorkspaceExists(
+  workspaceState: ReturnType<typeof resolveLumenEntryState>["workspace"]
+) {
+  if (workspaceState.officialWorkspaceExists) return true;
+
+  const create = "Crear";
+  const choice = await vscode.window.showInformationMessage(
+    `La carpeta de Lumen no existe en ${workspaceState.officialWorkspacePath}.`,
+    create
+  );
+  if (choice !== create) return false;
+
+  try {
+    await vscode.workspace.fs.createDirectory(vscode.Uri.file(workspaceState.officialWorkspacePath));
+    return true;
+  } catch (error) {
+    console.error("Failed to create the Lumen workspace", error);
+    await vscode.window.showErrorMessage(
+      "Lumen no pudo crear su carpeta. Revisa los permisos de tu directorio de usuario e inténtalo de nuevo."
+    );
+    return false;
+  }
+}
+
+function isRecentBootIntent(value: unknown): value is LumenBootIntent {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<LumenBootIntent>;
+  if (candidate.pendingOpen !== true || typeof candidate.requestedAt !== "number") return false;
+
+  const age = Date.now() - candidate.requestedAt;
+  return Number.isFinite(candidate.requestedAt) && age >= 0 && age < bootIntentMaxAgeMs;
 }
 
 /**

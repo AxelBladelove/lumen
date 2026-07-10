@@ -42,16 +42,26 @@ lumen.enterMode
 lumen.exitMode
 lumen.refreshWebview
 lumen.engineStatus
+lumen.compileCurrentExercise
 ```
 
 ## Local Engine
 
-`engine/` contiene el bootstrap del Local Engine: un binario Rust
-(`lumen-engine`) que habla NDJSON por stdio con el Extension Host y persiste
-estado en SQLite (`lumen.db` bajo el globalStorage de la extension), con
-migraciones versionadas. El contrato normativo es
-`Architectural-plans/extension-engine-bridge/protocol-v1.md` (protocolo v1:
-`engine.healthCheck`, `session.getLastState`, `session.saveLastState`).
+`engine/` contiene el Local Engine: un binario Rust (`lumen-engine`) que habla
+NDJSON por stdio con el Extension Host y persiste estado en SQLite (`lumen.db`
+bajo el globalStorage de la extension), con migraciones versionadas. El
+contrato normativo es
+`Architectural-plans/extension-engine-bridge/protocol-v2.md` (protocolo v2:
+`engine.healthCheck`, `session.getLastState`, `session.saveLastState`,
+`exercise.compile`, `toolchain.check`).
+
+El flujo de compilacion `F9` esta implementado como slice transicional: la
+extension resuelve el archivo `.c` activo y llama `exercise.compile`; el
+engine descubre GCC (PATH o MSYS2), compila con `-Wall -Wextra -g` a
+`.lumen-build/`, devuelve diagnosticos estructurados y registra el intento en
+`compile_attempts`. Con exito se abre una consola externa de Windows; con
+errores se muestra la terminal integrada `Lumen Compile` (errores en rojo,
+warnings en azul). Orquestacion en `extension/src/lumenCompile.ts`.
 
 La extension lanza el binario de forma lazy mediante
 `extension/src/engine/lumenEngineClient.ts`, hace un health check al activar y
@@ -59,9 +69,9 @@ expone `lumen.engineStatus` para inspeccionarlo. En desarrollo el cliente busca
 el binario en `engine/target/{release,debug}`; en la copia instalada, en
 `bin/lumen-engine.exe` (sincronizado por `install:local`).
 
-Todavia no existen Cloudflare backend, comando de compilacion, Ask Tutor ni
-coleccion de ejercicios empaquetada. El engine aun no compila C ni gestiona
-ejercicios: solo salud y estado de sesion.
+Todavia no existen Cloudflare backend, Ask Tutor ni coleccion de ejercicios
+empaquetada. El engine aun no gestiona ejercicios (bloqueos, importacion,
+metadata): la resolucion del ejercicio activo es transicional via el editor.
 
 ## Desarrollo
 

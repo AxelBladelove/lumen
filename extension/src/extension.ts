@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import { LumenEngineClient } from "./engine/lumenEngineClient";
 import { LumenEngineError } from "./engine/lumenEngineProtocol";
-import { enterLumenMode, exitLumenMode } from "./lumenEntry";
+import { LumenCompileController } from "./lumenCompile";
+import { enterLumenMode, exitLumenMode, resumePendingLumenOpen } from "./lumenEntry";
 import { cleanupStaleLumenLayout } from "./lumenLayout";
 import { LumenPanelController } from "./lumenPanel";
 import { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
@@ -15,6 +16,9 @@ export function activate(context: vscode.ExtensionContext) {
   const engineClient = new LumenEngineClient(context, outputChannel);
   lumenEngineClient = engineClient;
   context.subscriptions.push(engineClient);
+
+  const compileController = new LumenCompileController(engineClient, outputChannel);
+  context.subscriptions.push(compileController);
 
   const launcher = new LumenRoutePathViewProvider(() => {
     void vscode.commands.executeCommand("lumen.enterMode");
@@ -47,6 +51,15 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("lumen.refreshWebview", async () => {
       const refreshed = await panel.refresh();
       if (!refreshed) await enterLumenMode(deps);
+    }),
+    vscode.commands.registerCommand("lumen.compileCurrentExercise", async () => {
+      try {
+        await compileController.compileCurrentExercise();
+      } catch (error) {
+        const detail = formatEngineError(error);
+        outputChannel.appendLine(`Compile command failed: ${detail}`);
+        await vscode.window.showErrorMessage(detail);
+      }
     })
   );
 
@@ -61,22 +74,12 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  // Una sesion anterior pudo morir dentro de Lumen Mode (reload/crash) dejando
-  // los overrides de layout aplicados. Se restauran antes de cualquier uso.
-  void cleanupStaleLumenLayout(context).then((restored) => {
-    if (restored) outputChannel.appendLine("Restored layout settings from a previous Lumen Mode session.");
+  void initializeLumenEntry(deps, outputChannel).then(undefined, (error) => {
+    outputChannel.appendLine(`Failed to initialize Lumen entry: ${String(error)}`);
+    void vscode.window.showErrorMessage(
+      "Lumen no pudo inicializar su entrada. Intenta abrir Lumen nuevamente."
+    );
   });
-
-  void vscode.commands.executeCommand("setContext", "lumen.inMode", false);
-
-  shouldAutoOpenForPerformanceHarness().then((shouldAutoOpen) => {
-    if (!shouldAutoOpen) return;
-    setTimeout(() => {
-      enterLumenMode(deps).then(undefined, (error) => {
-        console.error("Failed to auto-open Lumen for performance harness", error);
-      });
-    }, 250);
-  }, () => undefined);
 }
 
 export function deactivate() {
@@ -87,6 +90,41 @@ export function deactivate() {
 function formatEngineError(error: unknown) {
   if (error instanceof LumenEngineError) return `${error.code}: ${error.message}`;
   return `ENGINE_START_FAILED: ${error instanceof Error ? error.message : String(error)}`;
+}
+
+async function initializeLumenEntry(
+  deps: Parameters<typeof enterLumenMode>[0],
+  outputChannel: vscode.OutputChannel
+) {
+  await vscode.commands.executeCommand("setContext", "lumen.inMode", false);
+
+  // Una sesion anterior pudo morir dentro de Lumen Mode (reload/crash) dejando
+  // los overrides de layout aplicados. Se restauran antes de retomar la entrada.
+  try {
+    const restored = await cleanupStaleLumenLayout(deps.context);
+    if (restored) {
+      outputChannel.appendLine("Restored layout settings from a previous Lumen Mode session.");
+    }
+  } catch (error) {
+    outputChannel.appendLine(`Failed to restore stale Lumen layout: ${String(error)}`);
+  }
+
+  try {
+    if (await resumePendingLumenOpen(deps)) return;
+  } catch (error) {
+    outputChannel.appendLine(`Failed to resume pending Lumen entry: ${String(error)}`);
+    await vscode.window.showErrorMessage(
+      "Lumen cambió de workspace, pero no pudo completar la entrada automática. Intenta abrir Lumen nuevamente."
+    );
+    return;
+  }
+
+  if (!(await shouldAutoOpenForPerformanceHarness().catch(() => false))) return;
+  setTimeout(() => {
+    enterLumenMode(deps).then(undefined, (error) => {
+      console.error("Failed to auto-open Lumen for performance harness", error);
+    });
+  }, 250);
 }
 
 async function shouldAutoOpenForPerformanceHarness() {

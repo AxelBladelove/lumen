@@ -8,12 +8,22 @@ Archivo: `Architectural-plans/local-engine/compile.md`
 
 ## Estado actual del repo
 
-La compilación de ejercicios no está implementada todavía. El repo actual no
-contribuye `lumen.compileCurrentExercise`, no registra `F9`, no contiene Local
-Engine, no invoca GCC/MSYS2 y no abre consola externa.
+El flujo base de `F9` está implementado como slice transicional (protocolo v2,
+ver `Architectural-plans/extension-engine-bridge/protocol-v2.md`):
 
-Este documento define el comportamiento objetivo del futuro módulo de
-compilación.
+- El Local Engine implementa `exercise.compile` (GCC con `-Wall -Wextra -g`,
+  artefactos en `.lumen-build/`, diagnósticos estructurados, timeout de 30s,
+  registro en `compile_attempts`) y `toolchain.check` (`engine/src/compile.rs`).
+- La extensión contribuye `lumen.compileCurrentExercise` con keybinding `F9`,
+  terminal integrada "Lumen Compile" (errores en rojo, warnings en azul) y
+  consola externa en Windows al compilar con éxito
+  (`extension/src/lumenCompile.ts`).
+
+Lo que aún NO existe de este documento: resolución del ejercicio activo por el
+engine (hoy la extensión pasa el archivo del editor activo), validación de
+ejercicios bloqueados y clasificación de intentos por ruta (no hay Exercise
+Collection ni modos todavía). El resto de este documento describe el
+comportamiento objetivo completo.
 
 Este archivo vive dentro de `local-engine` porque compilar no debe ser una responsabilidad de la webview ni del Extension Host. La UI puede tener un botón y VS Code puede recibir el shortcut `F9`, pero la lógica real de compilación debe pasar por el Local Engine.
 

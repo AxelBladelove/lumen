@@ -15,6 +15,10 @@ const lumenEngineRequestTimeoutMs = 10_000;
 const lumenEngineRestartCooldownMs = 2_000;
 const lumenEngineShutdownTimeoutMs = 2_000;
 
+export type LumenEngineRequestOptions = {
+  timeoutMs?: number;
+};
+
 type PendingRequest = {
   resolve: (result: unknown) => void;
   reject: (error: LumenEngineError) => void;
@@ -36,11 +40,16 @@ export class LumenEngineClient implements vscode.Disposable {
 
   async request<M extends LumenEngineMethod>(
     method: M,
-    params: LumenEngineMethodMap[M]["params"]
+    params: LumenEngineMethodMap[M]["params"],
+    options: LumenEngineRequestOptions = {}
   ): Promise<LumenEngineMethodMap[M]["result"]> {
     const engineProcess = await this.getOrStartEngine();
     const id = `r-${Date.now().toString(36)}-${++this.requestSequence}`;
     const request: LumenEngineRequest<M> = { id, method, params };
+    const timeoutMs =
+      typeof options.timeoutMs === "number" && options.timeoutMs > 0
+        ? options.timeoutMs
+        : lumenEngineRequestTimeoutMs;
 
     return new Promise<LumenEngineMethodMap[M]["result"]>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -48,11 +57,11 @@ export class LumenEngineClient implements vscode.Disposable {
         reject(
           new LumenEngineError(
             "ENGINE_TIMEOUT",
-            `The engine did not respond to ${method} within ${lumenEngineRequestTimeoutMs / 1_000} seconds.`,
+            `The engine did not respond to ${method} within ${timeoutMs / 1_000} seconds.`,
             true
           )
         );
-      }, lumenEngineRequestTimeoutMs);
+      }, timeoutMs);
 
       this.pendingRequests.set(id, {
         resolve: (result) => resolve(result as LumenEngineMethodMap[M]["result"]),

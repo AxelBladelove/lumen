@@ -1,3 +1,4 @@
+mod compile;
 mod protocol;
 mod state;
 mod storage;

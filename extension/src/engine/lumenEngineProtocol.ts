@@ -1,10 +1,14 @@
-export const lumenEngineProtocolVersion = 1;
+export const lumenEngineProtocolVersion = 2;
 
 export const lumenEngineErrorCodes = [
   "INVALID_REQUEST",
   "UNKNOWN_METHOD",
   "INVALID_PARAMS",
   "DATABASE_ERROR",
+  "SOURCE_NOT_FOUND",
+  "TOOLCHAIN_NOT_FOUND",
+  "BUILD_DIR_ERROR",
+  "COMPILER_FAILED",
   "UNKNOWN_ERROR"
 ] as const;
 
@@ -53,6 +57,54 @@ export type LumenEngineSessionState = {
   updatedAt: string;
 };
 
+export type LumenCompileDiagnosticKind = "error" | "warning" | "note";
+
+export type LumenCompileDiagnostic = {
+  kind: LumenCompileDiagnosticKind;
+  file: string | null;
+  line: number | null;
+  column: number | null;
+  message: string;
+};
+
+export type LumenCompileToolchain = {
+  compilerPath: string;
+};
+
+export type LumenCompileSuccess = {
+  status: "success";
+  executablePath: string;
+  diagnostics: LumenCompileDiagnostic[];
+  durationMs: number;
+  toolchain: LumenCompileToolchain;
+};
+
+export type LumenCompileFailure = {
+  status: "compile_error";
+  executablePath: null;
+  diagnostics: LumenCompileDiagnostic[];
+  rawOutput: string;
+  durationMs: number;
+  toolchain: LumenCompileToolchain;
+};
+
+export type LumenCompileResult = LumenCompileSuccess | LumenCompileFailure;
+
+export type LumenToolchainReady = {
+  status: "ready";
+  compilerPath: string;
+  compilerVersion: string;
+};
+
+export type LumenToolchainMissing = {
+  status: "missing";
+  compilerPath: null;
+  compilerVersion: null;
+  hint: string;
+};
+
+export type LumenToolchainCheckResult = LumenToolchainReady | LumenToolchainMissing;
+
 export type LumenEngineMethodMap = {
   "engine.healthCheck": {
     params: Record<string, never>;
@@ -70,6 +122,14 @@ export type LumenEngineMethodMap = {
       lastExerciseId?: string | null;
     };
     result: { state: LumenEngineSessionState };
+  };
+  "exercise.compile": {
+    params: { sourcePath: string };
+    result: LumenCompileResult;
+  };
+  "toolchain.check": {
+    params: Record<string, never>;
+    result: LumenToolchainCheckResult;
   };
 };
 

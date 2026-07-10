@@ -9,25 +9,30 @@ export function resolveLumenEntryState(inMode = true): LumenEntryState {
     protocolVersion: lumenWebviewProtocolVersion,
     inMode,
     mode: "route",
-    workspace: resolveWorkspaceState(),
+    workspace: resolveLumenWorkspaceState(),
     phase: "mock-route-path-view"
   };
 }
 
-function resolveWorkspaceState(): LumenEntryState["workspace"] {
+export function resolveLumenWorkspaceState(): LumenEntryState["workspace"] {
   const officialWorkspacePath = path.join(os.homedir(), ".lumen");
   const currentWorkspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   const officialWorkspaceExists = fs.existsSync(officialWorkspacePath);
   const isInLumenWorkspace =
     Boolean(currentWorkspacePath) &&
     normalizePath(currentWorkspacePath) === normalizePath(officialWorkspacePath);
+  // Escape hatch del repo: Architectural-plans/ identifica el workspace de desarrollo.
+  const isDevelopmentWorkspace =
+    Boolean(currentWorkspacePath) &&
+    fs.existsSync(path.join(currentWorkspacePath ?? "", "Architectural-plans"));
+  const isValidLumenWorkspace = isInLumenWorkspace || isDevelopmentWorkspace;
 
   return {
     officialWorkspacePath,
     currentWorkspacePath,
     officialWorkspaceExists,
     isInLumenWorkspace,
-    action: isInLumenWorkspace
+    action: isValidLumenWorkspace
       ? "ready"
       : officialWorkspaceExists
         ? "workspace-switch-pending"

@@ -20,6 +20,7 @@
     "onCommand:lumen.exitMode",
     "onCommand:lumen.engineStatus",
     "onCommand:lumen.refreshWebview",
+    "onCommand:lumen.compileCurrentExercise",
     "onView:lumen.routePath",
     "workspaceContains:.lumen-perf-auto-open"
   ],
@@ -57,6 +58,11 @@
         "command": "lumen.refreshWebview",
         "title": "Lumen: Refresh Webview",
         "category": "Lumen"
+      },
+      {
+        "command": "lumen.compileCurrentExercise",
+        "title": "Lumen: Compilar Ejercicio Actual",
+        "category": "Lumen"
       }
     ],
     "viewsContainers": {
@@ -90,6 +96,11 @@
         "key": "escape",
         "command": "lumen.exitMode",
         "when": "lumen.inMode && !inQuickOpen && !suggestWidgetVisible && !findWidgetVisible && !renameInputVisible && !parameterHintsVisible && !inSnippetMode && !editorHasSelection && !editorHasMultipleSelections"
+      },
+      {
+        "key": "f9",
+        "command": "lumen.compileCurrentExercise",
+        "when": "editorTextFocus && resourceExtname == .c"
       }
     ]
   },

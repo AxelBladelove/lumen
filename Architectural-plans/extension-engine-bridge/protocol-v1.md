@@ -184,5 +184,8 @@ CREATE TABLE settings (
 
 ## Estado del repo
 
+Superseded por `protocol-v2.md`: el engine reporta `protocolVersion: 2`. Los
+metodos y formas de v1 siguen vigentes sin cambios dentro de v2; este documento
+queda como referencia historica del transporte y los metodos base.
 Implementado por `engine/` (crate Rust) y `extension/src/engine/` (bridge
 TypeScript). Ver `extension-engine-bridge.md` para la arquitectura general.

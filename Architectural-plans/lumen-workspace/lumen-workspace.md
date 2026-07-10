@@ -8,21 +8,26 @@ Archivo: `Architectural-plans/lumen-workspace/lumen-workspace.md`
 
 ## Estado actual del repo
 
-La implementación actual solo detecta y reporta el estado del workspace; no
-cambia de workspace todavía.
+El cambio de workspace está implementado (`extension/src/lumenEntry.ts`):
 
-`extension/src/lumenEntryState.ts` calcula:
+- Si la entrada ocurre fuera de `~/.lumen`, Lumen guarda los documentos sucios
+  (`workspace.saveAll(false)`; si queda algo sin guardar, cancela con mensaje
+  controlado), persiste un boot intent mínimo (`{ pendingOpen, requestedAt }`
+  en `globalState`, TTL 2 minutos) y ejecuta `vscode.openFolder` con
+  `forceReuseWindow: true`.
+- Al reactivarse dentro de `~/.lumen`, `resumePendingLumenOpen` consume el
+  intent y continúa la entrada automáticamente; intents viejos o fuera del
+  workspace esperado se limpian sin entrar.
+- Si `~/.lumen` no existe, se ofrece crearla con confirmación explícita
+  ("Crear"); si el usuario cancela, no se entra.
+- Escape hatch de desarrollo: un workspace con `Architectural-plans/` en la
+  raíz se trata como válido y no se cambia a `~/.lumen` (permite desarrollar
+  Lumen desde el propio repo).
 
-- `officialWorkspacePath` como `path.join(os.homedir(), ".lumen")`.
-- `currentWorkspacePath` desde el primer workspace folder de VS Code.
-- Si `~/.lumen` existe.
-- Si el workspace actual es exactamente `~/.lumen`.
-- La acción sugerida: `ready`, `workspace-switch-pending` o
-  `workspace-missing`.
-
-Ese estado se envía a la webview como parte de `lumen.entry.state` y se guarda
-en `bootIntent` al entrar. Aún no se ejecuta `vscode.openFolder`, no se llama
-`workspace.saveAll`, no se crea `.lumen` y no hay flujo de reparación si falta.
+`extension/src/lumenEntryState.ts` sigue calculando la detección
+(`officialWorkspacePath`, `currentWorkspacePath`, existencia, acción sugerida
+`ready` / `workspace-switch-pending` / `workspace-missing`). No se usa
+`updateWorkspaceFolders`; nunca se mezclan workspaces.
 
 Existe un flujo local de desarrollo llamado `build:local`, pero sincroniza la
 extension instalada en `~/.vscode/extensions`; no crea ni cambia el workspace
