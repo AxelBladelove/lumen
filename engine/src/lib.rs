@@ -1,4 +1,5 @@
 mod compile;
+pub mod esex;
 pub mod manifest;
 mod protocol;
 mod state;
