@@ -2,11 +2,12 @@
 
 ## Estado actual del repo
 
-La implementación presente en este repositorio cubre solo el primer slice de
-Lumen como extensión de VS Code:
+La implementación presente en este repositorio cubre el primer slice de Lumen
+como extensión de VS Code y un slice inicial del Local Engine:
 
 - Extension Host en TypeScript con comandos `lumen.open`, `lumen.enterMode`,
-  `lumen.exitMode` y `lumen.refreshWebview`.
+  `lumen.exitMode`, `lumen.engineStatus`, `lumen.refreshWebview` y
+  `lumen.compileCurrentExercise`.
 - Webview View `lumen.routePath` dentro del contenedor de Activity Bar `Lumen`
   como launcher liviano.
 - WebviewPanel de editor `lumen.routePathPanel` como superficie real del
@@ -19,11 +20,19 @@ Lumen como extensión de VS Code:
 - Resultados y baselines de performance bajo `perf/`.
 - Reportes JSONL de webview real bajo `.lumen-perf/`.
 - Assets de marca en `assets/brand/`, incluyendo logo y wordmark runtime.
+- Local Engine en Rust bajo `engine/`, con binario `lumen-engine`, protocolo
+  v2 por NDJSON/stdio y SQLite local en `lumen.db`.
+- Migraciones versionadas con schema v2, incluyendo `compile_attempts`.
+- Métodos de engine implementados: `engine.healthCheck`,
+  `session.getLastState`, `session.saveLastState`, `exercise.compile` y
+  `toolchain.check`.
+- Compilación con `F9` implementada vía GCC en PATH o MSYS2, diagnósticos
+  estructurados y registro de intentos en `compile_attempts`.
 
-Todavía no existe implementación de Local Engine en Rust, SQLite local,
-compilación con `F9`, Ask Tutor, Cloudflare Workers, D1, R2, KV, AI Gateway,
-Tauri ni standalone. Las secciones siguientes siguen siendo la arquitectura
-objetivo, no una lista de módulos ya implementados.
+Todavía no existen Ask Tutor, Cloudflare Workers, D1, R2, KV, AI Gateway,
+Tauri, standalone, Tree-sitter, formato `.esex` ni gestión de ejercicios en
+el engine. Las secciones siguientes siguen siendo la arquitectura objetivo, no
+una lista de módulos ya implementados.
 
 ## Frontend
 

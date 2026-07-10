@@ -14,20 +14,35 @@ Los comandos existentes en `package.json` son:
 lumen.open
 lumen.enterMode
 lumen.exitMode
+lumen.engineStatus
 lumen.refreshWebview
+lumen.compileCurrentExercise
 ```
 
-El repo contribuye el primer keybinding: `Esc -> lumen.exitMode`, activo solo
-con `lumen.inMode` y con guardas de UI temporal (`!inQuickOpen`,
-`!suggestWidgetVisible`, `!findWidgetVisible`, etc.). Cuando el foco está
-dentro de la webview de Lumen, VS Code no evalúa keybindings de extensión de
-forma fiable, así que el frontend escucha `Escape` y emite el mensaje
-`lumen.exit.requested`; el Extension Host lo traduce a `lumen.exitMode`.
-Botón/tecla y comando comparten así la misma lógica.
+El repo contribuye dos keybindings:
 
-No existen todavía `lumen.compileCurrentExercise`, `lumen.askTutor`, ni los
-keybindings de `F9` y `Ctrl + Shift + R`. La extensión setea `lumen.inMode` y
-`lumen.mode`, la base de los `when` futuros.
+```txt
+Esc -> lumen.exitMode
+F9  -> lumen.compileCurrentExercise
+```
+
+`Esc` está activo solo con `lumen.inMode` y con guardas de UI temporal
+(`!inQuickOpen`, `!suggestWidgetVisible`, `!findWidgetVisible`, etc.). Cuando
+el foco está dentro de la webview de Lumen, VS Code no evalúa keybindings de
+extensión de forma fiable, así que el frontend escucha `Escape` y emite el
+mensaje `lumen.exit.requested`; el Extension Host lo traduce a
+`lumen.exitMode`. Botón/tecla y comando comparten así la misma lógica.
+
+`F9` ya existe en `package.json` como `lumen.compileCurrentExercise`, con el
+título `Lumen: Compilar Ejercicio Actual`, pero su `when` actual es
+transicional: `editorTextFocus && resourceExtname == .c`. El objetivo de este
+plano sigue siendo `lumen.inMode && lumen.hasActiveExercise`, pendiente hasta
+que el engine gestione el ejercicio activo.
+
+No existen todavía `lumen.askTutor` ni los keybindings de `Ctrl + Shift + R` o
+`Ctrl + B` propios de Lumen. La extensión setea `lumen.inMode` y `lumen.mode`,
+la base de los `when` futuros. Las context keys `lumen.hasActiveExercise`,
+`lumen.temporaryUiOpen` y `lumen.hasSelection` todavía no se setean.
 
 Tambien existen scripts npm/Bun para build local y performance, pero no son
 comandos contribuidos a VS Code.

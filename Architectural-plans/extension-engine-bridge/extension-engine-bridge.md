@@ -8,15 +8,16 @@ Archivo: `Architectural-plans/extension-engine-bridge/extension-engine-bridge.md
 
 ## Estado actual del repo
 
-El bridge hacia el Local Engine existe en su primera versión:
+El bridge hacia el Local Engine existe con protocolo v2:
 `extension/src/engine/lumenEngineClient.ts` lanza `lumen-engine` como proceso
 persistente (lazy, con cooldown de respawn), correlaciona requests por id con
-timeout de 10s, y valida `protocolVersion` en el health check de activación.
-El contrato normativo vive en `protocol-v1.md` (mismo directorio). Operaciones
-disponibles: `engine.healthCheck`, `session.getLastState`,
-`session.saveLastState`, más el comando `lumen.engineStatus`. El resto de
-operaciones de este documento (colección, import, compile, route, Ask Tutor)
-sigue siendo objetivo.
+timeout de 10s por default, y valida `protocolVersion` en el health check de
+activación. El contrato normativo actual vive en `protocol-v2.md` (mismo
+directorio). Operaciones disponibles: `engine.healthCheck`,
+`session.getLastState`, `session.saveLastState`, `exercise.compile` y
+`toolchain.check`, más los comandos `lumen.engineStatus` y
+`lumen.compileCurrentExercise`. El resto de operaciones de este documento
+(colección, import, route, Ask Tutor) sigue siendo objetivo.
 
 Además existe el protocolo mínimo entre Extension Host y webview:
 
@@ -35,8 +36,8 @@ Además existe el protocolo mínimo entre Extension Host y webview:
 El Extension Host registra eventos de ruta en el output channel `Lumen`,
 responde `extension.ready` cuando el frontend está listo, reenvía el estado de
 entrada si existe y escribe `perf.report` en `.lumen-perf/vscode-webview.jsonl`.
-No lanza un binario Rust, no habla JSON-RPC con un engine y no implementa
-operaciones como compilación, colección, route continue real o Ask Tutor.
+Lanza el binario Rust del engine y habla NDJSON/stdout estructurado con él. No
+implementa todavía operaciones como colección, route continue real o Ask Tutor.
 
 El contrato detallado del protocolo actual vive en
 `Architectural-plans/frontend/webview-protocol/webview-protocol.md`.
@@ -215,7 +216,7 @@ Si falla:
   "id": "request-id",
   "ok": false,
   "error": {
-    "code": "COMPILE_FAILED",
+    "code": "COMPILER_FAILED",
     "message": "La compilación falló.",
     "recoverable": true
   }
@@ -242,14 +243,37 @@ Ejemplos de códigos:
 ```txt
 ENGINE_NOT_FOUND
 ENGINE_START_FAILED
+ENGINE_TIMEOUT
+ENGINE_PROTOCOL_ERROR
+INVALID_REQUEST
+UNKNOWN_METHOD
+INVALID_PARAMS
+DATABASE_ERROR
+SOURCE_NOT_FOUND
+TOOLCHAIN_NOT_FOUND
+BUILD_DIR_ERROR
+COMPILER_FAILED
+UNKNOWN_ERROR
+```
+
+Los códigos implementados hoy en el código son los anteriores. En el bridge
+TypeScript existen `ENGINE_NOT_FOUND`, `ENGINE_START_FAILED`,
+`ENGINE_TIMEOUT` y `ENGINE_PROTOCOL_ERROR`; en el engine Rust existen
+`INVALID_REQUEST`, `UNKNOWN_METHOD`, `INVALID_PARAMS`, `DATABASE_ERROR`,
+`SOURCE_NOT_FOUND`, `TOOLCHAIN_NOT_FOUND`, `BUILD_DIR_ERROR`,
+`COMPILER_FAILED` y `UNKNOWN_ERROR`. El documento conceptual decía
+`COMPILE_FAILED`, pero el código implementó `COMPILER_FAILED` para fallos al
+ejecutar GCC; los errores de compilación del usuario viajan como `ok: true`
+con `status: "compile_error"`.
+
+Siguen siendo códigos objetivo:
+
+```txt
 INVALID_WORKSPACE
 EXERCISE_NOT_FOUND
 EXERCISE_LOCKED
 IMPORT_FAILED
-COMPILE_FAILED
-DATABASE_ERROR
 PERMISSION_DENIED
-UNKNOWN_ERROR
 ```
 
 La UI no debe tener que adivinar qué pasó leyendo stdout sin estructura.

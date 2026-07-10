@@ -59,7 +59,8 @@ inyeccion de `<base>`, favicon, bootstrap de protocolo y fallback cuando falta
 `frontend/dist/index.html`.
 
 `extension.ts` registra el provider, mas `lumen.open`, `lumen.enterMode`,
-`lumen.exitMode` y `lumen.refreshWebview`.
+`lumen.exitMode`, `lumen.engineStatus`, `lumen.refreshWebview` y
+`lumen.compileCurrentExercise`.
 
 ## Carga del Frontend
 
