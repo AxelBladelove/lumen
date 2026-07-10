@@ -28,8 +28,7 @@ fn repo_activities_are_valid_and_complete() {
             manifest_path.display()
         );
 
-        let manifest: Value =
-            serde_json::from_str(&json).expect("manifest válido debería parsear");
+        let manifest: Value = serde_json::from_str(&json).expect("manifest válido debería parsear");
         let directory_name = activity_dir
             .file_name()
             .and_then(|name| name.to_str())

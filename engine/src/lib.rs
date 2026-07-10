@@ -3,6 +3,7 @@ pub mod manifest;
 mod protocol;
 mod state;
 mod storage;
+pub mod testing;
 
 use std::io::{self, BufRead, Write};
 use std::path::Path;
