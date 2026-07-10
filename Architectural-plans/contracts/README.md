@@ -9,6 +9,7 @@ Esta carpeta contiene contratos normativos compartidos entre frontend, Extension
 ## Contratos existentes
 
 - `activity.md`: manifest de autoría de actividades. Sus artefactos ejecutables (schema, taxonomía y ejemplos) viven en `contracts/` en la raíz del repo.
+- `test-cases.md`: archivo de casos de prueba IO de una actividad (`io-test-cases.v1.schema.json`).
 
 ## Contratos previstos
 

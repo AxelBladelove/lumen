@@ -1,15 +1,65 @@
 {
   "formatVersion": 1,
   "cases": [
-    { "id": "basic-mixed", "group": "traversal", "stdin": "Hola Mundo\n", "expectedStdout": "7\n" },
-    { "id": "all-lowercase", "group": "traversal", "stdin": "lumen\n", "expectedStdout": "5\n" },
-    { "id": "digits-mixed", "group": "traversal", "stdin": "abc123def\n", "expectedStdout": "6\n" },
-    { "id": "spaces-symbols", "group": "traversal", "stdin": "a b,c!\n", "expectedStdout": "3\n" },
-    { "id": "empty-line", "group": "boundaries", "stdin": "\n", "expectedStdout": "0\n" },
-    { "id": "no-input", "group": "boundaries", "stdin": "", "expectedStdout": "0\n" },
-    { "id": "no-lowercase", "group": "boundaries", "stdin": "ABC 123!\n", "expectedStdout": "0\n" },
-    { "id": "single-char", "group": "boundaries", "stdin": "z\n", "expectedStdout": "1\n" },
-    { "id": "ascii-fence", "group": "boundaries", "stdin": "AZaz@[`{\n", "expectedStdout": "2\n" },
-    { "id": "long-line", "group": "boundaries", "stdin": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n", "expectedStdout": "200\n" }
+    {
+      "id": "basic-mixed",
+      "group": "traversal",
+      "stdin": "Hola Mundo\n",
+      "expectedStdout": "7\n"
+    },
+    {
+      "id": "all-lowercase",
+      "group": "traversal",
+      "stdin": "lumen\n",
+      "expectedStdout": "5\n"
+    },
+    {
+      "id": "digits-mixed",
+      "group": "traversal",
+      "stdin": "abc123def\n",
+      "expectedStdout": "6\n"
+    },
+    {
+      "id": "spaces-symbols",
+      "group": "traversal",
+      "stdin": "a b,c!\n",
+      "expectedStdout": "3\n"
+    },
+    {
+      "id": "empty-line",
+      "group": "boundaries",
+      "stdin": "\n",
+      "expectedStdout": "0\n"
+    },
+    {
+      "id": "no-input",
+      "group": "boundaries",
+      "stdin": "",
+      "expectedStdout": "0\n"
+    },
+    {
+      "id": "no-lowercase",
+      "group": "boundaries",
+      "stdin": "ABC 123!\n",
+      "expectedStdout": "0\n"
+    },
+    {
+      "id": "single-char",
+      "group": "boundaries",
+      "stdin": "z\n",
+      "expectedStdout": "1\n"
+    },
+    {
+      "id": "ascii-fence",
+      "group": "boundaries",
+      "stdin": "AZaz@[`{\n",
+      "expectedStdout": "2\n"
+    },
+    {
+      "id": "long-line",
+      "group": "boundaries",
+      "stdin": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+      "expectedStdout": "200\n"
+    }
   ]
 }
