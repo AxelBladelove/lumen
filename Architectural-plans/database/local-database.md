@@ -8,12 +8,15 @@ Archivo: `Architectural-plans/database/local-database.md`
 
 ## Estado actual del repo
 
-La base local todavía no está implementada. No hay archivo SQLite, migraciones,
-schema, driver Rust ni Local Engine que lea o escriba estado persistente.
+La base local existe en su forma mínima: el Local Engine (`engine/`) crea
+`lumen.db` (SQLite vía rusqlite bundled) bajo el globalStorage de la extensión,
+con migraciones versionadas en transacción (`schema_migrations`). La migración
+1 crea `user_state` (fila única con último modo/ruta/módulo/ejercicio) y
+`settings`. El resto de entidades de este documento (intentos, errores,
+desbloqueos, catálogo) siguen siendo objetivo.
 
-El único estado persistido por la extensión actual es el `bootIntent` mínimo en
-`context.globalState`, usado para recordar que el usuario pidió abrir Lumen en
-la fase mock. Este documento describe la base local objetivo.
+La extensión además persiste el `bootIntent` mínimo en `context.globalState`
+para la fase mock de entrada.
 
 La base de datos local guarda el estado que Lumen necesita recordar entre sesiones: ejercicios importados, ejercicios creados, progreso, intentos, errores, desbloqueos, metadata local y último estado útil del usuario.
 

@@ -3,6 +3,7 @@
 .tmp/**
 .vscode-test/**
 Architectural-plans/**
+engine/**
 extension/src/**
 extension/tsconfig.json
 frontend/9eb07d58-8c57-41b1-8b67-72a7f2e55669.json

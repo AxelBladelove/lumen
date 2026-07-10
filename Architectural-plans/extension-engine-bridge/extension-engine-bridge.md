@@ -8,9 +8,17 @@ Archivo: `Architectural-plans/extension-engine-bridge/extension-engine-bridge.md
 
 ## Estado actual del repo
 
-El bridge completo hacia Local Engine todavía no está implementado.
+El bridge hacia el Local Engine existe en su primera versión:
+`extension/src/engine/lumenEngineClient.ts` lanza `lumen-engine` como proceso
+persistente (lazy, con cooldown de respawn), correlaciona requests por id con
+timeout de 10s, y valida `protocolVersion` en el health check de activación.
+El contrato normativo vive en `protocol-v1.md` (mismo directorio). Operaciones
+disponibles: `engine.healthCheck`, `session.getLastState`,
+`session.saveLastState`, más el comando `lumen.engineStatus`. El resto de
+operaciones de este documento (colección, import, compile, route, Ask Tutor)
+sigue siendo objetivo.
 
-Lo que existe hoy es un protocolo mínimo entre Extension Host y webview:
+Además existe el protocolo mínimo entre Extension Host y webview:
 
 - Versión compartida `lumenWebviewProtocolVersion = 1`.
 - Mensajes webview -> extensión:

@@ -1,4 +1,4 @@
-import { cpSync, existsSync, rmSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,6 +38,15 @@ for (const [from, to] of copies) {
   }
   rmSync(dest, { recursive: true, force: true });
   cpSync(src, dest, { recursive: true });
+}
+
+const engineBinaryName = process.platform === "win32" ? "lumen-engine.exe" : "lumen-engine";
+const engineBinary = join(repoRoot, "engine", "target", "release", engineBinaryName);
+if (existsSync(engineBinary)) {
+  mkdirSync(join(targetDir, "bin"), { recursive: true });
+  cpSync(engineBinary, join(targetDir, "bin", engineBinaryName));
+} else {
+  console.warn(`Skipping engine binary: not found. Did you run "bun run build:engine"?`);
 }
 
 cpSync(join(repoRoot, "package.json"), join(targetDir, "package.json"));

@@ -1,12 +1,20 @@
 import * as vscode from "vscode";
+import { LumenEngineClient } from "./engine/lumenEngineClient";
+import { LumenEngineError } from "./engine/lumenEngineProtocol";
 import { enterLumenMode, exitLumenMode } from "./lumenEntry";
 import { cleanupStaleLumenLayout } from "./lumenLayout";
 import { LumenPanelController } from "./lumenPanel";
 import { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
 
+let lumenEngineClient: LumenEngineClient | undefined;
+
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Lumen");
   context.subscriptions.push(outputChannel);
+
+  const engineClient = new LumenEngineClient(context, outputChannel);
+  lumenEngineClient = engineClient;
+  context.subscriptions.push(engineClient);
 
   const launcher = new LumenRoutePathViewProvider(() => {
     void vscode.commands.executeCommand("lumen.enterMode");
@@ -24,10 +32,33 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("lumen.open", () => enterLumenMode(deps)),
     vscode.commands.registerCommand("lumen.enterMode", () => enterLumenMode(deps)),
     vscode.commands.registerCommand("lumen.exitMode", () => exitLumenMode(deps)),
+    vscode.commands.registerCommand("lumen.engineStatus", async () => {
+      try {
+        const health = await engineClient.healthCheck();
+        await vscode.window.showInformationMessage(
+          `Lumen Engine ${health.engineVersion}: database ${health.dbStatus}.`
+        );
+      } catch (error) {
+        const detail = formatEngineError(error);
+        outputChannel.appendLine(`Engine status failed: ${detail}`);
+        await vscode.window.showErrorMessage(detail);
+      }
+    }),
     vscode.commands.registerCommand("lumen.refreshWebview", async () => {
       const refreshed = await panel.refresh();
       if (!refreshed) await enterLumenMode(deps);
     })
+  );
+
+  void engineClient.healthCheck().then(
+    (health) => {
+      outputChannel.appendLine(
+        `Engine health: version=${health.engineVersion}, dbStatus=${health.dbStatus}, dbPath=${health.dbPath}`
+      );
+    },
+    (error) => {
+      outputChannel.appendLine(`Engine health check failed: ${formatEngineError(error)}`);
+    }
   );
 
   // Una sesion anterior pudo morir dentro de Lumen Mode (reload/crash) dejando
@@ -48,7 +79,15 @@ export function activate(context: vscode.ExtensionContext) {
   }, () => undefined);
 }
 
-export function deactivate() {}
+export function deactivate() {
+  lumenEngineClient?.dispose();
+  lumenEngineClient = undefined;
+}
+
+function formatEngineError(error: unknown) {
+  if (error instanceof LumenEngineError) return `${error.code}: ${error.message}`;
+  return `ENGINE_START_FAILED: ${error instanceof Error ? error.message : String(error)}`;
+}
 
 async function shouldAutoOpenForPerformanceHarness() {
   if (process.env.LUMEN_PERF_AUTO_OPEN === "1") return true;

@@ -18,6 +18,7 @@
     "onCommand:lumen.open",
     "onCommand:lumen.enterMode",
     "onCommand:lumen.exitMode",
+    "onCommand:lumen.engineStatus",
     "onCommand:lumen.refreshWebview",
     "onView:lumen.routePath",
     "workspaceContains:.lumen-perf-auto-open"
@@ -45,6 +46,11 @@
       {
         "command": "lumen.exitMode",
         "title": "Lumen: Exit Mode",
+        "category": "Lumen"
+      },
+      {
+        "command": "lumen.engineStatus",
+        "title": "Lumen: Engine Status",
         "category": "Lumen"
       },
       {
@@ -92,7 +98,8 @@
     "build:frontend": "bun run --cwd frontend build",
     "compile:extension": "tsc -p extension/tsconfig.json",
     "watch:extension": "tsc -w -p extension/tsconfig.json",
-    "build": "bun run build:frontend && bun run compile:extension",
+    "build:engine": "cargo build --release --manifest-path engine/Cargo.toml",
+    "build": "bun run build:frontend && bun run compile:extension && bun run build:engine",
     "perf:harness": "node scripts/perf-harness.mjs",
     "perf:smoke": "set PERF_WARMUPS=0&& set PERF_ITERATIONS=1&& node scripts/perf-harness.mjs",
     "perf:baseline": "set PERF_WARMUPS=5&& set PERF_ITERATIONS=30&& node scripts/perf-harness.mjs",

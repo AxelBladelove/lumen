@@ -12,6 +12,9 @@ performance.
 
 - Paquete raiz de la extension: `package.json`.
 - Entry point de la extension: `extension/src/extension.ts`.
+- Local Engine (binario Rust): `engine/`.
+- Bridge extension <-> engine: `extension/src/engine/lumenEngineClient.ts`.
+- Tipos del protocolo engine: `extension/src/engine/lumenEngineProtocol.ts`.
 - Secuencia de entrada/salida: `extension/src/lumenEntry.ts`.
 - Layout enfocado de VS Code: `extension/src/lumenLayout.ts`.
 - Panel principal de editor: `extension/src/lumenPanel.ts`.
@@ -38,10 +41,27 @@ lumen.open
 lumen.enterMode
 lumen.exitMode
 lumen.refreshWebview
+lumen.engineStatus
 ```
 
-Todavia no existen Local Engine, SQLite local, Cloudflare backend, comando de
-compilacion, Ask Tutor ni coleccion de ejercicios empaquetada.
+## Local Engine
+
+`engine/` contiene el bootstrap del Local Engine: un binario Rust
+(`lumen-engine`) que habla NDJSON por stdio con el Extension Host y persiste
+estado en SQLite (`lumen.db` bajo el globalStorage de la extension), con
+migraciones versionadas. El contrato normativo es
+`Architectural-plans/extension-engine-bridge/protocol-v1.md` (protocolo v1:
+`engine.healthCheck`, `session.getLastState`, `session.saveLastState`).
+
+La extension lanza el binario de forma lazy mediante
+`extension/src/engine/lumenEngineClient.ts`, hace un health check al activar y
+expone `lumen.engineStatus` para inspeccionarlo. En desarrollo el cliente busca
+el binario en `engine/target/{release,debug}`; en la copia instalada, en
+`bin/lumen-engine.exe` (sincronizado por `install:local`).
+
+Todavia no existen Cloudflare backend, comando de compilacion, Ask Tutor ni
+coleccion de ejercicios empaquetada. El engine aun no compila C ni gestiona
+ejercicios: solo salud y estado de sesion.
 
 ## Desarrollo
 
@@ -58,9 +78,13 @@ Scripts principales:
 bun run dev:frontend
 bun run build:frontend
 bun run compile:extension
+bun run build:engine
 bun run build
 bun run build:local
 ```
+
+`build:engine` requiere el toolchain de Rust (`cargo`). Los tests del engine
+corren con `cargo test` desde `engine/`.
 
 `build:local` compila el repo y sincroniza `extension/out`, `frontend/dist`,
 `assets` y `package.json` dentro de la copia instalada en

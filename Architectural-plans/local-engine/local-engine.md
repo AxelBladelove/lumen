@@ -8,14 +8,18 @@ Archivo: `Architectural-plans/local-engine/local-engine.md`
 
 ## Estado actual del repo
 
-El Local Engine todavía no existe en este repositorio. No hay crate Rust,
-binario local, protocolo de engine, SQLite, Tree-sitter, compilación ni lógica
-real de ejercicios/progreso.
+Existe el bootstrap del Local Engine: el crate Rust `engine/` compila el
+binario `lumen-engine`, que habla NDJSON por stdio según
+`Architectural-plans/extension-engine-bridge/protocol-v1.md`, abre SQLite en
+`<data-dir>/lumen.db` con migraciones versionadas y responde
+`engine.healthCheck`, `session.getLastState` y `session.saveLastState` con
+errores estructurados. Tiene tests de integración que lanzan el binario real
+(`cargo test` en `engine/`).
 
-El estado actual que se parece a "engine state" es solo
-`extension/src/lumenEntryState.ts`, que calcula un estado básico de entrada y
-workspace para la webview mock. Todo lo demás en este documento describe la
-arquitectura objetivo.
+Todavía no hay Tree-sitter, compilación, colección de ejercicios, gates de
+ruta, Ask Tutor ni materialización de archivos: esas secciones de este
+documento siguen siendo arquitectura objetivo. `extension/src/lumenEntryState.ts`
+sigue calculando el estado de entrada de la webview mock por su cuenta.
 
 El Local Engine es la capa que ejecuta la lógica importante del producto en la máquina del usuario. No es la UI, no es la extensión de VS Code y no es la base de datos. Es el componente que decide, valida, prepara y ejecuta operaciones reales.
 
