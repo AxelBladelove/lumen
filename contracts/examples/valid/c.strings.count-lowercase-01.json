@@ -1,0 +1,306 @@
+{
+  "schemaVersion": 1,
+  "id": "c.strings.count-lowercase-01",
+  "version": "1.0.3",
+  "kind": "practice",
+  "status": "approved",
+  "title": "Contar minúsculas en una línea",
+  "summary": "Recorre una cadena terminada en null y cuenta sus letras minúsculas.",
+  "language": "c",
+  "source": "codewars",
+  "sourceUrl": "https://example.com/original",
+  "origin": {
+    "relationship": "adapted",
+    "platform": "codewars",
+    "itemId": "source-item-id",
+    "originalTitle": "Count lowercase characters",
+    "originalAuthors": ["author-id"],
+    "license": "LicenseRef-ReviewRequired",
+    "attribution": "Adaptado y reescrito para Lumen.",
+    "modificationsSummary": "Enunciado, starter, tests y metadata pedagógica propios."
+  },
+  "primaryTopics": ["strings"],
+  "supportTopics": ["loops", "conditionals", "functions"],
+  "combinedTopics": ["strings+chars"],
+  "requiredMastery": [
+    { "id": "loops", "kind": "topic", "minimumMastery": 0.6 },
+    { "id": "functions", "kind": "topic", "minimumMastery": 0.45 }
+  ],
+  "newTopicFocus": ["strings"],
+  "learningObjectives": [
+    {
+      "id": "traverse-string-safely",
+      "description": "Recorrer una cadena hasta el terminador null.",
+      "skillIds": ["strings.traverse-null-terminated"],
+      "successCriterion": "Superar los grupos de tests traversal y boundaries.",
+      "criticality": "critical"
+    }
+  ],
+  "skills": [
+    {
+      "id": "strings.traverse-null-terminated",
+      "role": "assesses",
+      "weight": 1.0,
+      "criticality": "critical",
+      "evidenceStrength": 0.9
+    },
+    {
+      "id": "chars.classify-character",
+      "role": "practices",
+      "weight": 0.8,
+      "criticality": "major",
+      "evidenceStrength": 0.7
+    },
+    {
+      "id": "loops.single-pass-iteration",
+      "role": "reinforces",
+      "weight": 0.5,
+      "criticality": "supporting",
+      "evidenceStrength": 0.4
+    }
+  ],
+  "prerequisites": [
+    {
+      "skillId": "loops.single-pass-iteration",
+      "minimumMastery": 0.6,
+      "minimumConfidence": 0.35,
+      "kind": "hard",
+      "rationale": "La actividad requiere recorrer una secuencia completa."
+    }
+  ],
+  "commonErrors": [
+    "off-by-one",
+    "strlen-vs-capacity",
+    "missing-null-terminator"
+  ],
+  "misconceptions": [
+    {
+      "id": "strings.iterate-capacity-instead-of-terminator",
+      "role": "reveals",
+      "diagnosticSignals": ["test-group:boundaries", "error:out-of-bounds-access"],
+      "confidenceCeiling": 0.75
+    }
+  ],
+  "remediates": ["c.strings.traverse-basics-01", "c.arrays.index-chars-01"],
+  "preparesFor": ["c.strings.normalize-sentence-hard", "c.quiz.strings-01"],
+  "relatedProjects": ["c.project.text-menu-analyzer"],
+  "contentFamily": "c.strings.single-pass-classification",
+  "variantOf": null,
+  "contrastsWith": ["c.strings.count-uppercase-01"],
+  "alternativeTo": [],
+  "supersedes": [],
+  "transferProfile": {
+    "distance": "near",
+    "noveltyDimensions": ["character-classification"],
+    "contextShift": "none"
+  },
+  "solutionSpace": {
+    "breadth": "moderate",
+    "acceptedStrategies": ["manual-ascii-range", "ctype-islower"],
+    "discouragedShortcuts": ["hardcoded-output"],
+    "complexityExpectations": "single-pass"
+  },
+  "route": {
+    "routeEligible": true,
+    "routeId": "c",
+    "moduleId": "strings",
+    "orderInModule": 4,
+    "role": "required",
+    "masteryChallengeEligible": false,
+    "freeModeAfterUnlock": true,
+    "nodeType": "lesson"
+  },
+  "visibility": {
+    "categoryVisible": true,
+    "projectEligible": false,
+    "recommendable": true,
+    "searchable": true,
+    "previewableWhenLocked": true,
+    "featuredEligible": true,
+    "allowedContexts": ["route", "free"]
+  },
+  "difficulty": {
+    "score": 42,
+    "band": "easy+",
+    "conceptualLevel": 3,
+    "syntaxLoad": 3,
+    "stateControl": 1,
+    "loopDepth": 1,
+    "functionComplexity": 2,
+    "arrayComplexity": 2,
+    "matrixComplexity": 0,
+    "stringComplexity": 4,
+    "pointerDepth": 0,
+    "dynamicMemoryRisk": 0,
+    "structComplexity": 0,
+    "fileIoComplexity": 0,
+    "inputParsingComplexity": 3,
+    "hiddenTraps": 3,
+    "debugDifficulty": 2,
+    "algorithmicComplexity": 1,
+    "dataFlowComplexity": 2,
+    "edgeCaseDensity": 3,
+    "noveltyLoad": 2,
+    "readingLoad": 1,
+    "toolingLoad": 1,
+    "interactionComplexity": 1,
+    "expectedMinutes": 20,
+    "expectedMinutesRange": { "min": 12, "max": 30 }
+  },
+  "unlock": {
+    "requiresModules": ["loops", "functions"],
+    "requiresExercises": [],
+    "requiresQuizScore": null,
+    "requiresSkills": [
+      { "skillId": "loops.single-pass-iteration", "minimumMastery": 0.6 }
+    ],
+    "requiresProjects": [],
+    "requiresRouteProgress": null,
+    "logic": "all"
+  },
+  "scaffolding": {
+    "scaffoldingLevel": 2,
+    "starterCompleteness": 0.35,
+    "guidedSteps": false,
+    "hintPolicy": {
+      "maxHints": 4,
+      "generationMode": "contextual-ai",
+      "progression": "increasing-specificity",
+      "revealSolution": false
+    }
+  },
+  "recommendationPolicy": {
+    "eligibleContexts": ["route", "free"],
+    "purposes": ["learn", "reinforce", "remediate"],
+    "repeatable": true,
+    "cooldownDays": 3,
+    "contentFamilyCooldown": 2,
+    "diversityTags": ["text", "single-pass", "classification"],
+    "targetDifficultyWindow": { "min": -8, "max": 10 }
+  },
+  "testContract": {
+    "contractVersion": 1,
+    "mode": "hybrid",
+    "preferred": "function",
+    "fallback": "io",
+    "allowAdapter": true,
+    "allowAiAdapter": true,
+    "adapterPolicy": "prebuilt-reviewed",
+    "phases": ["compile", "public", "local-additional"],
+    "comparator": "exact-after-normalization",
+    "normalization": ["crlf-to-lf", "trim-final-newline"],
+    "expectedExitCode": 0,
+    "deterministic": true,
+    "seedPolicy": "fixed",
+    "scoring": "weighted-groups",
+    "testGroups": [
+      { "id": "traversal", "phase": "public", "weight": 0.6 },
+      { "id": "boundaries", "phase": "local-additional", "weight": 0.4 }
+    ],
+    "limits": {
+      "timeLimitMs": 2000,
+      "memoryLimitMb": 128,
+      "outputLimitKb": 256
+    }
+  },
+  "evidenceContract": {
+    "groups": [
+      {
+        "source": "test-group:traversal",
+        "skillId": "strings.traverse-null-terminated",
+        "misconceptionId": null,
+        "weight": 1.0,
+        "polarity": "bidirectional",
+        "confidence": 0.9,
+        "maxEvidencePerAttempt": 1.0,
+        "requiresUnassisted": false
+      },
+      {
+        "source": "test-group:boundaries",
+        "skillId": "strings.traverse-null-terminated",
+        "misconceptionId": "strings.iterate-capacity-instead-of-terminator",
+        "weight": 0.8,
+        "polarity": "bidirectional",
+        "confidence": 0.8,
+        "maxEvidencePerAttempt": 0.8,
+        "requiresUnassisted": false
+      }
+    ]
+  },
+  "execution": {
+    "languageStandard": "c17",
+    "compileProfile": "c17-console",
+    "executionMode": "console",
+    "entrypoint": "starter/main.c",
+    "additionalSources": [],
+    "sourceEncoding": "utf-8",
+    "requiredHeaders": ["stdio.h", "ctype.h"],
+    "requiredLibraries": [],
+    "platformCapabilities": ["windows-console"],
+    "allowedDefines": [],
+    "warningsPolicy": "recommended",
+    "inputModel": "stdin-lines",
+    "outputModel": "stdout-text",
+    "sandboxProfile": "c-console-default"
+  },
+  "sandbox": {
+    "network": false,
+    "filesystemScope": "exercise-directory",
+    "childProcesses": false,
+    "stdin": true,
+    "timeLimitMs": 2000,
+    "memoryLimitMb": 128,
+    "outputLimitKb": 256,
+    "temporaryDiskMb": 32,
+    "processLimit": 1
+  },
+  "content": {
+    "statement": { "path": "statement.md", "locale": "es", "required": true },
+    "starter": [
+      { "path": "starter/main.c", "role": "entrypoint", "editable": true, "required": true }
+    ],
+    "tests": [
+      { "path": "tests/io-cases.json", "role": "test-data", "editable": false, "required": true },
+      { "path": "tests/harness.c", "role": "function-harness", "editable": false, "required": true }
+    ],
+    "hints": [
+      { "path": "hints/hints.es.json", "locale": "es", "editable": false, "required": false }
+    ],
+    "assets": [],
+    "readme": { "path": "README.md", "locale": "es", "required": false }
+  },
+  "localization": {
+    "defaultLocale": "es",
+    "availableLocales": ["es"],
+    "localizedContent": {
+      "es": {
+        "title": "Contar minúsculas en una línea",
+        "summary": "Recorre una cadena terminada en null y cuenta sus letras minúsculas."
+      }
+    }
+  },
+  "accessibility": {
+    "assetAltText": {},
+    "longDescriptions": {},
+    "transcripts": {},
+    "plainTextFallbacks": {},
+    "motionWarnings": false,
+    "colorIndependentInstructions": true
+  },
+  "compatibility": {
+    "minEngineVersion": "0.1.0",
+    "supportedPlatforms": ["windows-x64"],
+    "requiredCapabilities": ["gcc-ucrt64"],
+    "taxonomyVersion": 1,
+    "migrationNotes": null,
+    "updateCompatibility": "compatible"
+  },
+  "curation": {
+    "curators": ["lumen-core"],
+    "pedagogicalRationale": "Introduce recorrido seguro de strings sin mezclar memoria dinámica.",
+    "qualityReview": "approved",
+    "aiAssisted": true,
+    "reviewedAt": "2026-07-10",
+    "reviewerRole": "content-curator"
+  }
+}

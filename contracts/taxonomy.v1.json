@@ -1,0 +1,59 @@
+{
+  "taxonomyVersion": 1,
+  "status": "seed",
+  "topics": [
+    { "id": "io", "title": "Entrada y salida" },
+    { "id": "variables", "title": "Variables" },
+    { "id": "types", "title": "Tipos" },
+    { "id": "operators", "title": "Operadores" },
+    { "id": "conditionals", "title": "Condicionales" },
+    { "id": "loops", "title": "Bucles" },
+    { "id": "functions", "title": "Funciones" },
+    { "id": "arrays", "title": "Arrays" },
+    { "id": "strings", "title": "Cadenas" },
+    { "id": "chars", "title": "Caracteres" },
+    { "id": "matrices", "title": "Matrices" },
+    { "id": "pointers", "title": "Punteros" },
+    { "id": "structs", "title": "Structs" },
+    { "id": "files", "title": "Archivos" },
+    { "id": "dynamic-memory", "title": "Memoria dinámica" }
+  ],
+  "modules": [
+    { "id": "fundamentals-io", "routeId": "c", "order": 1, "title": "Fundamentos y entrada/salida" },
+    { "id": "variables-types-operators", "routeId": "c", "order": 2, "title": "Variables, tipos y operadores" },
+    { "id": "conditionals", "routeId": "c", "order": 3, "title": "Condicionales" },
+    { "id": "loops", "routeId": "c", "order": 4, "title": "Bucles" },
+    { "id": "functions", "routeId": "c", "order": 5, "title": "Funciones" },
+    { "id": "arrays", "routeId": "c", "order": 6, "title": "Arrays" },
+    { "id": "strings", "routeId": "c", "order": 7, "title": "Cadenas" },
+    { "id": "matrices", "routeId": "c", "order": 8, "title": "Matrices" },
+    { "id": "pointers", "routeId": "c", "order": 9, "title": "Punteros" },
+    { "id": "structs", "routeId": "c", "order": 10, "title": "Structs" },
+    { "id": "files", "routeId": "c", "order": 11, "title": "Archivos" },
+    { "id": "dynamic-memory", "routeId": "c", "order": 12, "title": "Memoria dinámica" },
+    { "id": "final-integration", "routeId": "c", "order": 13, "title": "Integración final" }
+  ],
+  "skills": [
+    { "id": "strings.traverse-null-terminated", "topic": "strings", "title": "Recorrer cadenas terminadas en null" },
+    { "id": "strings.length-vs-capacity", "topic": "strings", "title": "Distinguir longitud y capacidad de una cadena" },
+    { "id": "strings.copy-safe", "topic": "strings", "title": "Copiar cadenas de forma segura" },
+    { "id": "strings.compare-lexicographic", "topic": "strings", "title": "Comparar cadenas lexicográficamente" },
+    { "id": "chars.classify-character", "topic": "chars", "title": "Clasificar caracteres" },
+    { "id": "loops.single-pass-iteration", "topic": "loops", "title": "Recorrer una secuencia en una sola pasada" },
+    { "id": "functions.define-and-call", "topic": "functions", "title": "Definir y llamar funciones" },
+    { "id": "io.read-line-stdin", "topic": "io", "title": "Leer una línea desde la entrada estándar" }
+  ],
+  "misconceptions": [
+    { "id": "strings.iterate-capacity-instead-of-terminator", "topic": "strings", "title": "Recorrer la capacidad en vez de detenerse en el terminador null" },
+    { "id": "arrays.last-valid-index-equals-length", "topic": "arrays", "title": "Creer que el último índice válido es igual a la longitud" },
+    { "id": "chars.ascii-arithmetic-assumed-universal", "topic": "chars", "title": "Asumir que la aritmética ASCII es universal" }
+  ],
+  "commonErrors": [
+    { "id": "off-by-one", "title": "Error por uno" },
+    { "id": "missing-null-terminator", "title": "Terminador null ausente" },
+    { "id": "strlen-vs-capacity", "title": "Confusión entre strlen y capacidad" },
+    { "id": "scanf-format-mismatch", "title": "Formato de scanf incompatible" },
+    { "id": "uninitialized-variable", "title": "Variable sin inicializar" },
+    { "id": "out-of-bounds-access", "title": "Acceso fuera de límites" }
+  ]
+}

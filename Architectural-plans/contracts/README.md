@@ -1,16 +1,19 @@
 # Lumen Contracts
 
-Estado: `planned`
+Estado: `partial`
 
 ## Propósito
 
 Esta carpeta contiene contratos normativos compartidos entre frontend, Extension Host, Local Engine y cloud.
 
+## Contratos existentes
+
+- `activity.md`: manifest de autoría de actividades. Sus artefactos ejecutables (schema, taxonomía y ejemplos) viven en `contracts/` en la raíz del repo.
+
 ## Contratos previstos
 
 - `route.md`
 - `module.md`
-- `activity.md`
 - `exercise.md`
 - `quiz.md`
 - `project.md`

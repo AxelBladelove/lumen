@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "id": "c.strings.minimal-practice-01",
+  "version": "1.0.0",
+  "kind": "practice",
+  "title": "Práctica mínima de cadenas",
+  "summary": "Recorre una cadena simple hasta su terminador null.",
+  "language": "c",
+  "status": "approved",
+  "skills": [
+    {
+      "id": "strings.traverse-null-terminated",
+      "role": "practices",
+      "weight": 1.0,
+      "criticality": "critical",
+      "evidenceStrength": 0.8
+    }
+  ],
+  "difficulty": {
+    "score": 20,
+    "band": "easy"
+  },
+  "testContract": {
+    "mode": "io",
+    "allowAdapter": false,
+    "allowAiAdapter": false,
+    "adapterPolicy": "forbidden",
+    "phases": ["public"],
+    "testGroups": [
+      { "id": "basic", "phase": "public", "weight": 1.0 }
+    ],
+    "limits": {}
+  },
+  "evidenceContract": {
+    "groups": [
+      {
+        "source": "test-group:basic",
+        "skillId": "strings.traverse-null-terminated",
+        "weight": 1.0,
+        "polarity": "bidirectional",
+        "confidence": 0.8
+      }
+    ]
+  },
+  "execution": {
+    "compileProfile": "c17-console",
+    "entrypoint": "starter/main.c"
+  },
+  "content": {
+    "statement": {
+      "path": "statement.md",
+      "required": true
+    },
+    "starter": [
+      {
+        "path": "starter/main.c",
+        "role": "entrypoint",
+        "editable": true,
+        "required": true
+      }
+    ]
+  },
+  "compatibility": {
+    "minEngineVersion": "0.1.0",
+    "taxonomyVersion": 1
+  }
+}

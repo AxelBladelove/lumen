@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "c.strings.unlock-stricter-than-prerequisites-01",
+  "version": "1.0.0",
+  "kind": "practice",
+  "title": "Unlock más estricto",
+  "summary": "Caso inválido para un gate más exigente que su prerequisito hard.",
+  "language": "c",
+  "status": "draft",
+  "skills": [{ "id": "strings.traverse-null-terminated", "role": "practices", "weight": 1.0, "criticality": "critical", "evidenceStrength": 0.8 }],
+  "prerequisites": [{ "skillId": "loops.single-pass-iteration", "minimumMastery": 0.5, "minimumConfidence": 0.4, "kind": "hard", "rationale": "Se requiere un recorrido simple." }],
+  "unlock": {
+    "requiresModules": [],
+    "requiresExercises": [],
+    "requiresQuizScore": null,
+    "requiresSkills": [{ "skillId": "loops.single-pass-iteration", "minimumMastery": 0.8, "minimumConfidence": 0.4 }],
+    "requiresProjects": [],
+    "requiresRouteProgress": null,
+    "logic": "all"
+  },
+  "difficulty": { "score": 20, "band": "easy", "expectedMinutes": 10 },
+  "testContract": { "contractVersion": 1, "mode": "io", "preferred": "io", "fallback": "io", "allowAdapter": false, "allowAiAdapter": false, "adapterPolicy": "forbidden", "phases": ["compile", "public"], "comparator": "exact-after-normalization", "normalization": ["crlf-to-lf"], "expectedExitCode": 0, "deterministic": true, "seedPolicy": "fixed", "scoring": "weighted-groups", "testGroups": [{ "id": "main", "phase": "public", "weight": 1.0 }], "limits": { "timeLimitMs": 2000, "memoryLimitMb": 128, "outputLimitKb": 256 } },
+  "evidenceContract": { "groups": [{ "source": "test-group:main", "skillId": "strings.traverse-null-terminated", "misconceptionId": null, "weight": 1.0, "polarity": "bidirectional", "confidence": 0.8, "maxEvidencePerAttempt": 1.0, "requiresUnassisted": false }] },
+  "execution": { "languageStandard": "c17", "compileProfile": "c17-console", "executionMode": "console", "entrypoint": "starter/main.c", "additionalSources": [], "sourceEncoding": "utf-8", "requiredHeaders": ["stdio.h"], "requiredLibraries": [], "platformCapabilities": [], "allowedDefines": [], "warningsPolicy": "recommended", "inputModel": "stdin-lines", "outputModel": "stdout-text", "sandboxProfile": "c-console-default" },
+  "content": { "statement": { "path": "statement.md", "locale": "es", "required": true }, "starter": [{ "path": "starter/main.c", "role": "entrypoint", "editable": true, "required": true }], "tests": [], "hints": [], "assets": [] },
+  "compatibility": { "minEngineVersion": "0.1.0", "taxonomyVersion": 1 }
+}
