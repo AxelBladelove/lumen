@@ -205,9 +205,11 @@ La metadata puede incluir:
 - Requisitos de desbloqueo.
 - Versión del ejercicio.
 
-Este documento no define el formato exacto del paquete de ejercicio.
+El contrato exacto de metadata, su validación y el proceso de registro se
+definen en `Architectural-plans/learning-intelligence/exercise-metadata.md`.
 
-La estructura exacta del paquete pertenece al módulo de exercise package.
+La colección consume esa metadata. No debe inventar relaciones pedagógicas ni
+reglas de recomendación desde la UI.
 
 ## Relación con Free Mode
 

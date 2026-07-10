@@ -109,9 +109,12 @@ El Local Engine debe encargarse de:
 - Parsear errores relevantes.
 - Registrar intentos.
 - Registrar errores.
+- Registrar eventos pedagógicos estructurados.
 - Actualizar progreso.
+- Actualizar el Student Model de forma incremental.
 - Evaluar gates de Route Mode.
 - Desbloquear ejercicios de ruta.
+- Calcular recomendaciones explicables de ejercicios, refuerzos y proyectos.
 - Preparar contexto para Ask Tutor.
 - Leer y escribir estado en la base local.
 - Recuperarse de estados inconsistentes cuando sea posible.
@@ -440,3 +443,6 @@ La extensión coordina.
 El engine decide y ejecuta.
 
 La base local recuerda.
+
+Las reglas del grafo pedagógico, el Student Model y el recomendador se definen
+en `Architectural-plans/learning-intelligence/`.

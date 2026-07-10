@@ -168,7 +168,9 @@ Un gate es una condición que debe cumplirse para desbloquear la siguiente parte
 
 Un gate puede depender de ejercicios completados, intentos, errores, quizzes, retos, proyectos o dominio de conceptos.
 
-Este documento no define la fórmula exacta de mastery ni el scoring. Eso pertenece a los módulos de progreso y evaluación.
+Este documento no define la fórmula exacta de mastery ni el scoring. Eso se
+define en
+`Architectural-plans/learning-intelligence/student-model-and-recommendations.md`.
 
 La regla de Route Mode es que la UI debe explicar claramente por qué algo está bloqueado y qué falta para desbloquearlo.
 

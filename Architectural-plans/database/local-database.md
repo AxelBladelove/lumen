@@ -246,10 +246,18 @@ La base local debe contemplar entidades como:
 - Unlocks.
 - Settings.
 - Catalog Cache.
+- Learning Events.
+- Skill State.
+- Misconception State.
+- Recommendation Cache.
+- Model Versions.
 
 Esto no significa crear un archivo separado para cada entidad.
 
 Este documento solo define las entidades conceptuales principales.
+
+El significado pedagógico de estas últimas entidades se define en
+`Architectural-plans/learning-intelligence/student-model-and-recommendations.md`.
 
 El schema exacto puede implementarse con migraciones cuando el desarrollo empiece.
 
