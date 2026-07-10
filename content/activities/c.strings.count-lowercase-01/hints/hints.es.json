@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "hints": [
+    {
+      "order": 1,
+      "text": "Una cadena en C termina en el caracter nulo '\\0'. Tu bucle debe detenerse ahi, no en el tamano del buffer."
+    },
+    {
+      "order": 2,
+      "text": "Recorre con un indice: while (line[i] != '\\0') { ... i = i + 1; }"
+    },
+    {
+      "order": 3,
+      "text": "Un caracter c es minuscula si c >= 'a' && c <= 'z'. Compara el caracter, no el indice."
+    },
+    {
+      "order": 4,
+      "text": "Dentro del bucle: if (line[i] >= 'a' && line[i] <= 'z') { count = count + 1; }"
+    }
+  ]
+}

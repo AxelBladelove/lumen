@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lumen.local/contracts/io-test-cases.v1.schema.json",
+  "title": "Lumen IO Test Cases v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["formatVersion", "cases"],
+  "properties": {
+    "formatVersion": { "const": 1 },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/case" }
+    }
+  },
+  "$defs": {
+    "kebabId": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "group", "stdin", "expectedStdout"],
+      "properties": {
+        "id": { "$ref": "#/$defs/kebabId" },
+        "group": { "$ref": "#/$defs/kebabId" },
+        "stdin": { "type": "string" },
+        "expectedStdout": { "type": "string" },
+        "timeoutMs": { "type": "integer", "minimum": 1 },
+        "weight": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  }
+}
