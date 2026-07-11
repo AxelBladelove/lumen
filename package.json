@@ -21,6 +21,7 @@
     "onCommand:lumen.engineStatus",
     "onCommand:lumen.refreshWebview",
     "onCommand:lumen.compileCurrentExercise",
+    "onCommand:lumen.testCurrentExercise",
     "onCommand:lumen.importExercise",
     "onView:lumen.routePath",
     "workspaceContains:.lumen-perf-auto-open"
@@ -66,6 +67,11 @@
         "category": "Lumen"
       },
       {
+        "command": "lumen.testCurrentExercise",
+        "title": "Lumen: Probar Solucion",
+        "category": "Lumen"
+      },
+      {
         "command": "lumen.importExercise",
         "title": "Lumen: Importar Ejercicio (.esex)",
         "category": "Lumen"
@@ -106,6 +112,11 @@
       {
         "key": "f9",
         "command": "lumen.compileCurrentExercise",
+        "when": "editorTextFocus && resourceExtname == .c"
+      },
+      {
+        "key": "f10",
+        "command": "lumen.testCurrentExercise",
         "when": "editorTextFocus && resourceExtname == .c"
       }
     ]

@@ -1,4 +1,4 @@
-export const lumenEngineProtocolVersion = 3;
+export const lumenEngineProtocolVersion = 4;
 
 export const lumenEngineErrorCodes = [
   "INVALID_REQUEST",
@@ -9,6 +9,8 @@ export const lumenEngineErrorCodes = [
   "TOOLCHAIN_NOT_FOUND",
   "BUILD_DIR_ERROR",
   "COMPILER_FAILED",
+  "NO_ACTIVE_EXERCISE",
+  "TESTS_INVALID",
   "IMPORT_FAILED",
   "IMPORT_CONFLICT",
   "UNKNOWN_ERROR"
@@ -99,6 +101,54 @@ export type LumenCompileFailure = {
 };
 
 export type LumenCompileResult = LumenCompileSuccess | LumenCompileFailure;
+
+export type LumenExerciseTestCaseStatus =
+  | "passed"
+  | "failed"
+  | "timeout"
+  | "runtime_error"
+  | "inconclusive";
+
+export type LumenExerciseTestCase = {
+  caseId: string;
+  status: LumenExerciseTestCaseStatus;
+  durationMs: number;
+  stdinPreview?: string;
+  expected?: string;
+  observed?: string;
+  outputTruncated?: true;
+};
+
+export type LumenExerciseTestGroup = {
+  groupId: string;
+  phase: string;
+  casesPassed: number;
+  casesTotal: number;
+  cases: LumenExerciseTestCase[];
+};
+
+export type LumenExerciseTestsCompileError = {
+  status: "compile_error";
+  diagnostics: LumenCompileDiagnostic[];
+  rawOutput: string;
+  durationMs: number;
+};
+
+export type LumenExerciseTestsExecuted = {
+  status: "passed" | "failed";
+  exerciseId: string;
+  version: string;
+  casesPassed: number;
+  casesTotal: number;
+  durationMs: number;
+  completed: boolean;
+  newlyCompleted: boolean;
+  groups: LumenExerciseTestGroup[];
+};
+
+export type LumenExerciseRunTestsResult =
+  | LumenExerciseTestsCompileError
+  | LumenExerciseTestsExecuted;
 
 export type LumenToolchainReady = {
   status: "ready";
@@ -203,6 +253,10 @@ export type LumenEngineMethodMap = {
   "exercise.compile": {
     params: { sourcePath: string };
     result: LumenCompileResult;
+  };
+  "exercise.runTests": {
+    params: Record<string, never>;
+    result: LumenExerciseRunTestsResult;
   };
   "exercise.import": {
     params: { esexPath: string };

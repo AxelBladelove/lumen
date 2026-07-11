@@ -12,10 +12,12 @@ import {
   type LumenEngineRequest,
   type LumenEngineResponse,
   type LumenExerciseImportResult,
+  type LumenExerciseRunTestsResult,
   type LumenModuleSnapshotResult
 } from "./lumenEngineProtocol";
 
 const lumenEngineRequestTimeoutMs = 10_000;
+const lumenExerciseTestsRequestTimeoutMs = 120_000;
 const lumenEngineRestartCooldownMs = 2_000;
 const lumenEngineShutdownTimeoutMs = 2_000;
 
@@ -126,6 +128,10 @@ export class LumenEngineClient implements vscode.Disposable {
 
   async getActiveExercise(): Promise<LumenActiveExerciseResult> {
     return this.request("exercise.getActive", {});
+  }
+
+  async runExerciseTests(): Promise<LumenExerciseRunTestsResult> {
+    return this.request("exercise.runTests", {}, { timeoutMs: lumenExerciseTestsRequestTimeoutMs });
   }
 
   async getModuleSnapshot(routeId: string, moduleId: string): Promise<LumenModuleSnapshotResult> {

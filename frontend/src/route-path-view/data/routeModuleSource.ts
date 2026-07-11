@@ -57,18 +57,23 @@ export function buildRouteModuleFromEngine(payload: RouteModuleDataPayload): Rou
     return node;
   });
 
-  const activeNode =
-    projectedNodes.find((node) => node.status === "active") ?? projectedNodes[0];
+  const completedCount = projectedNodes.filter((node) => node.status === "completed").length;
+  const nextNode =
+    projectedNodes.find((node) => node.status === "active") ??
+    projectedNodes.find((node) => node.status !== "completed") ??
+    projectedNodes[0];
 
   return {
     ...base,
-    completed: 0,
+    completed: completedCount,
     total: projectedNodes.length,
-    percent: 0,
+    percent: projectedNodes.length
+      ? Math.round((completedCount / projectedNodes.length) * 100)
+      : 0,
     nodes: projectedNodes,
     nextAction: {
       label: "Siguiente:",
-      targetTitle: activeNode?.title ?? ""
+      targetTitle: nextNode?.title ?? ""
     }
   };
 }
@@ -89,5 +94,12 @@ function mapEngineNodeType(nodeType: string): NodeType {
 }
 
 function mapEngineNodeStatus(status: string): NodeStatus {
-  return status === "active" ? "active" : "locked";
+  switch (status) {
+    case "active":
+      return "active";
+    case "completed":
+      return "completed";
+    default:
+      return "locked";
+  }
 }

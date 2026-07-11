@@ -176,6 +176,11 @@ export class LumenPanelController {
     this.host.postReveal();
   }
 
+  async postExerciseCompleted(exerciseId: string) {
+    if (!this.panel) return;
+    await this.host.postExerciseCompleted(exerciseId);
+  }
+
   /**
    * Unico cambio de layout de la entrada: panel al grupo derecho, proporcion
    * 2/3 editor + 1/3 Lumen y grupo bloqueado para que abrir archivos no

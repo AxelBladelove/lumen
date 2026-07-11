@@ -6,7 +6,13 @@ use rusqlite::{params, Connection, OptionalExtension, Transaction};
 
 use crate::state::{LastState, StatePatch};
 
-const CURRENT_SCHEMA_VERSION: i64 = 3;
+const CURRENT_SCHEMA_VERSION: i64 = 4;
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ExerciseProgressResult {
+    pub completed: bool,
+    pub newly_completed: bool,
+}
 
 #[derive(Debug, Clone)]
 pub(crate) struct InstalledActivity {
@@ -163,6 +169,41 @@ impl Database {
         self.capture_runtime_error(result)
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn record_exercise_attempt(
+        &mut self,
+        activity_id: &str,
+        version: &str,
+        status: &str,
+        cases_passed: usize,
+        cases_total: usize,
+        duration_ms: u64,
+        completed: bool,
+    ) -> Result<ExerciseProgressResult, String> {
+        let result = match &mut self.state {
+            DatabaseState::Ready(connection) => persist_exercise_attempt(
+                connection,
+                activity_id,
+                version,
+                status,
+                cases_passed,
+                cases_total,
+                duration_ms,
+                completed,
+            ),
+            DatabaseState::Error(error) => return Err(error.clone()),
+        };
+        self.capture_runtime_error(result)
+    }
+
+    pub(crate) fn completed_activity_ids(&mut self) -> Result<HashSet<String>, String> {
+        let result = match &self.state {
+            DatabaseState::Ready(connection) => query_completed_activity_ids(connection),
+            DatabaseState::Error(error) => return Err(error.clone()),
+        };
+        self.capture_runtime_error(result)
+    }
+
     fn capture_runtime_error<T>(&mut self, result: Result<T, String>) -> Result<T, String> {
         if let Err(error) = &result {
             eprintln!("SQLite dejo de estar disponible: {error}");
@@ -226,9 +267,44 @@ fn run_migrations(connection: &mut Connection) -> Result<(), String> {
         apply_migration_3(&transaction)?;
     }
 
+    if version < 4 {
+        apply_migration_4(&transaction)?;
+    }
+
     transaction
         .commit()
         .map_err(|error| format!("no se pudo confirmar la migracion: {error}"))
+}
+
+fn apply_migration_4(transaction: &Transaction<'_>) -> Result<(), String> {
+    transaction
+        .execute_batch(
+            "CREATE TABLE exercise_attempts (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              activity_id TEXT NOT NULL,
+              version TEXT NOT NULL,
+              mode TEXT,
+              status TEXT NOT NULL,
+              cases_passed INTEGER NOT NULL,
+              cases_total INTEGER NOT NULL,
+              duration_ms INTEGER NOT NULL,
+              created_at TEXT NOT NULL
+            );
+
+            CREATE INDEX idx_exercise_attempts_activity
+              ON exercise_attempts (activity_id, created_at);
+
+            CREATE TABLE exercise_progress (
+              activity_id TEXT PRIMARY KEY,
+              completed_version TEXT NOT NULL,
+              completed_at TEXT NOT NULL,
+              attempts_before_completion INTEGER NOT NULL
+            );
+
+            INSERT INTO schema_migrations (version, applied_at)
+            VALUES (4, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+        )
+        .map_err(|error| format!("fallo la migracion 4: {error}"))
 }
 
 fn apply_migration_3(transaction: &Transaction<'_>) -> Result<(), String> {
@@ -438,6 +514,100 @@ fn persist_compile_attempt(
         )
         .map(|_| ())
         .map_err(|error| format!("no se pudo registrar compile_attempts: {error}"))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn persist_exercise_attempt(
+    connection: &mut Connection,
+    activity_id: &str,
+    version: &str,
+    status: &str,
+    cases_passed: usize,
+    cases_total: usize,
+    duration_ms: u64,
+    should_complete: bool,
+) -> Result<ExerciseProgressResult, String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| format!("no se pudo iniciar el registro del intento: {error}"))?;
+    let mode: Option<String> = transaction
+        .query_row("SELECT last_mode FROM user_state WHERE id = 1", [], |row| {
+            row.get(0)
+        })
+        .optional()
+        .map_err(|error| format!("no se pudo leer el modo del intento: {error}"))?
+        .flatten();
+
+    transaction
+        .execute(
+            "INSERT INTO exercise_attempts (
+                activity_id, version, mode, status, cases_passed, cases_total,
+                duration_ms, created_at
+            ) VALUES (
+                ?1, ?2, ?3, ?4, ?5, ?6, ?7,
+                strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            )",
+            params![
+                activity_id,
+                version,
+                mode.as_deref().unwrap_or("free"),
+                status,
+                i64::try_from(cases_passed).unwrap_or(i64::MAX),
+                i64::try_from(cases_total).unwrap_or(i64::MAX),
+                i64::try_from(duration_ms).unwrap_or(i64::MAX),
+            ],
+        )
+        .map_err(|error| format!("no se pudo registrar exercise_attempts: {error}"))?;
+
+    let newly_completed = if should_complete {
+        let attempts: i64 = transaction
+            .query_row(
+                "SELECT COUNT(*) FROM exercise_attempts WHERE activity_id = ?1",
+                [activity_id],
+                |row| row.get(0),
+            )
+            .map_err(|error| format!("no se pudieron contar los intentos: {error}"))?;
+        transaction
+            .execute(
+                "INSERT OR IGNORE INTO exercise_progress (
+                    activity_id, completed_version, completed_at,
+                    attempts_before_completion
+                ) VALUES (
+                    ?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), ?3
+                )",
+                params![activity_id, version, attempts.max(1)],
+            )
+            .map_err(|error| format!("no se pudo registrar exercise_progress: {error}"))?
+            == 1
+    } else {
+        false
+    };
+    let completed = transaction
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM exercise_progress WHERE activity_id = ?1)",
+            [activity_id],
+            |row| row.get::<_, bool>(0),
+        )
+        .map_err(|error| format!("no se pudo leer exercise_progress: {error}"))?;
+
+    transaction
+        .commit()
+        .map_err(|error| format!("no se pudo confirmar el intento: {error}"))?;
+    Ok(ExerciseProgressResult {
+        completed,
+        newly_completed,
+    })
+}
+
+fn query_completed_activity_ids(connection: &Connection) -> Result<HashSet<String>, String> {
+    let mut statement = connection
+        .prepare("SELECT activity_id FROM exercise_progress")
+        .map_err(|error| format!("no se pudo preparar exercise_progress: {error}"))?;
+    let rows = statement
+        .query_map([], |row| row.get(0))
+        .map_err(|error| format!("no se pudo leer exercise_progress: {error}"))?;
+    rows.collect::<Result<HashSet<String>, _>>()
+        .map_err(|error| format!("no se pudo decodificar exercise_progress: {error}"))
 }
 
 fn persist_installed_activity(

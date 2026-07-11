@@ -1,15 +1,17 @@
 use std::fs;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use serde_json::{json, Map, Value};
 
 use crate::compile::{self, CompileFailure};
 use crate::esex::{self, EsexError};
 use crate::state::StatePatch;
-use crate::storage::{Database, InstalledActivity};
+use crate::storage::{Database, ExerciseProgressResult, InstalledActivity};
+use crate::testing::{self, IoCaseStatus, RunOptions, TestingError};
 
-const PROTOCOL_VERSION: u64 = 3;
+const PROTOCOL_VERSION: u64 = 4;
 const ENGINE_VERSION: &str = "0.1.0";
 const PACKAGE_SHA_FILE: &str = ".package-sha256";
 
@@ -22,6 +24,15 @@ struct Request {
     id: String,
     method: String,
     params: Value,
+}
+
+enum ActiveExercise {
+    None,
+    Missing(String),
+    Ready {
+        activity: InstalledActivity,
+        entrypoint_path: PathBuf,
+    },
 }
 
 impl Engine {
@@ -61,6 +72,7 @@ impl Engine {
             "exercise.compile" => self.compile_exercise(request.id, &request.params),
             "exercise.import" => self.import_exercise(request.id, &request.params),
             "exercise.getActive" => self.get_active_exercise(request.id, &request.params),
+            "exercise.runTests" => self.run_exercise_tests(request.id, &request.params),
             "route.getModuleSnapshot" => self.get_module_snapshot(request.id, &request.params),
             "toolchain.check" => self.check_toolchain(request.id, &request.params),
             _ => error_response(
@@ -325,47 +337,227 @@ impl Engine {
         if !is_empty_object(params) {
             return invalid_params_response(id);
         }
-        let exercise_id = match self.database.get_last_state() {
-            Ok(Some(state)) => state.last_exercise_id,
-            Ok(None) => None,
-            Err(_) => return database_error_response(id, "No se pudo leer el estado."),
-        };
-        let Some(exercise_id) = exercise_id else {
-            return success_response(id, json!({ "status": "none" }));
-        };
-        let activity = match self.database.get_latest_activity(&exercise_id) {
-            Ok(Some(activity)) => activity,
-            Ok(None) => {
-                return success_response(
-                    id,
-                    json!({ "status": "missing", "exerciseId": exercise_id }),
-                )
-            }
-            Err(_) => return database_error_response(id, "No se pudo leer la actividad."),
-        };
-        let entrypoint_path = PathBuf::from(&activity.install_path).join(&activity.entrypoint);
-        if !entrypoint_path.is_file() {
-            return success_response(
+        match self.resolve_active_exercise() {
+            Ok(ActiveExercise::None) => success_response(id, json!({ "status": "none" })),
+            Ok(ActiveExercise::Missing(exercise_id)) => success_response(
                 id,
                 json!({ "status": "missing", "exerciseId": exercise_id }),
+            ),
+            Ok(ActiveExercise::Ready {
+                activity,
+                entrypoint_path,
+            }) => success_response(
+                id,
+                json!({
+                    "status": "ready",
+                    "active": {
+                        "exerciseId": activity.activity_id,
+                        "version": activity.version,
+                        "installPath": activity.install_path,
+                        "entrypointPath": entrypoint_path,
+                        "title": activity.title,
+                        "routeId": activity.route_id,
+                        "moduleId": activity.module_id,
+                        "nodeType": activity.node_type,
+                    }
+                }),
+            ),
+            Err(()) => database_error_response(id, "No se pudo resolver el ejercicio activo."),
+        }
+    }
+
+    fn run_exercise_tests(&mut self, id: String, params: &Value) -> Value {
+        if !is_empty_object(params) {
+            return invalid_params_response(id);
+        }
+        let (activity, entrypoint_path) = match self.resolve_active_exercise() {
+            Ok(ActiveExercise::Ready {
+                activity,
+                entrypoint_path,
+            }) => (activity, entrypoint_path),
+            Ok(ActiveExercise::None) => return no_active_exercise_response(id, None),
+            Ok(ActiveExercise::Missing(exercise_id)) => {
+                return no_active_exercise_response(id, Some(&exercise_id))
+            }
+            Err(()) => {
+                return database_error_response(id, "No se pudo resolver el ejercicio activo.")
+            }
+        };
+        let started_at = Instant::now();
+        if let Err(error) = compile::validate_source(&entrypoint_path) {
+            return compile_error_response(id, error);
+        }
+        let compiler_path = match self.find_compiler() {
+            Some(path) => path,
+            None => return compile_error_response(id, CompileFailure::toolchain_not_found()),
+        };
+        let compile_result = match compile::compile_source(&entrypoint_path, &compiler_path) {
+            Ok(result) => result,
+            Err(error) => return compile_error_response(id, error),
+        };
+        if compile_result.status == compile::CompileStatus::CompileError {
+            let progress = self.record_exercise_attempt(
+                &activity,
+                "compile_error",
+                0,
+                0,
+                compile_result.duration_ms,
+                false,
+            );
+            let _ = progress;
+            let serialized = json!(compile_result);
+            return success_response(
+                id,
+                json!({
+                    "status": "compile_error",
+                    "diagnostics": serialized["diagnostics"],
+                    "rawOutput": serialized["rawOutput"],
+                    "durationMs": serialized["durationMs"],
+                }),
             );
         }
+        let Some(executable_path) = compile_result.executable_path.as_deref() else {
+            return error_response(
+                Some(id),
+                "COMPILER_FAILED",
+                "GCC no produjo el ejecutable esperado.",
+                true,
+            );
+        };
+        let manifest: Value = match serde_json::from_str(&activity.manifest_json) {
+            Ok(manifest) => manifest,
+            Err(error) => {
+                return tests_invalid_response(
+                    id,
+                    &[testing_detail(
+                        "MANIFEST_INVALID",
+                        "manifest.json",
+                        format!("El manifest instalado no contiene JSON valido: {error}"),
+                    )],
+                )
+            }
+        };
+        let tests_path = match test_data_path(&manifest) {
+            Some(path) => PathBuf::from(&activity.install_path).join(path),
+            None => {
+                return tests_invalid_response(
+                    id,
+                    &[testing_detail(
+                        "TEST_DATA_NOT_FOUND",
+                        "/content/tests",
+                        "El manifest no declara un archivo de tests con role test-data.",
+                    )],
+                )
+            }
+        };
+        let cases_json = match fs::read_to_string(&tests_path) {
+            Ok(content) => content,
+            Err(error) => {
+                return tests_invalid_response(
+                    id,
+                    &[testing_detail(
+                        "IO_ERROR",
+                        tests_path.display().to_string(),
+                        format!("No se pudo leer el archivo de tests: {error}"),
+                    )],
+                )
+            }
+        };
+        let cases = match testing::validate_io_cases(&cases_json, &manifest) {
+            Ok(cases) => cases,
+            Err(errors) => return tests_invalid_response(id, &testing_errors(&errors)),
+        };
+        let options = run_options_from_manifest(&manifest);
+        let run = testing::run_io_tests(Path::new(executable_path), &cases, &options);
+        let duration_ms = elapsed_millis(started_at);
+        let status = if run.overall_passed {
+            "passed"
+        } else {
+            "failed"
+        };
+        let progress = self.record_exercise_attempt(
+            &activity,
+            status,
+            run.passed_count,
+            run.results.len(),
+            duration_ms,
+            run.overall_passed,
+        );
+        let groups = wire_groups(&manifest, &cases, &run);
         success_response(
             id,
             json!({
-                "status": "ready",
-                "active": {
-                    "exerciseId": activity.activity_id,
-                    "version": activity.version,
-                    "installPath": activity.install_path,
-                    "entrypointPath": entrypoint_path,
-                    "title": activity.title,
-                    "routeId": activity.route_id,
-                    "moduleId": activity.module_id,
-                    "nodeType": activity.node_type,
-                }
+                "status": status,
+                "exerciseId": activity.activity_id,
+                "version": activity.version,
+                "casesPassed": run.passed_count,
+                "casesTotal": run.results.len(),
+                "durationMs": duration_ms,
+                "completed": progress.completed,
+                "newlyCompleted": progress.newly_completed,
+                "groups": groups,
             }),
         )
+    }
+
+    fn resolve_active_exercise(&mut self) -> Result<ActiveExercise, ()> {
+        let exercise_id = self
+            .database
+            .get_last_state()
+            .map_err(|_| ())?
+            .and_then(|state| state.last_exercise_id);
+        let Some(exercise_id) = exercise_id else {
+            return Ok(ActiveExercise::None);
+        };
+        let Some(activity) = self
+            .database
+            .get_latest_activity(&exercise_id)
+            .map_err(|_| ())?
+        else {
+            return Ok(ActiveExercise::Missing(exercise_id));
+        };
+        let entrypoint_path = PathBuf::from(&activity.install_path).join(&activity.entrypoint);
+        if !entrypoint_path.is_file() {
+            return Ok(ActiveExercise::Missing(exercise_id));
+        }
+        Ok(ActiveExercise::Ready {
+            activity,
+            entrypoint_path,
+        })
+    }
+
+    fn record_exercise_attempt(
+        &mut self,
+        activity: &InstalledActivity,
+        status: &str,
+        cases_passed: usize,
+        cases_total: usize,
+        duration_ms: u64,
+        completed: bool,
+    ) -> ExerciseProgressResult {
+        let was_completed = self
+            .database
+            .completed_activity_ids()
+            .map(|ids| ids.contains(&activity.activity_id))
+            .unwrap_or(false);
+        match self.database.record_exercise_attempt(
+            &activity.activity_id,
+            &activity.version,
+            status,
+            cases_passed,
+            cases_total,
+            duration_ms,
+            completed,
+        ) {
+            Ok(progress) => progress,
+            Err(error) => {
+                eprintln!("No se pudo registrar el intento del ejercicio: {error}");
+                ExerciseProgressResult {
+                    completed: was_completed,
+                    newly_completed: false,
+                }
+            }
+        }
     }
 
     fn get_module_snapshot(&mut self, id: String, params: &Value) -> Value {
@@ -382,6 +574,10 @@ impl Engine {
             Ok(activities) => activities,
             Err(_) => return database_error_response(id, "No se pudo leer el modulo."),
         };
+        let completed_ids = match self.database.completed_activity_ids() {
+            Ok(ids) => ids,
+            Err(_) => return database_error_response(id, "No se pudo leer el progreso."),
+        };
         let installed_active = active_id
             .as_ref()
             .filter(|active| activities.iter().any(|item| &item.activity_id == *active))
@@ -395,7 +591,9 @@ impl Engine {
                     return database_error_response(id, "No se pudo leer el modulo.");
                 }
             };
-            let status = if active_id.as_deref() == Some(activity.activity_id.as_str()) {
+            let status = if completed_ids.contains(&activity.activity_id) {
+                "completed"
+            } else if active_id.as_deref() == Some(activity.activity_id.as_str()) {
                 "active"
             } else {
                 "locked"
@@ -441,6 +639,124 @@ impl Engine {
 
         Some(compiler_path)
     }
+}
+
+fn test_data_path(manifest: &Value) -> Option<&str> {
+    manifest
+        .pointer("/content/tests")
+        .and_then(Value::as_array)?
+        .iter()
+        .find(|test| test.get("role").and_then(Value::as_str) == Some("test-data"))?
+        .get("path")?
+        .as_str()
+}
+
+fn run_options_from_manifest(manifest: &Value) -> RunOptions {
+    let defaults = RunOptions::default();
+    RunOptions {
+        normalization: manifest
+            .pointer("/testContract/normalization")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_owned)
+                    .collect()
+            })
+            .unwrap_or_default(),
+        default_timeout_ms: manifest
+            .pointer("/testContract/limits/timeLimitMs")
+            .and_then(Value::as_u64)
+            .unwrap_or(defaults.default_timeout_ms),
+        output_limit_kb: manifest
+            .pointer("/testContract/limits/outputLimitKb")
+            .and_then(Value::as_u64)
+            .and_then(|value| usize::try_from(value).ok())
+            .unwrap_or(defaults.output_limit_kb),
+        expected_exit_code: manifest
+            .pointer("/testContract/expectedExitCode")
+            .and_then(Value::as_i64)
+            .or(defaults.expected_exit_code),
+    }
+}
+
+fn wire_groups(manifest: &Value, cases: &testing::IoCases, run: &testing::IoTestRun) -> Vec<Value> {
+    manifest
+        .pointer("/testContract/testGroups")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|group| {
+            let group_id = group.get("id").and_then(Value::as_str)?;
+            let phase = group.get("phase").and_then(Value::as_str).unwrap_or("");
+            let group_results: Vec<_> = run
+                .results
+                .iter()
+                .filter(|result| result.group == group_id)
+                .collect();
+            let cases_passed = group_results
+                .iter()
+                .filter(|result| result.status == IoCaseStatus::Passed)
+                .count();
+            let wire_cases: Vec<_> = group_results
+                .into_iter()
+                .map(|result| {
+                    let mut wire = Map::new();
+                    wire.insert("caseId".to_owned(), json!(result.id));
+                    wire.insert("status".to_owned(), json!(result.status));
+                    wire.insert("durationMs".to_owned(), json!(result.duration_ms));
+                    if result.output_truncated {
+                        wire.insert("outputTruncated".to_owned(), json!(true));
+                    }
+                    if phase == "public" {
+                        let stdin = cases
+                            .cases
+                            .iter()
+                            .find(|case| case.id == result.id)
+                            .map(|case| case.stdin.chars().take(200).collect::<String>())
+                            .unwrap_or_default();
+                        wire.insert("stdinPreview".to_owned(), json!(stdin));
+                        wire.insert(
+                            "expected".to_owned(),
+                            json!(result.expected_stdout_normalized),
+                        );
+                        wire.insert(
+                            "observed".to_owned(),
+                            json!(result.actual_stdout_normalized),
+                        );
+                    }
+                    Value::Object(wire)
+                })
+                .collect();
+            Some(json!({
+                "groupId": group_id,
+                "phase": phase,
+                "casesPassed": cases_passed,
+                "casesTotal": wire_cases.len(),
+                "cases": wire_cases,
+            }))
+        })
+        .collect()
+}
+
+fn testing_errors(errors: &[TestingError]) -> Vec<Value> {
+    errors
+        .iter()
+        .map(|error| testing_detail(&error.code, &error.path, &error.message))
+        .collect()
+}
+
+fn testing_detail(code: &str, path: impl AsRef<str>, message: impl AsRef<str>) -> Value {
+    json!({
+        "code": code,
+        "path": path.as_ref(),
+        "message": message.as_ref(),
+    })
+}
+
+fn elapsed_millis(started_at: Instant) -> u64 {
+    u64::try_from(started_at.elapsed().as_millis()).unwrap_or(u64::MAX)
 }
 
 pub(crate) fn invalid_utf8_response() -> Value {
@@ -667,6 +983,38 @@ fn import_conflict_response(id: String) -> Value {
         "IMPORT_CONFLICT",
         "La actividad y version ya existen con otro sha256.",
         true,
+    )
+}
+
+fn no_active_exercise_response(id: String, exercise_id: Option<&str>) -> Value {
+    match exercise_id {
+        Some(exercise_id) => error_response_with_details(
+            Some(id),
+            "NO_ACTIVE_EXERCISE",
+            "No hay un ejercicio activo instalado y disponible.",
+            true,
+            vec![testing_detail(
+                "NO_ACTIVE_EXERCISE",
+                exercise_id,
+                "El ejercicio activo no esta instalado o su entrypoint no existe.",
+            )],
+        ),
+        None => error_response(
+            Some(id),
+            "NO_ACTIVE_EXERCISE",
+            "No hay un ejercicio activo instalado y disponible.",
+            true,
+        ),
+    }
+}
+
+fn tests_invalid_response(id: String, details: &[Value]) -> Value {
+    error_response_with_details(
+        Some(id),
+        "TESTS_INVALID",
+        "El archivo de tests instalado no supera la validacion.",
+        true,
+        details.to_vec(),
     )
 }
 

@@ -6,6 +6,7 @@ import { enterLumenMode, exitLumenMode, resumePendingLumenOpen } from "./lumenEn
 import { cleanupStaleLumenLayout } from "./lumenLayout";
 import { LumenPanelController } from "./lumenPanel";
 import { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
+import { LumenTestController } from "./lumenTest";
 
 let lumenEngineClient: LumenEngineClient | undefined;
 
@@ -19,6 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   const compileController = new LumenCompileController(engineClient, outputChannel);
   context.subscriptions.push(compileController);
+  const testController = new LumenTestController(engineClient, outputChannel);
 
   const launcher = new LumenRoutePathViewProvider(() => {
     void vscode.commands.executeCommand("lumen.enterMode");
@@ -58,6 +60,17 @@ export function activate(context: vscode.ExtensionContext) {
       } catch (error) {
         const detail = formatEngineError(error);
         outputChannel.appendLine(`Compile command failed: ${detail}`);
+        await vscode.window.showErrorMessage(detail);
+      }
+    }),
+    vscode.commands.registerCommand("lumen.testCurrentExercise", async () => {
+      try {
+        await testController.testCurrentExercise((exerciseId) =>
+          panel.postExerciseCompleted(exerciseId)
+        );
+      } catch (error) {
+        const detail = formatEngineError(error);
+        outputChannel.appendLine(`Test command failed: ${detail}`);
         await vscode.window.showErrorMessage(detail);
       }
     }),

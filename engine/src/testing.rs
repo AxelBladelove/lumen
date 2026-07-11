@@ -443,8 +443,8 @@ fn run_io_case(binary: &Path, case: &IoCase, options: &RunOptions) -> IoCaseResu
                 } else {
                     IoCaseStatus::Failed
                 },
-                expected_stdout_normalized: (!passed).then_some(expected_normalized),
-                actual_stdout_normalized: (!passed).then_some(actual_normalized),
+                expected_stdout_normalized: Some(expected_normalized),
+                actual_stdout_normalized: Some(actual_normalized),
                 exit_code,
                 duration_ms,
                 output_truncated: stdout_capture.truncated,

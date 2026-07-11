@@ -262,6 +262,10 @@ async function ensureOfficialWorkspaceExists(
   const create = "Crear";
   const choice = await vscode.window.showInformationMessage(
     `La carpeta de Lumen no existe en ${workspaceState.officialWorkspacePath}.`,
+    {
+      modal: true,
+      detail: "Lumen necesita crear esta carpeta para guardar y abrir su workspace oficial."
+    },
     create
   );
   if (choice !== create) return false;

@@ -127,6 +127,16 @@ export class LumenWebviewHost {
     this.postToWebview({ type: "lumen.reveal", payload: {} });
   }
 
+  async postExerciseCompleted(exerciseId: string) {
+    if (!this.webview) return;
+
+    this.postToWebview({
+      type: "route.exercise.completed",
+      payload: { nodeId: exerciseId }
+    });
+    await this.pushRouteModuleData("c", "strings");
+  }
+
   private postEntryState() {
     if (!this.entryState) return;
     this.postToWebview({

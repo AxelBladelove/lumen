@@ -139,7 +139,7 @@ fn migration_two_creates_compile_attempts() {
     let directory = TestDirectory::new("migration");
     let mut engine = RunningEngine::start(&directory.data_dir());
     let health = engine.request(json!({ "id": "health", "method": "engine.healthCheck" }));
-    assert_eq!(health["result"]["protocolVersion"], 3);
+    assert_eq!(health["result"]["protocolVersion"], 4);
     assert_eq!(health["result"]["dbStatus"], "ready");
     engine.shutdown();
 
@@ -150,7 +150,7 @@ fn migration_two_creates_compile_attempts() {
             row.get(0)
         })
         .expect("schema version should exist");
-    assert_eq!(max_version, 3);
+    assert_eq!(max_version, 4);
 
     let mut columns = connection
         .prepare("PRAGMA table_info(compile_attempts)")

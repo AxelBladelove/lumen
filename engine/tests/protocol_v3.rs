@@ -173,7 +173,7 @@ fn migration_three_health_and_import_register_the_activity() {
     let mut engine = RunningEngine::start(&work.data_dir());
 
     let health = engine.request(json!({ "id": "health", "method": "engine.healthCheck" }));
-    assert_eq!(health["result"]["protocolVersion"], 3);
+    assert_eq!(health["result"]["protocolVersion"], 4);
     assert_eq!(health["result"]["dbStatus"], "ready");
 
     let imported = engine.request(import_request("import", &package_path));
@@ -206,7 +206,7 @@ fn migration_three_health_and_import_register_the_activity() {
             row.get(0)
         })
         .expect("schema version");
-    assert_eq!(max_version, 3);
+    assert_eq!(max_version, 4);
     let row: (String, String, String, String, String, i64, String) = connection
         .query_row(
             "SELECT title, entrypoint, route_id, module_id, primary_topics,
