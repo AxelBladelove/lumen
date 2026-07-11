@@ -3,8 +3,10 @@
   import RoutePathView from "./route-path-view/RoutePathView.svelte";
   import { lumenBrand, ensureLumenFavicon } from "./brand/lumenBrand";
   import {
+    buildRouteModuleFromEngine,
     cloneRouteModule,
     createInitialRouteModule,
+    engineRouteModuleDataSource,
     routeModuleDataSource
   } from "./route-path-view/data/routeModuleSource";
   import type { RoutePathNode } from "./route-path-view/types/routePath";
@@ -19,6 +21,9 @@
   // al montar, la app retoma su porcentaje para que el contador sea continuo.
   const staticIntroProgress = readStaticIntroProgress();
   let routeModule = createInitialRouteModule();
+  // Fuente efectiva del modulo actual: arranca en el mock y pasa a
+  // `engine:<routeId>/<moduleId>` en cuanto llega `route.module.data`.
+  let currentDataSource = routeModuleDataSource;
   // El intro arranca visible siempre: en el host el panel solo existe durante
   // la entrada a Lumen Mode, y fuera del host es la unica pantalla de carga.
   let introVisible = true;
@@ -50,6 +55,14 @@
   const stopListening = bridge.onMessage((message) => {
     if (message.type === "route.module.snapshot") {
       routeModule = cloneRouteModule(message.payload.module);
+    }
+
+    if (message.type === "route.module.data") {
+      routeModule = buildRouteModuleFromEngine(message.payload);
+      currentDataSource = engineRouteModuleDataSource(
+        message.payload.routeId,
+        message.payload.moduleId
+      );
     }
 
     if (message.type === "route.exercise.completed") {
@@ -85,7 +98,7 @@
       view: "route-path-view",
       routeId: "route-c",
       moduleId: routeModule.path.id,
-      dataSource: routeModuleDataSource
+      dataSource: currentDataSource
     }
   });
 

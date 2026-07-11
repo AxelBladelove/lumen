@@ -4,7 +4,12 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
-    let data_dir = match parse_data_dir(env::args_os().skip(1)) {
+    let args: Vec<OsString> = env::args_os().skip(1).collect();
+    if args.first().is_some_and(|arg| arg == "build-esex") {
+        return run_build_esex(&args);
+    }
+
+    let data_dir = match parse_data_dir(args.into_iter()) {
         Ok(path) => path,
         Err(message) => {
             eprintln!("{message}");
@@ -17,6 +22,27 @@ fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("El loop del protocolo termino con error: {error}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn run_build_esex(args: &[OsString]) -> ExitCode {
+    if args.len() != 3 {
+        eprintln!("Uso: lumen-engine build-esex <activity_dir> <output.esex>");
+        return ExitCode::FAILURE;
+    }
+    let activity_dir = PathBuf::from(&args[1]);
+    let output_path = PathBuf::from(&args[2]);
+    match lumen_engine::esex::build_esex(&activity_dir, &output_path) {
+        Ok(info) => {
+            println!("{}", info.package_sha256);
+            ExitCode::SUCCESS
+        }
+        Err(errors) => {
+            for error in errors {
+                eprintln!("{} [{}]: {}", error.code, error.path, error.message);
+            }
             ExitCode::FAILURE
         }
     }

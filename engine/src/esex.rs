@@ -180,6 +180,35 @@ pub fn import_esex(
     import_esex_with_limits(esex_path, install_root, &ImportLimits::default())
 }
 
+pub(crate) fn package_matches_installation(
+    esex_path: &Path,
+    install_path: &Path,
+) -> Result<bool, String> {
+    let file = File::open(esex_path)
+        .map_err(|error| format!("No se pudo abrir el paquete para compararlo: {error}"))?;
+    let mut archive = ZipArchive::new(file)
+        .map_err(|error| format!("No se pudo abrir el zip para compararlo: {error}"))?;
+    let limits = ImportLimits::default();
+    for index in 0..archive.len() {
+        let mut entry = archive
+            .by_index(index)
+            .map_err(|error| format!("No se pudo leer la entrada {index}: {error}"))?;
+        if !entry.is_file() {
+            return Ok(false);
+        }
+        let name = entry.name().to_owned();
+        let packaged = read_limited_bytes(&mut entry, limits.max_file_uncompressed_bytes)?;
+        let installed = match fs::read(install_path.join(&name)) {
+            Ok(bytes) => bytes,
+            Err(_) => return Ok(false),
+        };
+        if packaged != installed {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 pub fn import_esex_with_limits(
     esex_path: &Path,
     install_root: &Path,
@@ -595,7 +624,7 @@ fn read_limited_bytes(reader: &mut impl Read, limit: u64) -> Result<Vec<u8>, Str
     Ok(bytes)
 }
 
-fn hash_file(path: &Path) -> Result<(String, u64), String> {
+pub(crate) fn hash_file(path: &Path) -> Result<(String, u64), String> {
     let mut file = File::open(path)
         .map_err(|error| format!("No se pudo abrir el archivo para hashear: {error}"))?;
     let mut hasher = Sha256::new();

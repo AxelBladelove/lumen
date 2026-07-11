@@ -1,5 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as vscode from "vscode";
+import type { LumenEngineClient } from "./engine/lumenEngineClient";
+import type { LumenModuleSnapshotNode } from "./engine/lumenEngineProtocol";
 import { lumenWebviewProtocolVersion, type LumenEntryState } from "./lumenProtocol";
 
 export type LumenModePhase = "idle" | "entering" | "active";
@@ -71,6 +73,7 @@ export type LumenWebviewMessage =
 type LumenWebviewHostOptions = {
   context: vscode.ExtensionContext;
   outputChannel: vscode.OutputChannel;
+  engineClient: LumenEngineClient;
   onExitRequested: () => void;
   /** El frontend evaluó su bundle y conectó el protocolo. */
   onFrontendReady?: () => void;
@@ -142,6 +145,44 @@ export class LumenWebviewHost {
     });
   }
 
+  // Consulta el snapshot del modulo al engine y lo proyecta a la webview. Solo
+  // se envia cuando hay nodos reales: con lista vacia la webview conserva el
+  // mock (contrato v3, "Puente webview").
+  private async pushRouteModuleData(routeId: string, moduleId: string) {
+    let snapshotNodes: LumenModuleSnapshotNode[];
+    let activeExerciseId: string | null;
+    let resolvedRouteId: string;
+    let resolvedModuleId: string;
+
+    try {
+      const { snapshot } = await this.options.engineClient.getModuleSnapshot(routeId, moduleId);
+      snapshotNodes = snapshot.nodes;
+      activeExerciseId = snapshot.activeExerciseId;
+      resolvedRouteId = snapshot.routeId;
+      resolvedModuleId = snapshot.moduleId;
+    } catch (error) {
+      this.options.outputChannel.appendLine(
+        `route.getModuleSnapshot(${routeId}/${moduleId}) failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      return;
+    }
+
+    if (snapshotNodes.length === 0) return;
+
+    this.postToWebview({
+      type: "route.module.data",
+      payload: {
+        source: "engine",
+        routeId: resolvedRouteId,
+        moduleId: resolvedModuleId,
+        activeExerciseId,
+        nodes: snapshotNodes
+      }
+    });
+  }
+
   private handleWebviewMessage(message: LumenWebviewMessage) {
     if (!message || typeof message.type !== "string") return;
 
@@ -161,6 +202,7 @@ export class LumenWebviewHost {
         this.postEntryState();
         this.postPhase();
         this.options.onFrontendReady?.();
+        void this.pushRouteModuleData("c", "strings");
         break;
 
       case "frontend.loadingComplete":

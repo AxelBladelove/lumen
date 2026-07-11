@@ -21,6 +21,7 @@
     "onCommand:lumen.engineStatus",
     "onCommand:lumen.refreshWebview",
     "onCommand:lumen.compileCurrentExercise",
+    "onCommand:lumen.importExercise",
     "onView:lumen.routePath",
     "workspaceContains:.lumen-perf-auto-open"
   ],
@@ -62,6 +63,11 @@
       {
         "command": "lumen.compileCurrentExercise",
         "title": "Lumen: Compilar Ejercicio Actual",
+        "category": "Lumen"
+      },
+      {
+        "command": "lumen.importExercise",
+        "title": "Lumen: Importar Ejercicio (.esex)",
         "category": "Lumen"
       }
     ],

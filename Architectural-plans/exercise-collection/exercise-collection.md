@@ -8,12 +8,18 @@ Archivo: `Architectural-plans/exercise-collection/exercise-collection.md`
 
 ## Estado actual del repo
 
-La colección de ejercicios todavía no está implementada. No hay UI de
-colección, filtros, importación, paquetes `.esex`, metadata local/remota ni
-operaciones de Local Engine para listar o materializar ejercicios.
+La UI de colección (búsqueda, filtros, catálogo navegable) todavía no está
+implementada. Sí existen las bases del lado engine: el formato `.esex`
+(`engine/src/esex.rs`), la importación segura por protocolo v3
+(`exercise.import`, tabla `installed_activities`), la resolución del ejercicio
+activo (`exercise.getActive`) y el snapshot de módulo
+(`route.getModuleSnapshot`) que alimenta la Route Path View con actividades
+instaladas reales (mensaje `route.module.data`). El comando
+`lumen.importExercise` permite importar un `.esex` local.
 
-El mock actual solo define siete nodos visuales dentro de
-`frontend/src/route-path-view/data/mockRouteModule.ts`.
+El mock de siete nodos de
+`frontend/src/route-path-view/data/mockRouteModule.ts` sigue siendo el
+fallback visual cuando no hay actividades instaladas.
 
 La colección es el lugar donde el usuario puede ver, buscar, filtrar, importar o revisar ejercicios disponibles.
 

@@ -2,6 +2,25 @@ import type { RoutePathModuleView } from "../route-path-view/types/routePath";
 
 export const lumenWebviewProtocolVersion = 1;
 
+export type RouteModuleDataNodeStatus = "active" | "locked" | "completed";
+
+export type RouteModuleDataNode = {
+  exerciseId: string;
+  title: string;
+  primaryTopics: string[];
+  nodeType: string;
+  orderInModule: number | null;
+  status: RouteModuleDataNodeStatus;
+};
+
+export type RouteModuleDataPayload = {
+  source: "engine";
+  routeId: string;
+  moduleId: string;
+  activeExerciseId: string | null;
+  nodes: RouteModuleDataNode[];
+};
+
 export type WebviewToExtensionMessage =
   | {
       type: "frontend.ready";
@@ -113,4 +132,8 @@ export type ExtensionToWebviewMessage =
       payload: {
         nodeId?: string;
       };
+    }
+  | {
+      type: "route.module.data";
+      payload: RouteModuleDataPayload;
     };

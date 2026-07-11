@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -5,7 +6,23 @@ use rusqlite::{params, Connection, OptionalExtension, Transaction};
 
 use crate::state::{LastState, StatePatch};
 
-const CURRENT_SCHEMA_VERSION: i64 = 2;
+const CURRENT_SCHEMA_VERSION: i64 = 3;
+
+#[derive(Debug, Clone)]
+pub(crate) struct InstalledActivity {
+    pub activity_id: String,
+    pub version: String,
+    pub title: String,
+    pub entrypoint: String,
+    pub install_path: String,
+    pub package_sha256: String,
+    pub route_id: Option<String>,
+    pub module_id: Option<String>,
+    pub order_in_module: Option<i64>,
+    pub node_type: Option<String>,
+    pub primary_topics: String,
+    pub manifest_json: String,
+}
 
 pub(crate) struct Database {
     path: PathBuf,
@@ -99,6 +116,53 @@ impl Database {
         self.capture_runtime_error(result)
     }
 
+    pub(crate) fn register_activity(&mut self, activity: &InstalledActivity) -> Result<(), String> {
+        let result = match &self.state {
+            DatabaseState::Ready(connection) => persist_installed_activity(connection, activity),
+            DatabaseState::Error(error) => return Err(error.clone()),
+        };
+        self.capture_runtime_error(result)
+    }
+
+    pub(crate) fn get_installed_activity(
+        &mut self,
+        activity_id: &str,
+        version: &str,
+    ) -> Result<Option<InstalledActivity>, String> {
+        let result = match &self.state {
+            DatabaseState::Ready(connection) => {
+                query_installed_activity(connection, activity_id, version)
+            }
+            DatabaseState::Error(error) => return Err(error.clone()),
+        };
+        self.capture_runtime_error(result)
+    }
+
+    pub(crate) fn get_latest_activity(
+        &mut self,
+        activity_id: &str,
+    ) -> Result<Option<InstalledActivity>, String> {
+        let result = match &self.state {
+            DatabaseState::Ready(connection) => query_latest_activity(connection, activity_id),
+            DatabaseState::Error(error) => return Err(error.clone()),
+        };
+        self.capture_runtime_error(result)
+    }
+
+    pub(crate) fn get_module_activities(
+        &mut self,
+        route_id: &str,
+        module_id: &str,
+    ) -> Result<Vec<InstalledActivity>, String> {
+        let result = match &self.state {
+            DatabaseState::Ready(connection) => {
+                query_module_activities(connection, route_id, module_id)
+            }
+            DatabaseState::Error(error) => return Err(error.clone()),
+        };
+        self.capture_runtime_error(result)
+    }
+
     fn capture_runtime_error<T>(&mut self, result: Result<T, String>) -> Result<T, String> {
         if let Err(error) = &result {
             eprintln!("SQLite dejo de estar disponible: {error}");
@@ -158,9 +222,42 @@ fn run_migrations(connection: &mut Connection) -> Result<(), String> {
         apply_migration_2(&transaction)?;
     }
 
+    if version < 3 {
+        apply_migration_3(&transaction)?;
+    }
+
     transaction
         .commit()
         .map_err(|error| format!("no se pudo confirmar la migracion: {error}"))
+}
+
+fn apply_migration_3(transaction: &Transaction<'_>) -> Result<(), String> {
+    transaction
+        .execute_batch(
+            "CREATE TABLE installed_activities (
+                activity_id TEXT NOT NULL,
+                version TEXT NOT NULL,
+                title TEXT NOT NULL,
+                entrypoint TEXT NOT NULL,
+                install_path TEXT NOT NULL,
+                package_sha256 TEXT NOT NULL,
+                route_id TEXT,
+                module_id TEXT,
+                order_in_module INTEGER,
+                node_type TEXT,
+                primary_topics TEXT NOT NULL DEFAULT '[]',
+                manifest_json TEXT NOT NULL,
+                imported_at TEXT NOT NULL,
+                PRIMARY KEY (activity_id, version)
+            );
+
+            CREATE INDEX idx_installed_activities_module
+              ON installed_activities (route_id, module_id);
+
+            INSERT INTO schema_migrations (version, applied_at)
+            VALUES (3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+        )
+        .map_err(|error| format!("fallo la migracion 3: {error}"))
 }
 
 fn apply_migration_2(transaction: &Transaction<'_>) -> Result<(), String> {
@@ -341,4 +438,141 @@ fn persist_compile_attempt(
         )
         .map(|_| ())
         .map_err(|error| format!("no se pudo registrar compile_attempts: {error}"))
+}
+
+fn persist_installed_activity(
+    connection: &Connection,
+    activity: &InstalledActivity,
+) -> Result<(), String> {
+    connection
+        .execute(
+            "INSERT INTO installed_activities (
+                activity_id, version, title, entrypoint, install_path,
+                package_sha256, route_id, module_id, order_in_module, node_type,
+                primary_topics, manifest_json, imported_at
+            ) VALUES (
+                ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
+                strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            )
+            ON CONFLICT(activity_id, version) DO UPDATE SET
+                title = excluded.title,
+                entrypoint = excluded.entrypoint,
+                install_path = excluded.install_path,
+                package_sha256 = excluded.package_sha256,
+                route_id = excluded.route_id,
+                module_id = excluded.module_id,
+                order_in_module = excluded.order_in_module,
+                node_type = excluded.node_type,
+                primary_topics = excluded.primary_topics,
+                manifest_json = excluded.manifest_json,
+                imported_at = excluded.imported_at",
+            params![
+                activity.activity_id,
+                activity.version,
+                activity.title,
+                activity.entrypoint,
+                activity.install_path,
+                activity.package_sha256,
+                activity.route_id,
+                activity.module_id,
+                activity.order_in_module,
+                activity.node_type,
+                activity.primary_topics,
+                activity.manifest_json,
+            ],
+        )
+        .map(|_| ())
+        .map_err(|error| format!("no se pudo registrar installed_activities: {error}"))
+}
+
+const ACTIVITY_COLUMNS: &str = "activity_id, version, title, entrypoint, install_path,
+    package_sha256, route_id, module_id, order_in_module, node_type,
+    primary_topics, manifest_json";
+
+fn decode_installed_activity(row: &rusqlite::Row<'_>) -> rusqlite::Result<InstalledActivity> {
+    Ok(InstalledActivity {
+        activity_id: row.get(0)?,
+        version: row.get(1)?,
+        title: row.get(2)?,
+        entrypoint: row.get(3)?,
+        install_path: row.get(4)?,
+        package_sha256: row.get(5)?,
+        route_id: row.get(6)?,
+        module_id: row.get(7)?,
+        order_in_module: row.get(8)?,
+        node_type: row.get(9)?,
+        primary_topics: row.get(10)?,
+        manifest_json: row.get(11)?,
+    })
+}
+
+fn query_installed_activity(
+    connection: &Connection,
+    activity_id: &str,
+    version: &str,
+) -> Result<Option<InstalledActivity>, String> {
+    connection
+        .query_row(
+            &format!(
+                "SELECT {ACTIVITY_COLUMNS} FROM installed_activities
+                 WHERE activity_id = ?1 AND version = ?2"
+            ),
+            params![activity_id, version],
+            decode_installed_activity,
+        )
+        .optional()
+        .map_err(|error| format!("no se pudo leer installed_activities: {error}"))
+}
+
+fn query_latest_activity(
+    connection: &Connection,
+    activity_id: &str,
+) -> Result<Option<InstalledActivity>, String> {
+    connection
+        .query_row(
+            &format!(
+                "SELECT {ACTIVITY_COLUMNS} FROM installed_activities
+                 WHERE activity_id = ?1
+                 ORDER BY imported_at DESC, version DESC
+                 LIMIT 1"
+            ),
+            [activity_id],
+            decode_installed_activity,
+        )
+        .optional()
+        .map_err(|error| format!("no se pudo resolver la actividad instalada: {error}"))
+}
+
+fn query_module_activities(
+    connection: &Connection,
+    route_id: &str,
+    module_id: &str,
+) -> Result<Vec<InstalledActivity>, String> {
+    let mut statement = connection
+        .prepare(&format!(
+            "SELECT {ACTIVITY_COLUMNS} FROM installed_activities
+             WHERE route_id = ?1 AND module_id = ?2
+             ORDER BY activity_id ASC, imported_at DESC, version DESC"
+        ))
+        .map_err(|error| format!("no se pudo preparar el snapshot del modulo: {error}"))?;
+    let rows = statement
+        .query_map(params![route_id, module_id], decode_installed_activity)
+        .map_err(|error| format!("no se pudo leer el snapshot del modulo: {error}"))?;
+    let mut seen = HashSet::new();
+    let mut activities = Vec::new();
+    for row in rows {
+        let activity =
+            row.map_err(|error| format!("no se pudo decodificar el snapshot del modulo: {error}"))?;
+        if seen.insert(activity.activity_id.clone()) {
+            activities.push(activity);
+        }
+    }
+    activities.sort_by(|left, right| {
+        left.order_in_module
+            .is_none()
+            .cmp(&right.order_in_module.is_none())
+            .then_with(|| left.order_in_module.cmp(&right.order_in_module))
+            .then_with(|| left.activity_id.cmp(&right.activity_id))
+    });
+    Ok(activities)
 }

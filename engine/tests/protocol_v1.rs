@@ -201,14 +201,14 @@ fn save_merges_absent_fields_and_clears_explicit_nulls() {
 }
 
 #[test]
-fn healthy_database_reports_ready_and_protocol_version_two() {
+fn healthy_database_reports_ready_and_protocol_version_three() {
     let data_dir = TestDirectory::new("health");
     let mut engine = RunningEngine::start(data_dir.path());
 
     let response = engine.request(r#"{"id":"health-1","method":"engine.healthCheck","params":{}}"#);
     assert_eq!(response["id"], "health-1");
     assert_eq!(response["ok"], true);
-    assert_eq!(response["result"]["protocolVersion"], 2);
+    assert_eq!(response["result"]["protocolVersion"], 3);
     assert_eq!(response["result"]["engineVersion"], "0.1.0");
     assert_eq!(response["result"]["dbStatus"], "ready");
     assert_eq!(

@@ -1,4 +1,4 @@
-export const lumenEngineProtocolVersion = 2;
+export const lumenEngineProtocolVersion = 3;
 
 export const lumenEngineErrorCodes = [
   "INVALID_REQUEST",
@@ -9,6 +9,8 @@ export const lumenEngineErrorCodes = [
   "TOOLCHAIN_NOT_FOUND",
   "BUILD_DIR_ERROR",
   "COMPILER_FAILED",
+  "IMPORT_FAILED",
+  "IMPORT_CONFLICT",
   "UNKNOWN_ERROR"
 ] as const;
 
@@ -23,10 +25,17 @@ export type LumenEngineErrorCode = (typeof lumenEngineErrorCodes)[number];
 export type LumenEngineBridgeErrorCode = (typeof lumenEngineBridgeErrorCodes)[number];
 export type LumenEngineAnyErrorCode = LumenEngineErrorCode | LumenEngineBridgeErrorCode;
 
+export type LumenEngineErrorDetail = {
+  code: string;
+  path: string;
+  message: string;
+};
+
 export type LumenEngineErrorPayload = {
   code: LumenEngineErrorCode;
   message: string;
   recoverable: boolean;
+  details?: LumenEngineErrorDetail[];
 };
 
 export class LumenEngineError extends Error {
@@ -35,7 +44,8 @@ export class LumenEngineError extends Error {
   constructor(
     readonly code: LumenEngineAnyErrorCode,
     message: string,
-    readonly recoverable: boolean
+    readonly recoverable: boolean,
+    readonly details?: LumenEngineErrorDetail[]
   ) {
     super(message);
   }
@@ -105,6 +115,73 @@ export type LumenToolchainMissing = {
 
 export type LumenToolchainCheckResult = LumenToolchainReady | LumenToolchainMissing;
 
+export type LumenExerciseImportSummary = {
+  title: string;
+  routeId: string | null;
+  moduleId: string | null;
+  orderInModule: number | null;
+  nodeType: string | null;
+};
+
+export type LumenExerciseImportResult = {
+  activityId: string;
+  version: string;
+  installPath: string;
+  packageSha256: string;
+  alreadyInstalled: boolean;
+  activity: LumenExerciseImportSummary;
+};
+
+export type LumenActiveExerciseNone = {
+  status: "none";
+};
+
+export type LumenActiveExerciseMissing = {
+  status: "missing";
+  exerciseId: string;
+};
+
+export type LumenActiveExerciseReady = {
+  status: "ready";
+  active: {
+    exerciseId: string;
+    version: string;
+    installPath: string;
+    entrypointPath: string;
+    title: string;
+    routeId: string | null;
+    moduleId: string | null;
+    nodeType: string | null;
+  };
+};
+
+export type LumenActiveExerciseResult =
+  | LumenActiveExerciseNone
+  | LumenActiveExerciseMissing
+  | LumenActiveExerciseReady;
+
+export type LumenModuleSnapshotNodeStatus = "active" | "locked" | "completed";
+
+export type LumenModuleSnapshotNode = {
+  exerciseId: string;
+  title: string;
+  primaryTopics: string[];
+  nodeType: string;
+  orderInModule: number | null;
+  status: LumenModuleSnapshotNodeStatus;
+};
+
+export type LumenModuleSnapshot = {
+  routeId: string;
+  moduleId: string;
+  activeExerciseId: string | null;
+  nodes: LumenModuleSnapshotNode[];
+};
+
+export type LumenModuleSnapshotResult = {
+  snapshot: LumenModuleSnapshot;
+};
+
 export type LumenEngineMethodMap = {
   "engine.healthCheck": {
     params: Record<string, never>;
@@ -126,6 +203,18 @@ export type LumenEngineMethodMap = {
   "exercise.compile": {
     params: { sourcePath: string };
     result: LumenCompileResult;
+  };
+  "exercise.import": {
+    params: { esexPath: string };
+    result: LumenExerciseImportResult;
+  };
+  "exercise.getActive": {
+    params: Record<string, never>;
+    result: LumenActiveExerciseResult;
+  };
+  "route.getModuleSnapshot": {
+    params: { routeId: string; moduleId: string };
+    result: LumenModuleSnapshotResult;
   };
   "toolchain.check": {
     params: Record<string, never>;

@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import type { LumenEngineClient } from "./engine/lumenEngineClient";
 import type { LumenEntryState } from "./lumenProtocol";
 import {
   getLumenFrontendHtml,
@@ -48,11 +49,13 @@ export class LumenPanelController {
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly outputChannel: vscode.OutputChannel,
+    private readonly engineClient: LumenEngineClient,
     private readonly onPanelClosed: () => void
   ) {
     this.host = new LumenWebviewHost({
       context,
       outputChannel,
+      engineClient,
       onExitRequested: () => void vscode.commands.executeCommand("lumen.exitMode"),
       onFrontendReady: () => {
         this.clearWatchdog();

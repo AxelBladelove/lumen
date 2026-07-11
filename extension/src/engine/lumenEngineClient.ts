@@ -4,11 +4,15 @@ import {
   LumenEngineError,
   lumenEngineErrorCodes,
   lumenEngineProtocolVersion,
+  type LumenActiveExerciseResult,
+  type LumenEngineErrorDetail,
   type LumenEngineHealthCheckResult,
   type LumenEngineMethod,
   type LumenEngineMethodMap,
   type LumenEngineRequest,
-  type LumenEngineResponse
+  type LumenEngineResponse,
+  type LumenExerciseImportResult,
+  type LumenModuleSnapshotResult
 } from "./lumenEngineProtocol";
 
 const lumenEngineRequestTimeoutMs = 10_000;
@@ -114,6 +118,18 @@ export class LumenEngineClient implements vscode.Disposable {
     }
 
     return result;
+  }
+
+  async importExercise(esexPath: string): Promise<LumenExerciseImportResult> {
+    return this.request("exercise.import", { esexPath });
+  }
+
+  async getActiveExercise(): Promise<LumenActiveExerciseResult> {
+    return this.request("exercise.getActive", {});
+  }
+
+  async getModuleSnapshot(routeId: string, moduleId: string): Promise<LumenModuleSnapshotResult> {
+    return this.request("route.getModuleSnapshot", { routeId, moduleId });
   }
 
   dispose() {
@@ -336,7 +352,9 @@ export class LumenEngineClient implements vscode.Disposable {
       return;
     }
 
-    pending.reject(new LumenEngineError(value.error.code, value.error.message, value.error.recoverable));
+    pending.reject(
+      new LumenEngineError(value.error.code, value.error.message, value.error.recoverable, value.error.details)
+    );
   }
 
   private handleProtocolError(line: string, message: string, attributedId?: string) {
@@ -370,11 +388,27 @@ function isLumenEngineResponse(value: unknown): value is LumenEngineResponse {
   if (value.ok === true) return typeof value.id === "string" && "result" in value;
   if (value.ok !== false || !isRecord(value.error)) return false;
 
-  return (
-    typeof value.error.code === "string" &&
-    (lumenEngineErrorCodes as readonly string[]).includes(value.error.code) &&
-    typeof value.error.message === "string" &&
-    typeof value.error.recoverable === "boolean"
+  if (
+    typeof value.error.code !== "string" ||
+    !(lumenEngineErrorCodes as readonly string[]).includes(value.error.code) ||
+    typeof value.error.message !== "string" ||
+    typeof value.error.recoverable !== "boolean"
+  ) {
+    return false;
+  }
+
+  if (value.error.details === undefined) return true;
+  return isErrorDetailArray(value.error.details);
+}
+
+function isErrorDetailArray(value: unknown): value is LumenEngineErrorDetail[] {
+  if (!Array.isArray(value)) return false;
+  return value.every(
+    (entry) =>
+      isRecord(entry) &&
+      typeof entry.code === "string" &&
+      typeof entry.path === "string" &&
+      typeof entry.message === "string"
   );
 }
 

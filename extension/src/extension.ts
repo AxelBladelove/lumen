@@ -23,7 +23,7 @@ export function activate(context: vscode.ExtensionContext) {
   const launcher = new LumenRoutePathViewProvider(() => {
     void vscode.commands.executeCommand("lumen.enterMode");
   });
-  const panel = new LumenPanelController(context, outputChannel, () => {
+  const panel = new LumenPanelController(context, outputChannel, engineClient, () => {
     void vscode.commands.executeCommand("lumen.exitMode");
   });
 
@@ -59,6 +59,38 @@ export function activate(context: vscode.ExtensionContext) {
         const detail = formatEngineError(error);
         outputChannel.appendLine(`Compile command failed: ${detail}`);
         await vscode.window.showErrorMessage(detail);
+      }
+    }),
+    vscode.commands.registerCommand("lumen.importExercise", async () => {
+      const selection = await vscode.window.showOpenDialog({
+        canSelectMany: false,
+        openLabel: "Importar",
+        filters: { "Ejercicios Lumen": ["esex"] }
+      });
+      const esexPath = selection?.[0]?.fsPath;
+      if (!esexPath) return;
+
+      try {
+        const result = await engineClient.importExercise(esexPath);
+        const title = result.activity.title;
+        const message = result.alreadyInstalled
+          ? `Lumen: ${title} ${result.version} ya estaba instalada.`
+          : `Lumen: importada ${title} ${result.version}.`;
+        outputChannel.appendLine(
+          `Import ${result.alreadyInstalled ? "no-op" : "ok"}: ${result.activityId}@${result.version} -> ${result.installPath}`
+        );
+        await vscode.window.showInformationMessage(message);
+      } catch (error) {
+        const detail = formatEngineError(error);
+        outputChannel.appendLine(`Import command failed: ${detail}`);
+        const firstDetail =
+          error instanceof LumenEngineError && error.details && error.details.length > 0
+            ? error.details[0]
+            : undefined;
+        const suffix = firstDetail
+          ? ` (${firstDetail.code}: ${firstDetail.message}${firstDetail.path ? ` [${firstDetail.path}]` : ""})`
+          : "";
+        await vscode.window.showErrorMessage(`${detail}${suffix}`);
       }
     })
   );
