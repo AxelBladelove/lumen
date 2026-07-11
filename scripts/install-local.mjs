@@ -1,4 +1,12 @@
-import { cpSync, existsSync, mkdirSync, rmSync, readFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  readFileSync
+} from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,8 +51,37 @@ for (const [from, to] of copies) {
 const engineBinaryName = process.platform === "win32" ? "lumen-engine.exe" : "lumen-engine";
 const engineBinary = join(repoRoot, "engine", "target", "release", engineBinaryName);
 if (existsSync(engineBinary)) {
-  mkdirSync(join(targetDir, "bin"), { recursive: true });
-  cpSync(engineBinary, join(targetDir, "bin", engineBinaryName));
+  const binDir = join(targetDir, "bin");
+  mkdirSync(binDir, { recursive: true });
+
+  // Limpieza best-effort de binarios apartados en syncs anteriores.
+  for (const stale of readdirSync(binDir)) {
+    if (stale.startsWith(`${engineBinaryName}.old-`)) {
+      try {
+        rmSync(join(binDir, stale), { force: true });
+      } catch {
+        // Sigue bloqueado por un engine en ejecución; se limpiará en otro sync.
+      }
+    }
+  }
+
+  const target = join(binDir, engineBinaryName);
+  try {
+    cpSync(engineBinary, target);
+  } catch (error) {
+    // Windows no permite sobreescribir un exe en ejecución (un VS Code abierto
+    // mantiene vivo el engine), pero sí permite renombrarlo. Se aparta el
+    // binario bloqueado y se copia el nuevo en su lugar.
+    if (["EIO", "EBUSY", "EPERM", "EACCES"].includes(error.code) && existsSync(target)) {
+      renameSync(target, join(binDir, `${engineBinaryName}.old-${Date.now()}`));
+      cpSync(engineBinary, target);
+      console.warn(
+        "El engine anterior estaba en ejecución: se apartó el binario bloqueado y se copió el nuevo."
+      );
+    } else {
+      throw error;
+    }
+  }
 } else {
   console.warn(`Skipping engine binary: not found. Did you run "bun run build:engine"?`);
 }
