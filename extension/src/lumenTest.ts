@@ -61,7 +61,7 @@ export class LumenTestController implements vscode.Disposable {
       try {
         result = await this.engineClient.runExerciseTests();
       } catch (error) {
-        await this.handleTestError(error);
+        this.handleTestError(error);
         return undefined;
       }
 
@@ -71,21 +71,24 @@ export class LumenTestController implements vscode.Disposable {
       if (result.status !== "compile_error" && result.newlyCompleted) {
         await onNewlyCompleted?.(result.exerciseId);
       }
-      await this.presentResult(result);
+      this.presentResult(result);
       return result;
     } finally {
       this.testInFlight = false;
     }
   }
 
-  private async presentResult(result: LumenExerciseRunTestsResult): Promise<void> {
+  // Las notificaciones jamas se esperan: una notificacion archivada sin
+  // respuesta deja su promesa pendiente para siempre y atascaria testInFlight
+  // (mismo bug que tuvo el prompt de crear workspace en lumenEntry).
+  private presentResult(result: LumenExerciseRunTestsResult): void {
     if (result.status === "compile_error") {
       this.renderCompileError(result);
       const diagnostic = result.diagnostics[0];
       const detail = diagnostic
         ? `${diagnostic.file ?? "main.c"}:${diagnostic.line ?? "?"} ${diagnostic.message}`
         : "El compilador no reportó un diagnóstico.";
-      await vscode.window.showErrorMessage(`Error de compilación: ${detail}`);
+      void vscode.window.showErrorMessage(`Error de compilación: ${detail}`);
       return;
     }
 
@@ -93,13 +96,13 @@ export class LumenTestController implements vscode.Disposable {
 
     if (result.status === "passed") {
       const completed = result.newlyCompleted ? " ¡Ejercicio completado!" : "";
-      await vscode.window.showInformationMessage(
+      void vscode.window.showInformationMessage(
         `Solucion correcta: ${result.casesPassed}/${result.casesTotal} casos${completed}`
       );
       return;
     }
 
-    await vscode.window.showWarningMessage(
+    void vscode.window.showWarningMessage(
       `Solucion incorrecta: ${result.casesPassed}/${result.casesTotal} casos — mira la terminal Lumen Tests`
     );
   }
@@ -222,17 +225,17 @@ export class LumenTestController implements vscode.Disposable {
     return pty;
   }
 
-  private async handleTestError(error: unknown): Promise<void> {
+  private handleTestError(error: unknown): void {
     if (error instanceof LumenEngineError) {
       this.outputChannel.appendLine(`Exercise test request failed: ${error.code}: ${error.message}`);
       if (error.code === "NO_ACTIVE_EXERCISE") {
-        await vscode.window.showErrorMessage(
+        void vscode.window.showErrorMessage(
           "No hay ejercicio activo. Abre o selecciona un ejercicio de Lumen antes de probar la solución."
         );
         return;
       }
 
-      await vscode.window.showErrorMessage(
+      void vscode.window.showErrorMessage(
         `Lumen no pudo probar la solución (${error.code}): ${error.message}`
       );
       return;
@@ -240,7 +243,7 @@ export class LumenTestController implements vscode.Disposable {
 
     const message = error instanceof Error ? error.message : String(error);
     this.outputChannel.appendLine(`Exercise test request failed: ${message}`);
-    await vscode.window.showErrorMessage(`Lumen no pudo probar la solución: ${message}`);
+    void vscode.window.showErrorMessage(`Lumen no pudo probar la solución: ${message}`);
   }
 }
 
