@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import type { LumenEngineClient } from "./engine/lumenEngineClient";
@@ -7,6 +6,7 @@ import {
   type LumenCompileDiagnostic,
   type LumenCompileResult
 } from "./engine/lumenEngineProtocol";
+import { isExternalRunActive, launchProgram } from "./lumenExternalConsole";
 
 const compileRequestTimeoutMs = 60_000;
 const compileTerminalName = "Lumen Compile";
@@ -29,7 +29,8 @@ export class LumenCompileController implements vscode.Disposable {
 
   constructor(
     private readonly engineClient: LumenEngineClient,
-    private readonly outputChannel: vscode.OutputChannel
+    private readonly outputChannel: vscode.OutputChannel,
+    private readonly runnerPath: string
   ) {
     this.disposables.push(
       vscode.window.onDidCloseTerminal((closed) => {
@@ -141,13 +142,25 @@ export class LumenCompileController implements vscode.Disposable {
       `Compile success: ${sourcePath} -> ${result.executablePath} in ${result.durationMs}ms.`
     );
 
-    try {
-      this.spawnExternalConsole(result.executablePath);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.outputChannel.appendLine(`External console failed: ${message}`);
-      await vscode.window.showErrorMessage(`Lumen: could not open the external console. ${message}`);
-      return;
+    if (isExternalRunActive()) {
+      void vscode.window.showWarningMessage(
+        "Ya hay una ventana externa de Lumen abierta. Ciérrala antes de compilar de nuevo."
+      );
+    } else {
+      try {
+        launchProgram({
+          runnerPath: this.runnerPath,
+          exePath: result.executablePath,
+          title: `${path.basename(result.executablePath)} - Lumen`
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.outputChannel.appendLine(`External console failed: ${message}`);
+        await vscode.window.showErrorMessage(
+          `Lumen: could not open the external console. ${message}`
+        );
+        return;
+      }
     }
 
     const warnings = result.diagnostics.filter((d) => d.kind === "warning");
@@ -225,30 +238,6 @@ export class LumenCompileController implements vscode.Disposable {
     this.terminal = terminal;
     this.pty = pty;
     return pty;
-  }
-
-  private spawnExternalConsole(executablePath: string): void {
-    if (process.platform !== "win32") {
-      throw new Error("Lumen currently only launches external consoles on Windows.");
-    }
-
-    const workingDir = path.dirname(executablePath);
-    // Windows quoting: `start` reads the first quoted arg as the window title, so
-    // we always pass an explicit "Lumen" title even when the executable path is
-    // simple. `cmd /k ""<path>""` is the documented workaround so that cmd keeps
-    // the inner quotes around a path with spaces after stripping the outer pair.
-    const commandLine = `start "Lumen" /D "${workingDir}" cmd /k ""${executablePath}""`;
-
-    const child = spawn("cmd.exe", ["/s", "/c", commandLine], {
-      detached: true,
-      stdio: "ignore",
-      windowsHide: false,
-      windowsVerbatimArguments: true
-    });
-    child.on("error", (error) => {
-      this.outputChannel.appendLine(`External console launcher failed: ${error.message}`);
-    });
-    child.unref();
   }
 
   private async handleCompileError(error: unknown, sourcePath: string): Promise<void> {

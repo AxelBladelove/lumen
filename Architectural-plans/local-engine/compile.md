@@ -34,6 +34,14 @@ código compile en Lumen si y solo si compila en la uni:
   terminal integrada "Lumen Compile" (errores en rojo, warnings en azul) y
   consola externa en Windows al compilar con éxito
   (`extension/src/lumenCompile.ts`).
+- La consola externa la maneja `lumen-console-runner.exe` (segundo binario del
+  crate del engine), que replica al carácter el ConsoleRunner de Code::Blocks:
+  al terminar el programa imprime `Process returned %d (0x%X)   execution
+  time : %0.3f s` + `Press any key to continue.` y la ventana se cierra con
+  cualquier tecla. El mismo runner tiene un modo `report` que muestra el
+  reporte de tests estilo Exercism (F10) en ventana externa. Un lockfile con
+  PID (`%TEMP%\lumen-external-run.lock`) impide abrir dos ventanas a la vez,
+  como hacía el flujo de Estudio Socrático.
 
 Lo que aún NO existe de este documento: resolución del ejercicio activo por el
 engine (hoy la extensión pasa el archivo del editor activo), validación de

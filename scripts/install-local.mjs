@@ -48,42 +48,47 @@ for (const [from, to] of copies) {
   cpSync(src, dest, { recursive: true });
 }
 
-const engineBinaryName = process.platform === "win32" ? "lumen-engine.exe" : "lumen-engine";
-const engineBinary = join(repoRoot, "engine", "target", "release", engineBinaryName);
-if (existsSync(engineBinary)) {
+const binaryNames = ["lumen-engine", "lumen-console-runner"].map((name) =>
+  process.platform === "win32" ? `${name}.exe` : name
+);
+for (const binaryName of binaryNames) {
+  const builtBinary = join(repoRoot, "engine", "target", "release", binaryName);
+  if (!existsSync(builtBinary)) {
+    console.warn(`Skipping ${binaryName}: not found. Did you run "bun run build:engine"?`);
+    continue;
+  }
+
   const binDir = join(targetDir, "bin");
   mkdirSync(binDir, { recursive: true });
 
   // Limpieza best-effort de binarios apartados en syncs anteriores.
   for (const stale of readdirSync(binDir)) {
-    if (stale.startsWith(`${engineBinaryName}.old-`)) {
+    if (stale.startsWith(`${binaryName}.old-`)) {
       try {
         rmSync(join(binDir, stale), { force: true });
       } catch {
-        // Sigue bloqueado por un engine en ejecución; se limpiará en otro sync.
+        // Sigue bloqueado por un proceso en ejecución; se limpiará en otro sync.
       }
     }
   }
 
-  const target = join(binDir, engineBinaryName);
+  const target = join(binDir, binaryName);
   try {
-    cpSync(engineBinary, target);
+    cpSync(builtBinary, target);
   } catch (error) {
     // Windows no permite sobreescribir un exe en ejecución (un VS Code abierto
     // mantiene vivo el engine), pero sí permite renombrarlo. Se aparta el
     // binario bloqueado y se copia el nuevo en su lugar.
     if (["EIO", "EBUSY", "EPERM", "EACCES"].includes(error.code) && existsSync(target)) {
-      renameSync(target, join(binDir, `${engineBinaryName}.old-${Date.now()}`));
-      cpSync(engineBinary, target);
+      renameSync(target, join(binDir, `${binaryName}.old-${Date.now()}`));
+      cpSync(builtBinary, target);
       console.warn(
-        "El engine anterior estaba en ejecución: se apartó el binario bloqueado y se copió el nuevo."
+        `${binaryName} estaba en ejecución: se apartó el binario bloqueado y se copió el nuevo.`
       );
     } else {
       throw error;
     }
   }
-} else {
-  console.warn(`Skipping engine binary: not found. Did you run "bun run build:engine"?`);
 }
 
 cpSync(join(repoRoot, "package.json"), join(targetDir, "package.json"));

@@ -3,6 +3,7 @@ import { LumenEngineClient } from "./engine/lumenEngineClient";
 import { LumenEngineError } from "./engine/lumenEngineProtocol";
 import { LumenCompileController } from "./lumenCompile";
 import { enterLumenMode, exitLumenMode, resumePendingLumenOpen } from "./lumenEntry";
+import { resolveConsoleRunnerPath } from "./lumenExternalConsole";
 import { cleanupStaleLumenLayout } from "./lumenLayout";
 import { LumenPanelController } from "./lumenPanel";
 import { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
@@ -18,9 +19,10 @@ export function activate(context: vscode.ExtensionContext) {
   lumenEngineClient = engineClient;
   context.subscriptions.push(engineClient);
 
-  const compileController = new LumenCompileController(engineClient, outputChannel);
+  const runnerPath = resolveConsoleRunnerPath(context);
+  const compileController = new LumenCompileController(engineClient, outputChannel, runnerPath);
   context.subscriptions.push(compileController);
-  const testController = new LumenTestController(engineClient, outputChannel);
+  const testController = new LumenTestController(engineClient, outputChannel, runnerPath);
   context.subscriptions.push(testController);
 
   const launcher = new LumenRoutePathViewProvider(() => {

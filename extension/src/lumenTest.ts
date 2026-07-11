@@ -1,3 +1,7 @@
+import { randomUUID } from "node:crypto";
+import { unlink, writeFile } from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import * as vscode from "vscode";
 import type { LumenEngineClient } from "./engine/lumenEngineClient";
 import {
@@ -8,8 +12,7 @@ import {
   type LumenExerciseTestsExecuted
 } from "./engine/lumenEngineProtocol";
 import { formatDiagnosticLine } from "./lumenCompile";
-
-const testTerminalName = "Lumen Tests";
+import { isExternalRunActive, launchReport } from "./lumenExternalConsole";
 
 const ansi = {
   reset: "\x1b[0m",
@@ -21,31 +24,15 @@ const ansi = {
 } as const;
 
 export class LumenTestController implements vscode.Disposable {
-  private terminal: vscode.Terminal | undefined;
-  private pty: LumenTestPty | undefined;
   private testInFlight = false;
-  private readonly disposables: vscode.Disposable[] = [];
 
   constructor(
     private readonly engineClient: LumenEngineClient,
-    private readonly outputChannel: vscode.OutputChannel
-  ) {
-    this.disposables.push(
-      vscode.window.onDidCloseTerminal((closed) => {
-        if (closed === this.terminal) {
-          this.terminal = undefined;
-          this.pty = undefined;
-        }
-      })
-    );
-  }
+    private readonly outputChannel: vscode.OutputChannel,
+    private readonly runnerPath: string
+  ) {}
 
-  dispose(): void {
-    for (const disposable of this.disposables) disposable.dispose();
-    this.terminal?.dispose();
-    this.terminal = undefined;
-    this.pty = undefined;
-  }
+  dispose(): void {}
 
   async testCurrentExercise(
     onNewlyCompleted?: (exerciseId: string) => Promise<void>
@@ -71,7 +58,8 @@ export class LumenTestController implements vscode.Disposable {
       if (result.status !== "compile_error" && result.newlyCompleted) {
         await onNewlyCompleted?.(result.exerciseId);
       }
-      this.presentResult(result);
+      const exerciseId = await this.resolveExerciseId(result);
+      await this.presentResult(result, exerciseId);
       return result;
     } finally {
       this.testInFlight = false;
@@ -81,9 +69,43 @@ export class LumenTestController implements vscode.Disposable {
   // Las notificaciones jamas se esperan: una notificacion archivada sin
   // respuesta deja su promesa pendiente para siempre y atascaria testInFlight
   // (mismo bug que tuvo el prompt de crear workspace en lumenEntry).
-  private presentResult(result: LumenExerciseRunTestsResult): void {
+  private async presentResult(
+    result: LumenExerciseRunTestsResult,
+    exerciseId: string
+  ): Promise<void> {
+    const report =
+      result.status === "compile_error"
+        ? this.renderCompileError(result)
+        : this.renderExecutedTests(result);
+
+    if (isExternalRunActive()) {
+      void vscode.window.showWarningMessage(
+        "Ya hay una ventana externa de Lumen abierta. Ciérrala antes de probar de nuevo."
+      );
+    } else {
+      const reportPath = path.join(
+        os.tmpdir(),
+        `lumen-tests-${process.pid}-${Date.now()}-${randomUUID()}.txt`
+      );
+      try {
+        await writeFile(reportPath, report, "utf8");
+        launchReport({
+          runnerPath: this.runnerPath,
+          reportPath,
+          title: `Lumen Tests - ${exerciseId}`,
+          exitCode: result.status === "passed" ? 0 : 1
+        });
+      } catch (error) {
+        await unlink(reportPath).catch(() => undefined);
+        const message = error instanceof Error ? error.message : String(error);
+        this.outputChannel.appendLine(`External test report failed: ${message}`);
+        void vscode.window.showErrorMessage(
+          `Lumen no pudo abrir el reporte externo de pruebas: ${message}`
+        );
+      }
+    }
+
     if (result.status === "compile_error") {
-      this.renderCompileError(result);
       const diagnostic = result.diagnostics[0];
       const detail = diagnostic
         ? `${diagnostic.file ?? "main.c"}:${diagnostic.line ?? "?"} ${diagnostic.message}`
@@ -91,8 +113,6 @@ export class LumenTestController implements vscode.Disposable {
       void vscode.window.showErrorMessage(`Error de compilación: ${detail}`);
       return;
     }
-
-    this.renderExecutedTests(result);
 
     if (result.status === "passed") {
       const completed = result.newlyCompleted ? " ¡Ejercicio completado!" : "";
@@ -103,17 +123,16 @@ export class LumenTestController implements vscode.Disposable {
     }
 
     void vscode.window.showWarningMessage(
-      `Solucion incorrecta: ${result.casesPassed}/${result.casesTotal} casos — mira la terminal Lumen Tests`
+      `Solucion incorrecta: ${result.casesPassed}/${result.casesTotal} casos — mira la ventana Lumen Tests`
     );
   }
 
-  private renderExecutedTests(result: LumenExerciseTestsExecuted): void {
-    const pty = this.getOrCreatePty();
-    pty.clear();
-    pty.writeLine(
+  private renderExecutedTests(result: LumenExerciseTestsExecuted): string {
+    const report = new TestReportWriter();
+    report.writeLine(
       `${ansi.bold}${ansi.cyan}Probando ${sanitizeTerminalText(result.exerciseId)} v${sanitizeTerminalText(result.version)}${ansi.reset}`
     );
-    pty.writeLine("");
+    report.writeLine("");
 
     let lastHiddenGroupIndex = -1;
     result.groups.forEach((group, index) => {
@@ -125,22 +144,22 @@ export class LumenTestController implements vscode.Disposable {
     );
     for (const [groupIndex, group] of result.groups.entries()) {
       const isPublic = group.phase === "public";
-      pty.writeLine(
+      report.writeLine(
         `${ansi.bold}Grupo ${sanitizeTerminalText(group.groupId)} (${isPublic ? "publico" : "oculto"})${ansi.reset}`
       );
 
       for (const testCase of group.cases) {
-        this.renderTestCase(pty, testCase, isPublic);
+        this.renderTestCase(report, testCase, isPublic);
       }
 
       if (hasHiddenFailure && groupIndex === lastHiddenGroupIndex) {
-        pty.writeLine(
+        report.writeLine(
           `${ansi.dim}Los casos ocultos no muestran su entrada/salida: comprueban que tu solucion generalice.${ansi.reset}`
         );
       }
     }
 
-    pty.writeLine("");
+    report.writeLine("");
     const verdict =
       result.status === "passed"
         ? `${ansi.bold}${ansi.green}PASSED${ansi.reset}`
@@ -148,15 +167,14 @@ export class LumenTestController implements vscode.Disposable {
     const completed = result.newlyCompleted
       ? `  ${ansi.green}Ejercicio completado${ansi.reset}`
       : "";
-    pty.writeLine(
+    report.writeLine(
       `${verdict}  ${result.casesPassed}/${result.casesTotal} casos — ${result.durationMs} ms${completed}`
     );
-
-    this.terminal?.show(result.status === "passed");
+    return report.toString();
   }
 
   private renderTestCase(
-    pty: LumenTestPty,
+    report: TestReportWriter,
     testCase: LumenExerciseTestCase,
     isPublic: boolean
   ): void {
@@ -166,7 +184,7 @@ export class LumenTestController implements vscode.Disposable {
       : "";
 
     if (testCase.status === "passed") {
-      pty.writeLine(
+      report.writeLine(
         `  ${ansi.green}✓${ansi.reset} ${caseId}  (${testCase.durationMs} ms)${truncated}`
       );
       return;
@@ -174,55 +192,59 @@ export class LumenTestController implements vscode.Disposable {
 
     const status =
       testCase.status === "failed" ? "" : `  ${ansi.red}${testCase.status}${ansi.reset}`;
-    pty.writeLine(
+    report.writeLine(
       `  ${ansi.red}✗${ansi.reset} ${caseId}  (${testCase.durationMs} ms)${status}${truncated}`
     );
 
     if (!isPublic) return;
     if (testCase.stdinPreview !== undefined) {
       const input = sanitizeTerminalText(testCase.stdinPreview).replace(/\r\n|\r|\n/g, "\\n");
-      pty.writeLine(`${ansi.dim}      Entrada  : ${input}${ansi.reset}`);
+      report.writeLine(`${ansi.dim}      Entrada  : ${input}${ansi.reset}`);
     }
     if (testCase.expected !== undefined) {
-      writeMultilineDetail(pty, "Esperado ", testCase.expected, ansi.green);
+      writeMultilineDetail(report, "Esperado ", testCase.expected, ansi.green);
     }
     if (testCase.observed !== undefined) {
-      writeMultilineDetail(pty, "Tu salida", testCase.observed, ansi.red);
+      writeMultilineDetail(report, "Tu salida", testCase.observed, ansi.red);
     }
   }
 
   private renderCompileError(
     result: Extract<LumenExerciseRunTestsResult, { status: "compile_error" }>
-  ): void {
-    const pty = this.getOrCreatePty();
-    pty.clear();
-    pty.writeLine(`${ansi.bold}${ansi.red}No compila.${ansi.reset}`);
-    pty.writeLine("");
+  ): string {
+    const report = new TestReportWriter();
+    report.writeLine(`${ansi.bold}${ansi.red}No compila.${ansi.reset}`);
+    report.writeLine("");
 
     if (result.diagnostics.length === 0) {
-      pty.writeLine(`${ansi.dim}El compilador no reporto diagnosticos.${ansi.reset}`);
+      report.writeLine(`${ansi.dim}El compilador no reporto diagnosticos.${ansi.reset}`);
     } else {
       for (const diagnostic of result.diagnostics) {
-        pty.writeLine(formatDiagnosticLine(diagnostic, "main.c"));
+        report.writeLine(formatDiagnosticLine(diagnostic, "main.c"));
       }
     }
 
     const errorCount = countDiagnostics(result.diagnostics, "error");
     const warningCount = countDiagnostics(result.diagnostics, "warning");
-    pty.writeLine("");
-    pty.writeLine(
+    report.writeLine("");
+    report.writeLine(
       `${ansi.dim}${errorCount} error(es), ${warningCount} advertencia(s) — ${result.durationMs} ms${ansi.reset}`
     );
-    this.terminal?.show(false);
+    return report.toString();
   }
 
-  private getOrCreatePty(): LumenTestPty {
-    if (this.terminal && this.pty) return this.pty;
+  private async resolveExerciseId(result: LumenExerciseRunTestsResult): Promise<string> {
+    if (result.status !== "compile_error") return result.exerciseId;
 
-    const pty = new LumenTestPty();
-    this.terminal = vscode.window.createTerminal({ name: testTerminalName, pty });
-    this.pty = pty;
-    return pty;
+    try {
+      const active = await this.engineClient.getActiveExercise();
+      if (active.status === "ready") return active.active.exerciseId;
+      if (active.status === "missing") return active.exerciseId;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.outputChannel.appendLine(`Could not resolve exercise id for test report: ${message}`);
+    }
+    return "unknown";
   }
 
   private handleTestError(error: unknown): void {
@@ -247,41 +269,20 @@ export class LumenTestController implements vscode.Disposable {
   }
 }
 
-class LumenTestPty implements vscode.Pseudoterminal {
-  private readonly writeEmitter = new vscode.EventEmitter<string>();
-  readonly onDidWrite = this.writeEmitter.event;
-  private opened = false;
-  private buffered = "";
-
-  open(): void {
-    this.opened = true;
-    if (this.buffered.length > 0) {
-      this.writeEmitter.fire(this.buffered);
-      this.buffered = "";
-    }
-  }
-
-  close(): void {}
+class TestReportWriter {
+  private readonly lines: string[] = [];
 
   writeLine(line: string): void {
-    this.emit(`${line}\r\n`);
+    this.lines.push(line);
   }
 
-  clear(): void {
-    this.emit("\x1b[2J\x1b[3J\x1b[H");
-  }
-
-  private emit(chunk: string): void {
-    if (this.opened) {
-      this.writeEmitter.fire(chunk);
-    } else {
-      this.buffered += chunk;
-    }
+  toString(): string {
+    return `${this.lines.join("\r\n")}\r\n`;
   }
 }
 
 function writeMultilineDetail(
-  pty: LumenTestPty,
+  report: TestReportWriter,
   label: string,
   value: string,
   color: string
@@ -290,7 +291,7 @@ function writeMultilineDetail(
   const continuation = " ".repeat(prefix.length);
   const lines = sanitizeTerminalText(value).split(/\r\n|\r|\n/);
   for (const [index, line] of lines.entries()) {
-    pty.writeLine(`${color}${index === 0 ? prefix : continuation}${line}${ansi.reset}`);
+    report.writeLine(`${color}${index === 0 ? prefix : continuation}${line}${ansi.reset}`);
   }
 }
 
