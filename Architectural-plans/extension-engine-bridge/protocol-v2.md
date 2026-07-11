@@ -99,7 +99,9 @@ son una response `ok: true` con `status: "compile_error"`.
 
 Reglas de compilacion:
 
-- Compilador: GCC. Flags base: `-Wall -Wextra -g`. Sin `-Werror`.
+- Compilador: GCC. Flags base: `-Wall -g`. Sin `-Werror`. (Hasta 2026-07-11
+  incluia `-Wextra`; se retiro por paridad con Code::Blocks — ver
+  `Architectural-plans/local-engine/compile.md`, seccion "Paridad".)
 - Artefactos en `<carpeta del fuente>/.lumen-build/`; ejecutable con el nombre
   del fuente (`main.c` -> `main.exe` en Windows).
 - Descubrimiento de GCC: primero el cache en la tabla `settings`

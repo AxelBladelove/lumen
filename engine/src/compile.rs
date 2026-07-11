@@ -137,11 +137,38 @@ pub(crate) fn validate_source(source_path: &Path) -> Result<(), CompileFailure> 
 }
 
 pub(crate) fn discover_gcc(cached_path: Option<&str>) -> Option<PathBuf> {
-    cached_path
-        .map(PathBuf::from)
-        .filter(|path| path.is_file())
+    // El toolchain fijado de Lumen va primero, incluso sobre el cache: es el
+    // que garantiza paridad con el Code::Blocks de la universidad, y un cache
+    // viejo apuntando a MSYS2 no debe impedir adoptarlo.
+    find_gcc_in_lumen_toolchains()
+        .or_else(|| {
+            cached_path
+                .map(PathBuf::from)
+                .filter(|path| path.is_file())
+        })
         .or_else(find_gcc_on_path)
         .or_else(find_gcc_in_msys2)
+}
+
+#[cfg(windows)]
+fn find_gcc_in_lumen_toolchains() -> Option<PathBuf> {
+    let local_app_data = env::var_os("LOCALAPPDATA")?;
+    let toolchains = PathBuf::from(local_app_data).join("Lumen").join("toolchains");
+    let mut candidates: Vec<PathBuf> = fs::read_dir(&toolchains)
+        .ok()?
+        .flatten()
+        .map(|entry| entry.path().join(r"mingw64\bin\gcc.exe"))
+        .filter(|candidate| candidate.is_file())
+        .collect();
+    // Determinista si conviven varios toolchains: gana el ultimo por nombre
+    // (los directorios llevan la version en el nombre).
+    candidates.sort();
+    candidates.pop()
+}
+
+#[cfg(not(windows))]
+fn find_gcc_in_lumen_toolchains() -> Option<PathBuf> {
+    None
 }
 
 pub(crate) fn compiler_version(compiler_path: &Path) -> Option<String> {
@@ -178,9 +205,11 @@ pub(crate) fn compile_source(
     let executable_path = build_dir.join(executable_name).with_extension("exe");
 
     let started_at = Instant::now();
+    // Flags de paridad con Code::Blocks (target Debug tipico de catedra):
+    // -Wall -g, sin -Wextra ni -Werror. Los warnings extra que la uni no ve
+    // solo generan ruido distinto al del examen.
     let mut child = Command::new(compiler_path)
         .arg("-Wall")
-        .arg("-Wextra")
         .arg("-g")
         .arg(source_name)
         .arg("-o")

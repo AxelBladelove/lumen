@@ -11,9 +11,25 @@ Archivo: `Architectural-plans/local-engine/compile.md`
 El flujo base de `F9` está implementado como slice transicional (protocolo v2,
 ver `Architectural-plans/extension-engine-bridge/protocol-v2.md`):
 
-- El Local Engine implementa `exercise.compile` (GCC con `-Wall -Wextra -g`,
+- El Local Engine implementa `exercise.compile` (GCC con `-Wall -g`,
   artefactos en `.lumen-build/`, diagnósticos estructurados, timeout de 30s,
   registro en `compile_attempts`) y `toolchain.check` (`engine/src/compile.rs`).
+
+### Paridad con Code::Blocks (decisión 2026-07-11)
+
+La universidad del usuario evalúa con Code::Blocks 25.03, que empaqueta la
+suite winlibs **GCC 14.2.0 (posix) + MinGW-w64 12.0.0 UCRT r3**. Para que un
+código compile en Lumen si y solo si compila en la uni:
+
+- El toolchain canónico vive en `%LOCALAPPDATA%\Lumen\toolchains\<nombre>\mingw64\`
+  (zip oficial de winlibs desde GitHub `brechtsanders/winlibs_mingw`, tag
+  `14.2.0posix-12.0.0-ucrt-r3`). El descubrimiento de GCC lo prefiere sobre el
+  cache, el PATH y MSYS2.
+- Flags de compilación: `-Wall -g` (target Debug típico de cátedra), sin
+  `-Wextra` ni `-Werror` y sin `-std=` (se usa el default del compilador,
+  gnu17 en GCC 14). Cualquier GCC más nuevo (15+) cambia el default a gnu23 y
+  rompe paridad (`bool` keyword, prototipos, etc.) — por eso el toolchain se
+  fija por versión y no se hereda del sistema.
 - La extensión contribuye `lumen.compileCurrentExercise` con keybinding `F9`,
   terminal integrada "Lumen Compile" (errores en rojo, warnings en azul) y
   consola externa en Windows al compilar con éxito

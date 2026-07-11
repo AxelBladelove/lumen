@@ -343,7 +343,10 @@ class LumenCompilePty implements vscode.Pseudoterminal {
   }
 }
 
-function formatDiagnosticLine(diagnostic: LumenCompileDiagnostic, sourcePath: string): string {
+export function formatDiagnosticLine(
+  diagnostic: LumenCompileDiagnostic,
+  sourcePath: string
+): string {
   const label =
     diagnostic.kind === "error"
       ? `${ansi.red}error${ansi.reset}`

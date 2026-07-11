@@ -21,6 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
   const compileController = new LumenCompileController(engineClient, outputChannel);
   context.subscriptions.push(compileController);
   const testController = new LumenTestController(engineClient, outputChannel);
+  context.subscriptions.push(testController);
 
   const launcher = new LumenRoutePathViewProvider(() => {
     void vscode.commands.executeCommand("lumen.enterMode");
