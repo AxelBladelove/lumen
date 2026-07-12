@@ -11,6 +11,7 @@
     routeModuleDataSource
   } from "./route-path-view/data/routeModuleSource";
   import type { RoutePathNode } from "./route-path-view/types/routePath";
+  import { themeVars } from "./route-path-view/theme/moduleTheme";
   import type { ExerciseDetailPayload } from "./webview/messages";
   import { lumenWebviewProtocolVersion } from "./webview/messages";
   import { createVscodeBridge } from "./webview/vscodeBridge";
@@ -650,19 +651,26 @@
 />
 
 {#if exerciseDetail && !detailPanelOpen && !introVisible}
+  <!-- El FAB vive fuera del stage de la ruta: replica las variables del tema
+       del módulo para recolorearse igual que el resto del chrome. -->
   <button
     class="statement-fab"
     type="button"
+    style={themeVars(routeModule.theme)}
     on:click={openDetailPanel}
     aria-label={`Ver enunciado de ${exerciseDetail.title}`}
   >
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 4h9.5L19 7.5V20H6z" />
+      <path d="M9 9h6M9 13h6M9 17h4" />
+    </svg>
     Enunciado
   </button>
 {/if}
 
 {#if exerciseDetail && detailPanelOpen}
   {#key exerciseDetail.exerciseId}
-    <ExerciseDetailPanel detail={exerciseDetail} onClose={closeDetailPanel} />
+    <ExerciseDetailPanel detail={exerciseDetail} theme={routeModule.theme} onClose={closeDetailPanel} />
   {/key}
 {/if}
 
@@ -707,6 +715,8 @@
 {/if}
 
 <style>
+  /* Misma gramática que .continue-badge / el botón del BottomCta: pill glass
+     con el glow del tema del módulo (las variables llegan por style inline). */
   .statement-fab {
     position: fixed;
     right: 22px;
@@ -714,33 +724,48 @@
     z-index: 60;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 9px 18px;
-    border: 1px solid color-mix(in srgb, var(--theme-glow, #5fc8ff) 58%, transparent);
+    gap: 8px;
+    height: 36px;
+    padding: 0 18px;
+    border: 1px solid color-mix(in srgb, var(--theme-glow) 56%, transparent);
     border-radius: 999px;
-    color: color-mix(in srgb, var(--theme-glow, #5fc8ff) 86%, #ffffff);
+    color: var(--theme-glow);
     background:
-      linear-gradient(180deg, color-mix(in srgb, var(--theme-glow, #5fc8ff) 12%, transparent), transparent),
+      linear-gradient(180deg, color-mix(in srgb, var(--theme-glow) 8%, transparent), color-mix(in srgb, var(--theme-glow) 3%, transparent)),
       rgba(0, 18, 25, 0.78);
     box-shadow:
       0 14px 32px rgba(0, 0, 0, 0.42),
-      0 0 22px color-mix(in srgb, var(--theme-glow, #5fc8ff) 14%, transparent),
-      inset 0 1px 0 rgba(244, 252, 251, 0.08);
+      0 0 18px color-mix(in srgb, var(--theme-glow) 19%, transparent),
+      inset 0 1px 0 rgba(244, 252, 251, 0.08),
+      inset 0 0 14px color-mix(in srgb, var(--theme-glow) 6%, transparent);
     cursor: pointer;
     font-family: var(--font);
     font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.3px;
+    font-weight: 850;
+    letter-spacing: 0.4px;
     line-height: 1;
-    transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+    transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+  }
+
+  .statement-fab svg {
+    width: 15px;
+    height: 15px;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--theme-glow) 40%, transparent));
   }
 
   .statement-fab:hover,
   .statement-fab:focus-visible {
-    border-color: color-mix(in srgb, var(--theme-glow, #5fc8ff) 82%, transparent);
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--theme-glow, #5fc8ff) 18%, transparent), transparent),
-      rgba(0, 26, 36, 0.86);
+    border-color: color-mix(in srgb, var(--theme-glow) 82%, transparent);
+    box-shadow:
+      0 14px 32px rgba(0, 0, 0, 0.42),
+      0 0 26px color-mix(in srgb, var(--theme-glow) 30%, transparent),
+      inset 0 1px 0 rgba(244, 252, 251, 0.1),
+      inset 0 0 18px color-mix(in srgb, var(--theme-glow) 9%, transparent);
     outline: none;
     transform: translateY(-1px);
   }
