@@ -21,6 +21,23 @@ export type RouteModuleDataPayload = {
   nodes: RouteModuleDataNode[];
 };
 
+export type ExerciseDetailPayload = {
+  exerciseId: string;
+  version: string;
+  title: string;
+  summary: string;
+  statementMarkdown: string;
+  hints: { order: number; text: string }[];
+  status: "active" | "completed";
+  nodeType: string;
+  primaryTopics: string[];
+  difficulty: { band: string; score: number; expectedMinutes: number };
+  progress: {
+    completed: boolean;
+    attempts: { total: number; passed: number; lastRunAt: string | null };
+  };
+};
+
 export type WebviewToExtensionMessage =
   | {
       type: "frontend.ready";
@@ -58,6 +75,10 @@ export type WebviewToExtensionMessage =
   | {
       type: "lumen.exit.requested";
       payload: Record<string, never>;
+    }
+  | {
+      type: "exercise.detail.requested";
+      payload: { exerciseId: string };
     }
   | {
       type: "perf.report";
@@ -142,5 +163,12 @@ export type ExtensionToWebviewMessage =
       payload: {
         busy: { exerciseId: string } | null;
         error: { exerciseId?: string; message: string } | null;
+      };
+    }
+  | {
+      type: "exercise.detail.data";
+      payload: {
+        source: "engine";
+        detail: ExerciseDetailPayload | null;
       };
     };

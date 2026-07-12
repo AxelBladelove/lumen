@@ -1,0 +1,59 @@
+{
+  "formatVersion": 1,
+  "cases": [
+    {
+      "id": "basic-phrase",
+      "group": "length",
+      "stdin": "Hola Mundo\n",
+      "expectedStdout": "10\n"
+    },
+    {
+      "id": "digits-and-symbols",
+      "group": "length",
+      "stdin": "abc 123!\n",
+      "expectedStdout": "8\n"
+    },
+    {
+      "id": "leading-spaces",
+      "group": "length",
+      "stdin": "  dos espacios\n",
+      "expectedStdout": "14\n"
+    },
+    {
+      "id": "single-char",
+      "group": "length",
+      "stdin": "x\n",
+      "expectedStdout": "1\n"
+    },
+    {
+      "id": "empty-line",
+      "group": "boundaries",
+      "stdin": "\n",
+      "expectedStdout": "0\n"
+    },
+    {
+      "id": "no-input",
+      "group": "boundaries",
+      "stdin": "",
+      "expectedStdout": "0\n"
+    },
+    {
+      "id": "without-final-newline",
+      "group": "boundaries",
+      "stdin": "sin salto",
+      "expectedStdout": "9\n"
+    },
+    {
+      "id": "ascii-fence",
+      "group": "boundaries",
+      "stdin": "AZaz@[`{\n",
+      "expectedStdout": "8\n"
+    },
+    {
+      "id": "long-line",
+      "group": "boundaries",
+      "stdin": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+      "expectedStdout": "1000\n"
+    }
+  ]
+}

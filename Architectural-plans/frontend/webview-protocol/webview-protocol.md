@@ -105,9 +105,23 @@ nextNodeId
 El Extension Host no confía en `nextNodeId`: consulta un snapshot fresco y
 activa su `activeExerciseId`. La webview no cambia progreso por anticipado.
 
+### `exercise.detail.requested`
+
+Se emite cuando la webview necesita el detalle de un ejercicio concreto (por
+ejemplo al revisar un nodo completado).
+
+```txt
+exerciseId
+```
+
+Es una intención: el Extension Host llama `exercise.getDetail` y responde con
+`exercise.detail.data`. La webview no debe pedir detalles de nodos bloqueados.
+
 ### `lumen.exit.requested`
 
-Se emite cuando el usuario presiona `Escape` con el foco dentro de la webview.
+Se emite cuando el usuario presiona `Escape` con el foco dentro de la webview
+y no hay superficies temporales abiertas (el panel de enunciado se cierra
+primero).
 
 Payload vacio.
 
@@ -229,6 +243,22 @@ error: { exerciseId?, message } | null
 
 Sirve para feedback de UI; no es una fuente de progreso.
 
+### `exercise.detail.data`
+
+Publica el detalle del ejercicio para el panel derecho (Engine Protocol v6):
+
+```txt
+source: "engine"
+detail: ExerciseDetailPayload | null
+```
+
+`detail` incluye enunciado markdown, hints ordenados, dificultad, estado y
+progreso. Se publica tras cada `route.module.data` (detail del
+`activeExerciseId` o `null`) y como respuesta a `exercise.detail.requested`.
+La webview lo renderiza con su propio subset de markdown con escape total de
+HTML; el shape normativo vive en
+`Architectural-plans/extension-engine-bridge/protocol-v6.md`.
+
 ### `route.exercise.completed`
 
 Permite disparar la finalizacion del ejercicio activo desde afuera del
@@ -243,7 +273,7 @@ Todo mensaje importante debe tener `type`.
 El frontend no debe asumir que `acquireVsCodeApi` existe.
 
 El protocolo frontend-host actual es version 1 y está parcialmente integrado
-con Engine Protocol v5.
+con Engine Protocol v6.
 
 `perf.report` es instrumentacion local, no parte del producto pedagogico.
 

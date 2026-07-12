@@ -15,7 +15,11 @@ rechaza nodos bloqueados, materializa una working copy al activar, ejecuta F9
 y F10 sobre el mismo source y persiste completados en SQLite.
 
 La webview representa el snapshot y envía intenciones de selección/continuar;
-no decide progreso. Gates no secuenciales, quizzes, proyectos, refuerzos y
+no decide progreso. Desde protocol v6, el panel derecho muestra el enunciado
+del ejercicio activo (markdown renderizado con escape total), pistas
+progresivas, dificultad e intentos, servidos por `exercise.getDetail` desde el
+contenido instalado. El módulo strings tiene 5 actividades reales
+secuenciales. Gates no secuenciales, quizzes, proyectos, refuerzos y
 explicaciones ricas de bloqueo siguen siendo arquitectura objetivo.
 
 Este modo existe para que el usuario aprenda siguiendo una progresión estructurada. Lumen decide qué viene después, qué ejercicios pertenecen a cada módulo, cuándo se desbloquea una parte nueva y qué debe reforzarse según el progreso del usuario.

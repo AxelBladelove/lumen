@@ -173,7 +173,7 @@ fn migration_three_health_and_import_register_the_activity() {
     let mut engine = RunningEngine::start(&work.data_dir());
 
     let health = engine.request(json!({ "id": "health", "method": "engine.healthCheck" }));
-    assert_eq!(health["result"]["protocolVersion"], 5);
+    assert_eq!(health["result"]["protocolVersion"], 6);
     assert_eq!(health["result"]["dbStatus"], "ready");
 
     let imported = engine.request(import_request("import", &package_path));

@@ -160,7 +160,7 @@ fn activation_materializes_without_overwrite_and_completion_unlocks_next() {
     let mut engine = RunningEngine::start(&work.data_dir());
 
     let health = engine.request(json!({ "id": "health", "method": "engine.healthCheck" }));
-    assert_eq!(health["result"]["protocolVersion"], 5);
+    assert_eq!(health["result"]["protocolVersion"], 6);
     import(&mut engine, "import-lowercase", &lowercase_package);
     import(&mut engine, "import-vowels", &vowels_package);
 

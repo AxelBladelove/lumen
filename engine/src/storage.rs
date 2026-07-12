@@ -15,6 +15,14 @@ pub(crate) struct ExerciseProgressResult {
 }
 
 #[derive(Debug, Clone)]
+pub(crate) struct ExerciseDetailProgress {
+    pub completed: bool,
+    pub attempts_total: u64,
+    pub attempts_passed: u64,
+    pub last_run_at: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub(crate) struct InstalledActivity {
     pub activity_id: String,
     pub version: String,
@@ -207,6 +215,19 @@ impl Database {
     pub(crate) fn completed_activity_ids(&mut self) -> Result<HashSet<String>, String> {
         let result = match &self.state {
             DatabaseState::Ready(connection) => query_completed_activity_ids(connection),
+            DatabaseState::Error(error) => return Err(error.clone()),
+        };
+        self.capture_runtime_error(result)
+    }
+
+    pub(crate) fn exercise_detail_progress(
+        &mut self,
+        activity_id: &str,
+    ) -> Result<ExerciseDetailProgress, String> {
+        let result = match &self.state {
+            DatabaseState::Ready(connection) => {
+                query_exercise_detail_progress(connection, activity_id)
+            }
             DatabaseState::Error(error) => return Err(error.clone()),
         };
         self.capture_runtime_error(result)
@@ -673,6 +694,42 @@ fn query_completed_activity_ids(connection: &Connection) -> Result<HashSet<Strin
         .map_err(|error| format!("no se pudo leer exercise_progress: {error}"))?;
     rows.collect::<Result<HashSet<String>, _>>()
         .map_err(|error| format!("no se pudo decodificar exercise_progress: {error}"))
+}
+
+fn query_exercise_detail_progress(
+    connection: &Connection,
+    activity_id: &str,
+) -> Result<ExerciseDetailProgress, String> {
+    connection
+        .query_row(
+            "SELECT
+               EXISTS(SELECT 1 FROM exercise_progress WHERE activity_id = ?1),
+               COUNT(id),
+               COALESCE(SUM(CASE WHEN status = 'passed' THEN 1 ELSE 0 END), 0),
+               MAX(created_at)
+             FROM exercise_attempts
+             WHERE activity_id = ?1",
+            [activity_id],
+            |row| {
+                let attempts_total: i64 = row.get(1)?;
+                let attempts_passed: i64 = row.get(2)?;
+                Ok((row.get(0)?, attempts_total, attempts_passed, row.get(3)?))
+            },
+        )
+        .map_err(|error| format!("no se pudo leer el detalle de progreso: {error}"))
+        .and_then(
+            |(completed, attempts_total, attempts_passed, last_run_at)| {
+                Ok(ExerciseDetailProgress {
+                    completed,
+                    attempts_total: u64::try_from(attempts_total)
+                        .map_err(|_| "exercise_attempts contiene un total invalido".to_owned())?,
+                    attempts_passed: u64::try_from(attempts_passed).map_err(|_| {
+                        "exercise_attempts contiene un total de aprobados invalido".to_owned()
+                    })?,
+                    last_run_at,
+                })
+            },
+        )
 }
 
 fn query_active_exercise(connection: &Connection) -> Result<Option<ActiveExerciseRecord>, String> {

@@ -5,7 +5,8 @@ frontend Svelte/Vite dentro de un `WebviewPanel` y un Local Engine en Rust.
 
 El slice implementado cubre `Ruta C / Modulo 2: Cadenas de caracteres`: ruta
 visual, importacion de actividades `.esex`, compilacion y tests IO, progreso
-persistente y el Route Loop v5 para activar una copia editable. La integracion
+persistente, el Route Loop v5 para activar una copia editable y el panel de
+enunciado v6 (5 actividades reales del modulo). La integracion
 de extremo a extremo sigue parcial; gates avanzados, sandbox completo y
 servicios cloud no forman parte del slice actual.
 
@@ -53,10 +54,11 @@ lumen.testCurrentExercise
 NDJSON por stdio con el Extension Host y persiste estado en SQLite (`lumen.db`
 bajo el globalStorage de la extension), con migraciones versionadas. El
 contrato vigente es
-`Architectural-plans/extension-engine-bridge/protocol-v5.md`. Incluye sesiones,
+`Architectural-plans/extension-engine-bridge/protocol-v6.md`. Incluye sesiones,
 toolchain, importacion `.esex`, snapshots de ruta, compilacion, tests IO,
-progreso y `exercise.activate` con working copies separadas del contenido
-instalado.
+progreso, `exercise.activate` con working copies separadas del contenido
+instalado y `exercise.getDetail` (enunciado, hints y progreso para el panel
+derecho).
 
 El flujo de compilacion `F9` resuelve el entrypoint de la working copy activa
 en el engine y llama `exercise.compile`; el

@@ -1,6 +1,6 @@
 use std::fs;
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::time::Instant;
 
 use serde_json::{json, Map, Value};
@@ -12,7 +12,7 @@ use crate::storage::{Database, ExerciseProgressResult, InstalledActivity};
 use crate::testing::{self, IoCaseStatus, RunOptions, TestingError};
 use crate::workspace;
 
-const PROTOCOL_VERSION: u64 = 5;
+const PROTOCOL_VERSION: u64 = 6;
 const ENGINE_VERSION: &str = "0.1.0";
 const PACKAGE_SHA_FILE: &str = ".package-sha256";
 
@@ -35,6 +35,27 @@ enum ActiveExercise {
         workspace_path: PathBuf,
         entrypoint_path: PathBuf,
     },
+}
+
+#[derive(Clone, Copy)]
+enum ActivityStatus {
+    Active,
+    Completed,
+}
+
+impl ActivityStatus {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::Completed => "completed",
+        }
+    }
+}
+
+enum ActivityLookupError {
+    NotFound,
+    Locked,
+    Database,
 }
 
 impl Engine {
@@ -74,6 +95,7 @@ impl Engine {
             "exercise.compile" => self.compile_exercise(request.id, &request.params),
             "exercise.import" => self.import_exercise(request.id, &request.params),
             "exercise.activate" => self.activate_exercise(request.id, &request.params),
+            "exercise.getDetail" => self.get_exercise_detail(request.id, &request.params),
             "exercise.getActive" => self.get_active_exercise(request.id, &request.params),
             "exercise.runTests" => self.run_exercise_tests(request.id, &request.params),
             "route.getModuleSnapshot" => self.get_module_snapshot(request.id, &request.params),
@@ -376,56 +398,91 @@ impl Engine {
         }
     }
 
+    fn get_exercise_detail(&mut self, id: String, params: &Value) -> Value {
+        let exercise_id = match parse_exercise_id(params) {
+            Ok(exercise_id) => exercise_id,
+            Err(()) => return invalid_params_response(id),
+        };
+        let activity = match self.resolve_installed_activity(&exercise_id) {
+            Ok(activity) => activity,
+            Err(error) => return activity_lookup_error_response(id, error),
+        };
+        let status = match self.activity_status(&activity) {
+            Ok(status) => status,
+            Err(error) => return activity_lookup_error_response(id, error),
+        };
+        let manifest: Value = match serde_json::from_str(&activity.manifest_json) {
+            Ok(manifest) => manifest,
+            Err(error) => {
+                return content_error_response(
+                    id,
+                    format!("El manifest instalado no contiene JSON valido: {error}"),
+                )
+            }
+        };
+        let content = match exercise_detail_content(&activity, &manifest) {
+            Ok(content) => content,
+            Err(message) => return content_error_response(id, message),
+        };
+        let progress = match self
+            .database
+            .exercise_detail_progress(&activity.activity_id)
+        {
+            Ok(progress) => progress,
+            Err(_) => return database_error_response(id, "No se pudo leer el progreso."),
+        };
+        success_response(
+            id,
+            json!({
+                "detail": {
+                    "exerciseId": activity.activity_id,
+                    "version": activity.version,
+                    "title": activity.title,
+                    "summary": content.summary,
+                    "statementMarkdown": content.statement_markdown,
+                    "hints": content.hints,
+                    "status": status.as_str(),
+                    "nodeType": content.node_type,
+                    "primaryTopics": content.primary_topics,
+                    "difficulty": {
+                        "band": content.difficulty_band,
+                        "score": content.difficulty_score,
+                        "expectedMinutes": content.expected_minutes,
+                    },
+                    "progress": {
+                        "completed": progress.completed,
+                        "attempts": {
+                            "total": progress.attempts_total,
+                            "passed": progress.attempts_passed,
+                            "lastRunAt": progress.last_run_at,
+                        }
+                    }
+                }
+            }),
+        )
+    }
+
     fn activate_exercise(&mut self, id: String, params: &Value) -> Value {
         let (exercise_id, mode, workspace_root) = match parse_activate_params(params) {
             Ok(values) => values,
             Err(()) => return invalid_params_response(id),
         };
-        let activity = match self.database.get_latest_activity(&exercise_id) {
-            Ok(Some(activity)) => activity,
-            Ok(None) => {
-                return error_response(
-                    Some(id),
-                    "ACTIVITY_NOT_FOUND",
-                    "El ejercicio solicitado no esta instalado.",
-                    true,
-                )
-            }
-            Err(_) => return database_error_response(id, "No se pudo leer la actividad."),
+        let activity = match self.resolve_installed_activity(&exercise_id) {
+            Ok(activity) => activity,
+            Err(error) => return activity_lookup_error_response(id, error),
         };
 
         if mode == "route" {
-            let (Some(route_id), Some(module_id)) =
-                (activity.route_id.as_deref(), activity.module_id.as_deref())
-            else {
+            if activity.route_id.is_none() || activity.module_id.is_none() {
                 return error_response(
                     Some(id),
                     "ACTIVITY_UNSUPPORTED",
                     "La actividad no pertenece a una ruta.",
                     true,
                 );
-            };
-            let module = match self.database.get_module_activities(route_id, module_id) {
-                Ok(module) => module,
-                Err(_) => return database_error_response(id, "No se pudo leer el modulo."),
-            };
-            let completed = match self.database.completed_activity_ids() {
-                Ok(completed) => completed,
-                Err(_) => return database_error_response(id, "No se pudo leer el progreso."),
-            };
-            let recommended = module
-                .iter()
-                .find(|candidate| !completed.contains(&candidate.activity_id))
-                .map(|candidate| candidate.activity_id.as_str());
-            if !completed.contains(&activity.activity_id)
-                && recommended != Some(activity.activity_id.as_str())
-            {
-                return error_response(
-                    Some(id),
-                    "ACTIVITY_LOCKED",
-                    "Completa el ejercicio activo antes de abrir este nodo.",
-                    true,
-                );
+            }
+            if let Err(error) = self.activity_status(&activity) {
+                return activity_lookup_error_response(id, error);
             }
         }
 
@@ -601,6 +658,46 @@ impl Engine {
         )
     }
 
+    fn resolve_installed_activity(
+        &mut self,
+        exercise_id: &str,
+    ) -> Result<InstalledActivity, ActivityLookupError> {
+        self.database
+            .get_latest_activity(exercise_id)
+            .map_err(|_| ActivityLookupError::Database)?
+            .ok_or(ActivityLookupError::NotFound)
+    }
+
+    fn activity_status(
+        &mut self,
+        activity: &InstalledActivity,
+    ) -> Result<ActivityStatus, ActivityLookupError> {
+        let completed = self
+            .database
+            .completed_activity_ids()
+            .map_err(|_| ActivityLookupError::Database)?;
+        if completed.contains(&activity.activity_id) {
+            return Ok(ActivityStatus::Completed);
+        }
+        let (Some(route_id), Some(module_id)) =
+            (activity.route_id.as_deref(), activity.module_id.as_deref())
+        else {
+            return Ok(ActivityStatus::Active);
+        };
+        let module = self
+            .database
+            .get_module_activities(route_id, module_id)
+            .map_err(|_| ActivityLookupError::Database)?;
+        let recommended = module
+            .iter()
+            .find(|candidate| !completed.contains(&candidate.activity_id));
+        if recommended.is_some_and(|candidate| candidate.activity_id == activity.activity_id) {
+            Ok(ActivityStatus::Active)
+        } else {
+            Err(ActivityLookupError::Locked)
+        }
+    }
+
     fn resolve_active_exercise(&mut self) -> Result<ActiveExercise, ()> {
         if let Some(active) = self.database.get_active_exercise().map_err(|_| ())? {
             let Some(activity) = self
@@ -757,6 +854,129 @@ impl Engine {
 
         Some(compiler_path)
     }
+}
+
+struct ExerciseDetailContent {
+    summary: String,
+    statement_markdown: String,
+    hints: Vec<Value>,
+    node_type: String,
+    primary_topics: Vec<String>,
+    difficulty_band: String,
+    difficulty_score: u64,
+    expected_minutes: u64,
+}
+
+fn exercise_detail_content(
+    activity: &InstalledActivity,
+    manifest: &Value,
+) -> Result<ExerciseDetailContent, String> {
+    let required_string = |pointer: &str| {
+        manifest
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+            .ok_or_else(|| format!("El manifest no declara un valor valido en {pointer}."))
+    };
+    let install_path = Path::new(&activity.install_path);
+    let statement_path = required_string("/content/statement/path")?;
+    let statement_markdown = read_installed_text(install_path, &statement_path, "statement")?;
+    let hints = read_installed_hints(install_path, manifest)?;
+    let primary_topics = manifest
+        .get("primaryTopics")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "El manifest no declara primaryTopics validos.".to_owned())?
+        .iter()
+        .map(|topic| {
+            topic
+                .as_str()
+                .filter(|value| !value.is_empty())
+                .map(str::to_owned)
+                .ok_or_else(|| "El manifest contiene un primaryTopic invalido.".to_owned())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(ExerciseDetailContent {
+        summary: required_string("/summary")?,
+        statement_markdown,
+        hints,
+        node_type: required_string("/route/nodeType")?,
+        primary_topics,
+        difficulty_band: required_string("/difficulty/band")?,
+        difficulty_score: manifest
+            .pointer("/difficulty/score")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| "El manifest no declara difficulty.score valido.".to_owned())?,
+        expected_minutes: manifest
+            .pointer("/difficulty/expectedMinutes")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| {
+                "El manifest no declara difficulty.expectedMinutes valido.".to_owned()
+            })?,
+    })
+}
+
+fn read_installed_hints(install_path: &Path, manifest: &Value) -> Result<Vec<Value>, String> {
+    let Some(declarations) = manifest.pointer("/content/hints") else {
+        return Ok(Vec::new());
+    };
+    if declarations.is_null() {
+        return Ok(Vec::new());
+    }
+    let declarations = declarations
+        .as_array()
+        .ok_or_else(|| "content.hints debe ser una lista.".to_owned())?;
+    let mut hints = Vec::new();
+    for declaration in declarations {
+        let path = declaration
+            .get("path")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| "Un archivo de hints declarado no tiene path valido.".to_owned())?;
+        let content = read_installed_text(install_path, path, "hints")?;
+        let document: Value = serde_json::from_str(&content).map_err(|error| {
+            format!("El archivo de hints {path} no contiene JSON valido: {error}")
+        })?;
+        if document.get("formatVersion").and_then(Value::as_u64) != Some(1) {
+            return Err(format!(
+                "El archivo de hints {path} no declara formatVersion 1."
+            ));
+        }
+        let items = document
+            .get("hints")
+            .and_then(Value::as_array)
+            .ok_or_else(|| format!("El archivo de hints {path} no contiene una lista hints."))?;
+        for item in items {
+            let order = item
+                .get("order")
+                .and_then(Value::as_u64)
+                .filter(|order| *order > 0)
+                .ok_or_else(|| format!("El archivo de hints {path} contiene un order invalido."))?;
+            let text = item
+                .get("text")
+                .and_then(Value::as_str)
+                .filter(|text| !text.is_empty())
+                .ok_or_else(|| format!("El archivo de hints {path} contiene un text invalido."))?;
+            hints.push(json!({ "order": order, "text": text }));
+        }
+    }
+    hints.sort_by_key(|hint| hint.get("order").and_then(Value::as_u64).unwrap_or(0));
+    Ok(hints)
+}
+
+fn read_installed_text(install_path: &Path, relative: &str, label: &str) -> Result<String, String> {
+    let relative_path = Path::new(relative);
+    if relative_path.as_os_str().is_empty()
+        || relative_path.is_absolute()
+        || !relative_path
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
+    {
+        return Err(format!("La ruta declarada para {label} no es valida."));
+    }
+    let path = install_path.join(relative_path);
+    fs::read_to_string(&path)
+        .map_err(|error| format!("No se pudo leer {label} en {}: {error}", path.display()))
 }
 
 fn test_data_path(manifest: &Value) -> Option<&str> {
@@ -967,6 +1187,19 @@ fn parse_activate_params(params: &Value) -> Result<(String, String, PathBuf), ()
         .filter(|path| path.is_absolute())
         .ok_or(())?;
     Ok((exercise_id, mode, workspace_root))
+}
+
+fn parse_exercise_id(params: &Value) -> Result<String, ()> {
+    let fields = params.as_object().ok_or(())?;
+    if fields.len() != 1 {
+        return Err(());
+    }
+    fields
+        .get("exerciseId")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .ok_or(())
 }
 
 fn parse_absolute_path_param(params: &Value, key: &str) -> Result<PathBuf, ()> {
@@ -1215,6 +1448,30 @@ fn compile_error_response(id: String, error: CompileFailure) -> Value {
 
 fn database_error_response(id: String, message: &str) -> Value {
     error_response(Some(id), "DATABASE_ERROR", message, true)
+}
+
+fn activity_lookup_error_response(id: String, error: ActivityLookupError) -> Value {
+    match error {
+        ActivityLookupError::NotFound => error_response(
+            Some(id),
+            "ACTIVITY_NOT_FOUND",
+            "El ejercicio solicitado no esta instalado.",
+            true,
+        ),
+        ActivityLookupError::Locked => error_response(
+            Some(id),
+            "ACTIVITY_LOCKED",
+            "Completa el ejercicio activo antes de abrir este nodo.",
+            true,
+        ),
+        ActivityLookupError::Database => {
+            database_error_response(id, "No se pudo leer la actividad o su progreso.")
+        }
+    }
+}
+
+fn content_error_response(id: String, message: String) -> Value {
+    error_response(Some(id), "CONTENT_ERROR", &message, true)
 }
 
 fn import_failed_response(id: String, errors: &[EsexError]) -> Value {

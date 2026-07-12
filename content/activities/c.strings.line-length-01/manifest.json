@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 1,
+  "id": "c.strings.line-length-01",
+  "version": "1.0.0",
+  "kind": "practice",
+  "title": "Longitud de una línea",
+  "summary": "Recorre una cadena y cuenta sus caracteres antes del salto de línea o del terminador null.",
+  "language": "c",
+  "status": "approved",
+
+  "primaryTopics": ["strings"],
+  "supportTopics": ["loops", "io"],
+  "newTopicFocus": ["strings"],
+  "requiredMastery": [
+    { "id": "io.read-line-stdin", "kind": "skill", "minimumMastery": 0.4 }
+  ],
+
+  "learningObjectives": [
+    {
+      "id": "count-until-line-end",
+      "description": "Recorrer una cadena hasta encontrar el salto de línea o el terminador null.",
+      "skillIds": ["strings.traverse-null-terminated"],
+      "successCriterion": "Superar los grupos de tests length y boundaries.",
+      "criticality": "critical"
+    }
+  ],
+
+  "skills": [
+    {
+      "id": "strings.traverse-null-terminated",
+      "role": "assesses",
+      "weight": 1.0,
+      "criticality": "critical",
+      "evidenceStrength": 0.9
+    },
+    {
+      "id": "io.read-line-stdin",
+      "role": "reinforces",
+      "weight": 0.5,
+      "criticality": "supporting",
+      "evidenceStrength": 0.4
+    },
+    {
+      "id": "loops.single-pass-iteration",
+      "role": "practices",
+      "weight": 0.7,
+      "criticality": "major",
+      "evidenceStrength": 0.6
+    }
+  ],
+
+  "prerequisites": [
+    {
+      "skillId": "io.read-line-stdin",
+      "minimumMastery": 0.4,
+      "minimumConfidence": 0.3,
+      "kind": "hard",
+      "rationale": "La actividad parte de leer una línea completa con fgets."
+    }
+  ],
+
+  "commonErrors": ["off-by-one", "strlen-vs-capacity", "missing-null-terminator"],
+  "misconceptions": [
+    {
+      "id": "strings.iterate-capacity-instead-of-terminator",
+      "role": "reveals",
+      "diagnosticSignals": ["test-group:boundaries", "error:out-of-bounds-access"],
+      "confidenceCeiling": 0.75
+    }
+  ],
+
+  "route": {
+    "routeEligible": true,
+    "routeId": "c",
+    "moduleId": "strings",
+    "orderInModule": 2,
+    "role": "required",
+    "masteryChallengeEligible": false,
+    "freeModeAfterUnlock": true,
+    "nodeType": "exercise"
+  },
+
+  "visibility": {
+    "categoryVisible": true,
+    "projectEligible": false,
+    "recommendable": true,
+    "searchable": true,
+    "previewableWhenLocked": true,
+    "featuredEligible": false,
+    "allowedContexts": ["route", "free"]
+  },
+
+  "difficulty": {
+    "score": 22,
+    "band": "easy",
+    "conceptualLevel": 2,
+    "syntaxLoad": 3,
+    "stateControl": 1,
+    "loopDepth": 1,
+    "stringComplexity": 2,
+    "inputParsingComplexity": 2,
+    "hiddenTraps": 2,
+    "edgeCaseDensity": 3,
+    "expectedMinutes": 14,
+    "expectedMinutesRange": { "min": 8, "max": 22 }
+  },
+
+  "unlock": {
+    "requiresModules": ["loops", "functions"],
+    "requiresSkills": [
+      {
+        "skillId": "io.read-line-stdin",
+        "minimumMastery": 0.4,
+        "minimumConfidence": 0.3
+      }
+    ],
+    "logic": "all"
+  },
+
+  "scaffolding": {
+    "scaffoldingLevel": 2,
+    "starterCompleteness": 0.45,
+    "guidedSteps": false,
+    "hintPolicy": {
+      "maxHints": 4,
+      "generationMode": "authored",
+      "progression": "increasing-specificity",
+      "revealSolution": false
+    }
+  },
+
+  "recommendationPolicy": {
+    "eligibleContexts": ["route", "free"],
+    "purposes": ["learn", "reinforce"],
+    "repeatable": true,
+    "cooldownDays": 3,
+    "diversityTags": ["text", "single-pass", "length"]
+  },
+
+  "testContract": {
+    "contractVersion": 1,
+    "mode": "io",
+    "allowAdapter": false,
+    "allowAiAdapter": false,
+    "adapterPolicy": "forbidden",
+    "phases": ["compile", "public", "local-private"],
+    "comparator": "exact-after-normalization",
+    "normalization": ["crlf-to-lf", "trim-final-newline"],
+    "expectedExitCode": 0,
+    "deterministic": true,
+    "scoring": "weighted-groups",
+    "testGroups": [
+      { "id": "length", "phase": "public", "weight": 0.6 },
+      { "id": "boundaries", "phase": "local-private", "weight": 0.4 }
+    ],
+    "limits": {
+      "timeLimitMs": 2000,
+      "memoryLimitMb": 128,
+      "outputLimitKb": 256
+    }
+  },
+
+  "evidenceContract": {
+    "groups": [
+      {
+        "source": "test-group:length",
+        "skillId": "strings.traverse-null-terminated",
+        "weight": 1.0,
+        "polarity": "bidirectional",
+        "confidence": 0.9,
+        "maxEvidencePerAttempt": 1.0,
+        "requiresUnassisted": false
+      },
+      {
+        "source": "test-group:boundaries",
+        "skillId": "strings.traverse-null-terminated",
+        "misconceptionId": "strings.iterate-capacity-instead-of-terminator",
+        "weight": 0.8,
+        "polarity": "bidirectional",
+        "confidence": 0.8
+      }
+    ]
+  },
+
+  "execution": {
+    "languageStandard": "c17",
+    "compileProfile": "c17-console",
+    "executionMode": "console",
+    "entrypoint": "starter/main.c",
+    "sourceEncoding": "utf-8",
+    "requiredHeaders": ["stdio.h"],
+    "warningsPolicy": "recommended",
+    "inputModel": "stdin-lines",
+    "outputModel": "stdout-text",
+    "sandboxProfile": "c-console-default"
+  },
+
+  "sandbox": {
+    "network": false,
+    "filesystemScope": "exercise-directory",
+    "childProcesses": false,
+    "stdin": true,
+    "timeLimitMs": 2000,
+    "memoryLimitMb": 128,
+    "outputLimitKb": 256,
+    "temporaryDiskMb": 32,
+    "processLimit": 1
+  },
+
+  "content": {
+    "statement": { "path": "statement.md", "locale": "es", "required": true },
+    "starter": [
+      { "path": "starter/main.c", "role": "entrypoint", "editable": true, "required": true }
+    ],
+    "tests": [
+      { "path": "tests/io-cases.json", "role": "test-data", "editable": false, "required": true }
+    ],
+    "hints": [
+      { "path": "hints/hints.es.json", "locale": "es", "editable": false, "required": false }
+    ]
+  },
+
+  "compatibility": {
+    "minEngineVersion": "0.1.0",
+    "taxonomyVersion": 1
+  }
+}

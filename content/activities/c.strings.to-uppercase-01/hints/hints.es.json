@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "hints": [
+    {
+      "order": 1,
+      "text": "Recorre la cadena caracter por caracter hasta encontrar '\\0'."
+    },
+    {
+      "order": 2,
+      "text": "Antes de imprimir, decide si el caracter actual esta entre 'a' y 'z'. Los demas se imprimen sin cambios."
+    },
+    {
+      "order": 3,
+      "text": "Puedes obtener la mayuscula restando la distancia entre 'a' y 'A' al caracter minuscula."
+    },
+    {
+      "order": 4,
+      "text": "Una forma es guardar char out = line[i]; si out >= 'a' && out <= 'z', ajustarlo a mayuscula y luego imprimir out."
+    }
+  ]
+}

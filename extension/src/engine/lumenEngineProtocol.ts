@@ -1,4 +1,4 @@
-export const lumenEngineProtocolVersion = 5;
+export const lumenEngineProtocolVersion = 6;
 
 export const lumenEngineErrorCodes = [
   "INVALID_REQUEST",
@@ -16,6 +16,7 @@ export const lumenEngineErrorCodes = [
   "ACTIVITY_NOT_FOUND",
   "ACTIVITY_LOCKED",
   "ACTIVITY_UNSUPPORTED",
+  "CONTENT_ERROR",
   "WORKSPACE_ERROR",
   "UNKNOWN_ERROR"
 ] as const;
@@ -230,6 +231,31 @@ export type LumenExerciseActivateResult = {
   active: LumenActiveExerciseDescriptor;
 };
 
+export type LumenExerciseDetailPayload = {
+  exerciseId: string;
+  version: string;
+  title: string;
+  summary: string;
+  statementMarkdown: string;
+  hints: { order: number; text: string }[];
+  status: "active" | "completed";
+  nodeType: string;
+  primaryTopics: string[];
+  difficulty: { band: string; score: number; expectedMinutes: number };
+  progress: {
+    completed: boolean;
+    attempts: { total: number; passed: number; lastRunAt: string | null };
+  };
+};
+
+export type LumenExerciseGetDetailParams = {
+  exerciseId: string;
+};
+
+export type LumenExerciseGetDetailResult = {
+  detail: LumenExerciseDetailPayload;
+};
+
 export type LumenModuleSnapshotNodeStatus = "active" | "locked" | "completed";
 
 export type LumenModuleSnapshotNode = {
@@ -289,6 +315,10 @@ export type LumenEngineMethodMap = {
   "exercise.activate": {
     params: LumenExerciseActivateParams;
     result: LumenExerciseActivateResult;
+  };
+  "exercise.getDetail": {
+    params: LumenExerciseGetDetailParams;
+    result: LumenExerciseGetDetailResult;
   };
   "route.getModuleSnapshot": {
     params: { routeId: string; moduleId: string };

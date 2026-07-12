@@ -192,7 +192,7 @@ fn passed_runs_are_persisted_once_as_progress_and_failed_runs_do_not_regress() {
     let mut engine = RunningEngine::start(&work.data_dir());
 
     let health = engine.request(json!({ "id": "health", "method": "engine.healthCheck" }));
-    assert_eq!(health["result"]["protocolVersion"], 5);
+    assert_eq!(health["result"]["protocolVersion"], 6);
     let install_path = install_active(&mut engine, &package_path);
     let source_path = install_path.join("starter/main.c");
     fs::write(&source_path, CORRECT_SOURCE).expect("correct solution should write");

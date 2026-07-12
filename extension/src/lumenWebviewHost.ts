@@ -7,11 +7,18 @@ import {
   type LumenExerciseMode,
   type LumenModuleSnapshotNode
 } from "./engine/lumenEngineProtocol";
-import { lumenWebviewProtocolVersion, type LumenEntryState } from "./lumenProtocol";
+import {
+  lumenWebviewProtocolVersion,
+  type ExerciseDetailPayload,
+  type LumenEntryState,
+  type LumenExerciseDetailDataMessage,
+  type LumenExerciseDetailRequestedMessage
+} from "./lumenProtocol";
 
 export type LumenModePhase = "idle" | "entering" | "active";
 
 export type LumenWebviewMessage =
+  | LumenExerciseDetailRequestedMessage
   | {
       type: "frontend.ready";
       payload: {
@@ -100,6 +107,7 @@ export class LumenWebviewHost {
   private currentRouteId = "c";
   private currentModuleId = "strings";
   private activationInFlight = false;
+  private exerciseDetailRequestSequence = 0;
 
   constructor(private readonly options: LumenWebviewHostOptions) {}
 
@@ -295,6 +303,31 @@ export class LumenWebviewHost {
         nodes: snapshotNodes
       }
     });
+    await this.pushExerciseDetail(activeExerciseId);
+  }
+
+  private async pushExerciseDetail(exerciseId: string | null) {
+    const requestSequence = ++this.exerciseDetailRequestSequence;
+    let detail: ExerciseDetailPayload | null = null;
+
+    if (exerciseId) {
+      try {
+        ({ detail } = await this.options.engineClient.getExerciseDetail(exerciseId));
+      } catch (error) {
+        this.options.outputChannel.appendLine(
+          `exercise.getDetail(${exerciseId}) failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
+    }
+
+    if (requestSequence !== this.exerciseDetailRequestSequence) return;
+    const message: LumenExerciseDetailDataMessage = {
+      type: "exercise.detail.data",
+      payload: { source: "engine", detail }
+    };
+    this.postToWebview(message);
   }
 
   private postActivationState(state: {
@@ -374,6 +407,10 @@ export class LumenWebviewHost {
           }`
         );
         void this.activateRecommendedExercise();
+        break;
+
+      case "exercise.detail.requested":
+        void this.pushExerciseDetail(message.payload.exerciseId);
         break;
 
       case "lumen.exit.requested":

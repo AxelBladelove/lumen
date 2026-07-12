@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import RoutePathView from "./route-path-view/RoutePathView.svelte";
+  import ExerciseDetailPanel from "./exercise-detail/ExerciseDetailPanel.svelte";
   import { lumenBrand, ensureLumenFavicon } from "./brand/lumenBrand";
   import {
     buildRouteModuleFromEngine,
@@ -10,6 +11,7 @@
     routeModuleDataSource
   } from "./route-path-view/data/routeModuleSource";
   import type { RoutePathNode } from "./route-path-view/types/routePath";
+  import type { ExerciseDetailPayload } from "./webview/messages";
   import { lumenWebviewProtocolVersion } from "./webview/messages";
   import { createVscodeBridge } from "./webview/vscodeBridge";
 
@@ -28,6 +30,12 @@
   // La UI solo lo refleja: nunca activa localmente ni inflige transiciones.
   let busyExerciseId: string | null = null;
   let activationError: string | null = null;
+  // Último detail publicado por el host (protocolo v6 `exercise.detail.data`).
+  // El panel se abre automaticamente SOLO cuando cambia el `exerciseId`, no en
+  // cada re-snapshot: el usuario no debe verlo saltar en cada `route.module.data`.
+  let exerciseDetail: ExerciseDetailPayload | null = null;
+  let detailPanelOpen = false;
+  let lastAutoOpenedDetailId: string | null = null;
   // El intro arranca visible siempre: en el host el panel solo existe durante
   // la entrada a Lumen Mode, y fuera del host es la unica pantalla de carga.
   let introVisible = true;
@@ -78,6 +86,19 @@
       activationError = message.payload.error?.message ?? null;
     }
 
+    if (message.type === "exercise.detail.data") {
+      const nextDetail = message.payload.detail;
+      exerciseDetail = nextDetail;
+      if (nextDetail === null) {
+        detailPanelOpen = false;
+        lastAutoOpenedDetailId = null;
+      } else if (nextDetail.exerciseId !== lastAutoOpenedDetailId) {
+        // Activacion de un ejercicio distinto: abre el panel una sola vez.
+        detailPanelOpen = true;
+        lastAutoOpenedDetailId = nextDetail.exerciseId;
+      }
+    }
+
     if (message.type === "lumen.entry.transition" && message.payload.phase === "entering") {
       // Idempotente: si el intro del boot inicial sigue corriendo no se
       // reinicia (perderia el porcentaje heredado de la cortina estatica).
@@ -114,13 +135,26 @@
 
   // Escape dentro de la webview: la UI pide la salida de Lumen Mode por
   // protocolo. No depende del reenvio de keybindings de VS Code y sigue la
-  // regla de exit-lumen-mode.md: lo temporal se cierra primero (aqui todavia
-  // no hay UI temporal, asi que siempre se pide salir).
+  // regla de exit-lumen-mode.md: lo temporal se cierra primero (el panel de
+  // enunciado cuenta como UI temporal); si no hay nada temporal abierto,
+  // se pide salir.
   function handleEscapeKey(event: KeyboardEvent) {
     if (event.key !== "Escape" || event.defaultPrevented) return;
+    if (detailPanelOpen) {
+      detailPanelOpen = false;
+      return;
+    }
     bridge.post({ type: "lumen.exit.requested", payload: {} });
   }
   window.addEventListener("keydown", handleEscapeKey);
+
+  function openDetailPanel() {
+    if (exerciseDetail) detailPanelOpen = true;
+  }
+
+  function closeDetailPanel() {
+    detailPanelOpen = false;
+  }
 
   onDestroy(() => {
     stopListening();
@@ -615,6 +649,23 @@
   onContinueRequest={handleContinueRequest}
 />
 
+{#if exerciseDetail && !detailPanelOpen && !introVisible}
+  <button
+    class="statement-fab"
+    type="button"
+    on:click={openDetailPanel}
+    aria-label={`Ver enunciado de ${exerciseDetail.title}`}
+  >
+    Enunciado
+  </button>
+{/if}
+
+{#if exerciseDetail && detailPanelOpen}
+  {#key exerciseDetail.exerciseId}
+    <ExerciseDetailPanel detail={exerciseDetail} onClose={closeDetailPanel} />
+  {/key}
+{/if}
+
 {#if introVisible}
   {#key introCycle}
     <div
@@ -654,3 +705,47 @@
     </div>
   {/key}
 {/if}
+
+<style>
+  .statement-fab {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    z-index: 60;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 18px;
+    border: 1px solid color-mix(in srgb, var(--theme-glow, #5fc8ff) 58%, transparent);
+    border-radius: 999px;
+    color: color-mix(in srgb, var(--theme-glow, #5fc8ff) 86%, #ffffff);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--theme-glow, #5fc8ff) 12%, transparent), transparent),
+      rgba(0, 18, 25, 0.78);
+    box-shadow:
+      0 14px 32px rgba(0, 0, 0, 0.42),
+      0 0 22px color-mix(in srgb, var(--theme-glow, #5fc8ff) 14%, transparent),
+      inset 0 1px 0 rgba(244, 252, 251, 0.08);
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    line-height: 1;
+    transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+  }
+
+  .statement-fab:hover,
+  .statement-fab:focus-visible {
+    border-color: color-mix(in srgb, var(--theme-glow, #5fc8ff) 82%, transparent);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--theme-glow, #5fc8ff) 18%, transparent), transparent),
+      rgba(0, 26, 36, 0.86);
+    outline: none;
+    transform: translateY(-1px);
+  }
+
+  .statement-fab:active {
+    transform: translateY(0);
+  }
+</style>

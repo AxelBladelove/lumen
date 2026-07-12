@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "id": "c.strings.to-uppercase-01",
+  "version": "1.0.0",
+  "kind": "practice",
+  "title": "Convertir a mayúsculas",
+  "summary": "Recorre una línea y convierte sus letras minúsculas a mayúsculas.",
+  "language": "c",
+  "status": "approved",
+
+  "primaryTopics": ["strings", "chars"],
+  "supportTopics": ["loops", "conditionals", "io"],
+  "newTopicFocus": ["chars"],
+  "requiredMastery": [
+    { "id": "strings.traverse-null-terminated", "kind": "skill", "minimumMastery": 0.4 }
+  ],
+
+  "learningObjectives": [
+    {
+      "id": "convert-lowercase-ascii",
+      "description": "Clasificar caracteres minúsculos y escribir su versión mayúscula conservando el resto.",
+      "skillIds": ["chars.classify-character"],
+      "successCriterion": "Superar los grupos de tests conversion y boundaries.",
+      "criticality": "critical"
+    }
+  ],
+
+  "skills": [
+    {
+      "id": "chars.classify-character",
+      "role": "practices",
+      "weight": 1.0,
+      "criticality": "critical",
+      "evidenceStrength": 0.8
+    },
+    {
+      "id": "strings.traverse-null-terminated",
+      "role": "reinforces",
+      "weight": 0.8,
+      "criticality": "major",
+      "evidenceStrength": 0.7
+    },
+    {
+      "id": "loops.single-pass-iteration",
+      "role": "reinforces",
+      "weight": 0.5,
+      "criticality": "supporting",
+      "evidenceStrength": 0.4
+    }
+  ],
+
+  "prerequisites": [
+    {
+      "skillId": "strings.traverse-null-terminated",
+      "minimumMastery": 0.4,
+      "minimumConfidence": 0.3,
+      "kind": "hard",
+      "rationale": "La actividad requiere recorrer una cadena completa sin depender del tamaño del buffer."
+    }
+  ],
+
+  "commonErrors": ["off-by-one", "missing-null-terminator"],
+  "misconceptions": [
+    {
+      "id": "strings.iterate-capacity-instead-of-terminator",
+      "role": "guardsAgainst",
+      "diagnosticSignals": ["test-group:boundaries", "error:out-of-bounds-access"],
+      "confidenceCeiling": 0.75
+    },
+    {
+      "id": "chars.ascii-arithmetic-assumed-universal",
+      "role": "reveals",
+      "diagnosticSignals": ["test-group:boundaries"],
+      "confidenceCeiling": 0.7
+    }
+  ],
+
+  "route": {
+    "routeEligible": true,
+    "routeId": "c",
+    "moduleId": "strings",
+    "orderInModule": 3,
+    "role": "required",
+    "masteryChallengeEligible": false,
+    "freeModeAfterUnlock": true,
+    "nodeType": "exercise"
+  },
+
+  "visibility": {
+    "categoryVisible": true,
+    "projectEligible": false,
+    "recommendable": true,
+    "searchable": true,
+    "previewableWhenLocked": true,
+    "featuredEligible": false,
+    "allowedContexts": ["route", "free"]
+  },
+
+  "difficulty": {
+    "score": 30,
+    "band": "easy",
+    "conceptualLevel": 2,
+    "syntaxLoad": 3,
+    "stateControl": 1,
+    "loopDepth": 1,
+    "stringComplexity": 3,
+    "inputParsingComplexity": 2,
+    "hiddenTraps": 2,
+    "edgeCaseDensity": 3,
+    "expectedMinutes": 16,
+    "expectedMinutesRange": { "min": 10, "max": 25 }
+  },
+
+  "unlock": {
+    "requiresModules": ["loops", "functions"],
+    "requiresSkills": [
+      {
+        "skillId": "strings.traverse-null-terminated",
+        "minimumMastery": 0.4,
+        "minimumConfidence": 0.3
+      }
+    ],
+    "logic": "all"
+  },
+
+  "scaffolding": {
+    "scaffoldingLevel": 2,
+    "starterCompleteness": 0.4,
+    "guidedSteps": false,
+    "hintPolicy": {
+      "maxHints": 4,
+      "generationMode": "authored",
+      "progression": "increasing-specificity",
+      "revealSolution": false
+    }
+  },
+
+  "recommendationPolicy": {
+    "eligibleContexts": ["route", "free"],
+    "purposes": ["learn", "reinforce"],
+    "repeatable": true,
+    "cooldownDays": 3,
+    "diversityTags": ["text", "single-pass", "classification"]
+  },
+
+  "testContract": {
+    "contractVersion": 1,
+    "mode": "io",
+    "allowAdapter": false,
+    "allowAiAdapter": false,
+    "adapterPolicy": "forbidden",
+    "phases": ["compile", "public", "local-private"],
+    "comparator": "exact-after-normalization",
+    "normalization": ["crlf-to-lf", "trim-final-newline"],
+    "expectedExitCode": 0,
+    "deterministic": true,
+    "scoring": "weighted-groups",
+    "testGroups": [
+      { "id": "conversion", "phase": "public", "weight": 0.6 },
+      { "id": "boundaries", "phase": "local-private", "weight": 0.4 }
+    ],
+    "limits": {
+      "timeLimitMs": 2000,
+      "memoryLimitMb": 128,
+      "outputLimitKb": 256
+    }
+  },
+
+  "evidenceContract": {
+    "groups": [
+      {
+        "source": "test-group:conversion",
+        "skillId": "chars.classify-character",
+        "weight": 1.0,
+        "polarity": "bidirectional",
+        "confidence": 0.85,
+        "maxEvidencePerAttempt": 1.0,
+        "requiresUnassisted": false
+      },
+      {
+        "source": "test-group:boundaries",
+        "skillId": "strings.traverse-null-terminated",
+        "misconceptionId": "strings.iterate-capacity-instead-of-terminator",
+        "weight": 0.8,
+        "polarity": "bidirectional",
+        "confidence": 0.8
+      }
+    ]
+  },
+
+  "execution": {
+    "languageStandard": "c17",
+    "compileProfile": "c17-console",
+    "executionMode": "console",
+    "entrypoint": "starter/main.c",
+    "sourceEncoding": "utf-8",
+    "requiredHeaders": ["stdio.h"],
+    "warningsPolicy": "recommended",
+    "inputModel": "stdin-lines",
+    "outputModel": "stdout-text",
+    "sandboxProfile": "c-console-default"
+  },
+
+  "sandbox": {
+    "network": false,
+    "filesystemScope": "exercise-directory",
+    "childProcesses": false,
+    "stdin": true,
+    "timeLimitMs": 2000,
+    "memoryLimitMb": 128,
+    "outputLimitKb": 256,
+    "temporaryDiskMb": 32,
+    "processLimit": 1
+  },
+
+  "content": {
+    "statement": { "path": "statement.md", "locale": "es", "required": true },
+    "starter": [
+      { "path": "starter/main.c", "role": "entrypoint", "editable": true, "required": true }
+    ],
+    "tests": [
+      { "path": "tests/io-cases.json", "role": "test-data", "editable": false, "required": true }
+    ],
+    "hints": [
+      { "path": "hints/hints.es.json", "locale": "es", "editable": false, "required": false }
+    ]
+  },
+
+  "compatibility": {
+    "minEngineVersion": "0.1.0",
+    "taxonomyVersion": 1
+  }
+}

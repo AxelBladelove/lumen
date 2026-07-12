@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "hints": [
+    {
+      "order": 1,
+      "text": "Lee con fgets(line, sizeof line, stdin). No uses scanf(\"%s\", ...), porque corta en el primer espacio."
+    },
+    {
+      "order": 2,
+      "text": "Si fgets devuelve NULL, no hay una linea para copiar: imprime solo '\\n'."
+    },
+    {
+      "order": 3,
+      "text": "Para escribir la cadena leida puedes usar printf(\"%s\", line) o fputs(line, stdout)."
+    },
+    {
+      "order": 4,
+      "text": "Si la cadena leida no contiene un salto de linea al final, imprime un '\\n' despues de mostrarla."
+    }
+  ]
+}

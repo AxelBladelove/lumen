@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "hints": [
+    {
+      "order": 1,
+      "text": "La longitud pedida no es sizeof line. Es la cantidad de caracteres realmente leidos antes del fin de la linea."
+    },
+    {
+      "order": 2,
+      "text": "Usa un indice o contador que avance mientras el caracter actual no sea '\\n' ni '\\0'."
+    },
+    {
+      "order": 3,
+      "text": "Cada vez que aceptas un caracter de la linea, suma 1 a length y luego avanza al siguiente."
+    },
+    {
+      "order": 4,
+      "text": "La condicion del bucle puede combinar dos comparaciones con &&: el caracter actual no es '\\n' y tampoco es '\\0'."
+    }
+  ]
+}

@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 1,
+  "id": "c.strings.read-echo-01",
+  "version": "1.0.0",
+  "kind": "practice",
+  "title": "Leer y repetir una línea",
+  "summary": "Lee una línea con fgets y vuelve a imprimir su contenido.",
+  "language": "c",
+  "status": "approved",
+
+  "primaryTopics": ["strings", "io"],
+  "supportTopics": ["arrays"],
+  "newTopicFocus": ["strings"],
+  "requiredMastery": [
+    { "id": "io", "kind": "topic", "minimumMastery": 0.4 }
+  ],
+
+  "learningObjectives": [
+    {
+      "id": "read-line-with-buffer",
+      "description": "Leer una línea desde stdin en un buffer de caracteres y producir una salida de texto.",
+      "skillIds": ["io.read-line-stdin"],
+      "successCriterion": "Superar los grupos de tests echo y boundaries.",
+      "criticality": "critical"
+    }
+  ],
+
+  "skills": [
+    {
+      "id": "io.read-line-stdin",
+      "role": "assesses",
+      "weight": 1.0,
+      "criticality": "critical",
+      "evidenceStrength": 0.9
+    },
+    {
+      "id": "strings.traverse-null-terminated",
+      "role": "introduces",
+      "weight": 0.4,
+      "criticality": "supporting",
+      "evidenceStrength": 0.3
+    }
+  ],
+
+  "prerequisites": [],
+  "commonErrors": ["scanf-format-mismatch"],
+  "misconceptions": [],
+
+  "route": {
+    "routeEligible": true,
+    "routeId": "c",
+    "moduleId": "strings",
+    "orderInModule": 1,
+    "role": "required",
+    "masteryChallengeEligible": false,
+    "freeModeAfterUnlock": true,
+    "nodeType": "exercise"
+  },
+
+  "visibility": {
+    "categoryVisible": true,
+    "projectEligible": false,
+    "recommendable": true,
+    "searchable": true,
+    "previewableWhenLocked": true,
+    "featuredEligible": false,
+    "allowedContexts": ["route", "free"]
+  },
+
+  "difficulty": {
+    "score": 12,
+    "band": "intro",
+    "conceptualLevel": 1,
+    "syntaxLoad": 2,
+    "stateControl": 0,
+    "loopDepth": 0,
+    "stringComplexity": 1,
+    "inputParsingComplexity": 2,
+    "hiddenTraps": 1,
+    "edgeCaseDensity": 2,
+    "expectedMinutes": 10,
+    "expectedMinutesRange": { "min": 6, "max": 16 }
+  },
+
+  "unlock": {
+    "requiresModules": ["loops", "functions"],
+    "logic": "all"
+  },
+
+  "scaffolding": {
+    "scaffoldingLevel": 3,
+    "starterCompleteness": 0.55,
+    "guidedSteps": false,
+    "hintPolicy": {
+      "maxHints": 4,
+      "generationMode": "authored",
+      "progression": "increasing-specificity",
+      "revealSolution": false
+    }
+  },
+
+  "recommendationPolicy": {
+    "eligibleContexts": ["route", "free"],
+    "purposes": ["learn", "reinforce"],
+    "repeatable": true,
+    "cooldownDays": 3,
+    "diversityTags": ["text", "input", "fgets"]
+  },
+
+  "testContract": {
+    "contractVersion": 1,
+    "mode": "io",
+    "allowAdapter": false,
+    "allowAiAdapter": false,
+    "adapterPolicy": "forbidden",
+    "phases": ["compile", "public", "local-private"],
+    "comparator": "exact-after-normalization",
+    "normalization": ["crlf-to-lf", "trim-final-newline"],
+    "expectedExitCode": 0,
+    "deterministic": true,
+    "scoring": "weighted-groups",
+    "testGroups": [
+      { "id": "echo", "phase": "public", "weight": 0.65 },
+      { "id": "boundaries", "phase": "local-private", "weight": 0.35 }
+    ],
+    "limits": {
+      "timeLimitMs": 2000,
+      "memoryLimitMb": 128,
+      "outputLimitKb": 256
+    }
+  },
+
+  "evidenceContract": {
+    "groups": [
+      {
+        "source": "test-group:echo",
+        "skillId": "io.read-line-stdin",
+        "weight": 1.0,
+        "polarity": "bidirectional",
+        "confidence": 0.9,
+        "maxEvidencePerAttempt": 1.0,
+        "requiresUnassisted": false
+      },
+      {
+        "source": "test-group:boundaries",
+        "skillId": "io.read-line-stdin",
+        "weight": 0.7,
+        "polarity": "bidirectional",
+        "confidence": 0.75
+      }
+    ]
+  },
+
+  "execution": {
+    "languageStandard": "c17",
+    "compileProfile": "c17-console",
+    "executionMode": "console",
+    "entrypoint": "starter/main.c",
+    "sourceEncoding": "utf-8",
+    "requiredHeaders": ["stdio.h"],
+    "warningsPolicy": "recommended",
+    "inputModel": "stdin-lines",
+    "outputModel": "stdout-text",
+    "sandboxProfile": "c-console-default"
+  },
+
+  "sandbox": {
+    "network": false,
+    "filesystemScope": "exercise-directory",
+    "childProcesses": false,
+    "stdin": true,
+    "timeLimitMs": 2000,
+    "memoryLimitMb": 128,
+    "outputLimitKb": 256,
+    "temporaryDiskMb": 32,
+    "processLimit": 1
+  },
+
+  "content": {
+    "statement": { "path": "statement.md", "locale": "es", "required": true },
+    "starter": [
+      { "path": "starter/main.c", "role": "entrypoint", "editable": true, "required": true }
+    ],
+    "tests": [
+      { "path": "tests/io-cases.json", "role": "test-data", "editable": false, "required": true }
+    ],
+    "hints": [
+      { "path": "hints/hints.es.json", "locale": "es", "editable": false, "required": false }
+    ]
+  },
+
+  "compatibility": {
+    "minEngineVersion": "0.1.0",
+    "taxonomyVersion": 1
+  }
+}
