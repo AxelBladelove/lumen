@@ -12,7 +12,13 @@ import {
   type LumenExerciseTestsExecuted
 } from "./engine/lumenEngineProtocol";
 import { formatDiagnosticLine } from "./lumenCompile";
-import { isExternalRunActive, launchReport } from "./lumenExternalConsole";
+import { isLumenModeActive } from "./lumenEntry";
+import { resolveActiveEntrypoint, saveEntrypointIfDirty } from "./lumenExercise";
+import {
+  acquireExternalRunReservation,
+  launchReport,
+  type ExternalRunReservation
+} from "./lumenExternalConsole";
 
 const ansi = {
   reset: "\x1b[0m",
@@ -37,12 +43,39 @@ export class LumenTestController implements vscode.Disposable {
   async testCurrentExercise(
     onNewlyCompleted?: (exerciseId: string) => Promise<void>
   ): Promise<LumenExerciseRunTestsResult | undefined> {
+    if (!isLumenModeActive()) {
+      void vscode.window.showInformationMessage(
+        "Lumen: F10 solo prueba dentro de Lumen Mode. Abre Lumen y selecciona un ejercicio."
+      );
+      return undefined;
+    }
+
     if (this.testInFlight) {
       this.outputChannel.appendLine("Test requested while another test run is in flight; ignoring.");
       return undefined;
     }
 
+    // F9 y F10 comparten el mismo entrypoint activo. Se guarda antes de operar
+    // para que el engine no compile una copia obsoleta del ejercicio en disco.
+    const entrypointPath = await resolveActiveEntrypoint(this.engineClient, this.outputChannel);
+    if (!entrypointPath) return undefined;
+    const saved = await saveEntrypointIfDirty(entrypointPath);
+    if (!saved) {
+      await vscode.window.showErrorMessage(
+        `Lumen: no se pudo guardar ${path.basename(entrypointPath)} antes de probar.`
+      );
+      return undefined;
+    }
+    const reservation = acquireExternalRunReservation();
+    if (!reservation) {
+      void vscode.window.showWarningMessage(
+        "Ya hay una ventana externa de Lumen abierta. Ciérrala antes de probar de nuevo."
+      );
+      return undefined;
+    }
+
     this.testInFlight = true;
+    let handedOff = false;
     try {
       let result: LumenExerciseRunTestsResult;
       try {
@@ -59,9 +92,10 @@ export class LumenTestController implements vscode.Disposable {
         await onNewlyCompleted?.(result.exerciseId);
       }
       const exerciseId = await this.resolveExerciseId(result);
-      await this.presentResult(result, exerciseId);
+      handedOff = await this.presentResult(result, exerciseId, reservation);
       return result;
     } finally {
+      if (!handedOff) reservation.release();
       this.testInFlight = false;
     }
   }
@@ -71,38 +105,36 @@ export class LumenTestController implements vscode.Disposable {
   // (mismo bug que tuvo el prompt de crear workspace en lumenEntry).
   private async presentResult(
     result: LumenExerciseRunTestsResult,
-    exerciseId: string
-  ): Promise<void> {
+    exerciseId: string,
+    reservation: ExternalRunReservation
+  ): Promise<boolean> {
     const report =
       result.status === "compile_error"
         ? this.renderCompileError(result)
         : this.renderExecutedTests(result);
 
-    if (isExternalRunActive()) {
-      void vscode.window.showWarningMessage(
-        "Ya hay una ventana externa de Lumen abierta. Ciérrala antes de probar de nuevo."
+    const reportPath = path.join(
+      os.tmpdir(),
+      `lumen-tests-${process.pid}-${Date.now()}-${randomUUID()}.txt`
+    );
+    let handedOff = false;
+    try {
+      await writeFile(reportPath, report, "utf8");
+      launchReport({
+        runnerPath: this.runnerPath,
+        reportPath,
+        title: `Lumen Tests - ${exerciseId}`,
+        exitCode: result.status === "passed" ? 0 : 1,
+        reservation
+      });
+      handedOff = true;
+    } catch (error) {
+      await unlink(reportPath).catch(() => undefined);
+      const message = error instanceof Error ? error.message : String(error);
+      this.outputChannel.appendLine(`External test report failed: ${message}`);
+      void vscode.window.showErrorMessage(
+        `Lumen no pudo abrir el reporte externo de pruebas: ${message}`
       );
-    } else {
-      const reportPath = path.join(
-        os.tmpdir(),
-        `lumen-tests-${process.pid}-${Date.now()}-${randomUUID()}.txt`
-      );
-      try {
-        await writeFile(reportPath, report, "utf8");
-        launchReport({
-          runnerPath: this.runnerPath,
-          reportPath,
-          title: `Lumen Tests - ${exerciseId}`,
-          exitCode: result.status === "passed" ? 0 : 1
-        });
-      } catch (error) {
-        await unlink(reportPath).catch(() => undefined);
-        const message = error instanceof Error ? error.message : String(error);
-        this.outputChannel.appendLine(`External test report failed: ${message}`);
-        void vscode.window.showErrorMessage(
-          `Lumen no pudo abrir el reporte externo de pruebas: ${message}`
-        );
-      }
     }
 
     if (result.status === "compile_error") {
@@ -111,7 +143,7 @@ export class LumenTestController implements vscode.Disposable {
         ? `${diagnostic.file ?? "main.c"}:${diagnostic.line ?? "?"} ${diagnostic.message}`
         : "El compilador no reportó un diagnóstico.";
       void vscode.window.showErrorMessage(`Error de compilación: ${detail}`);
-      return;
+      return handedOff;
     }
 
     if (result.status === "passed") {
@@ -119,12 +151,13 @@ export class LumenTestController implements vscode.Disposable {
       void vscode.window.showInformationMessage(
         `Solucion correcta: ${result.casesPassed}/${result.casesTotal} casos${completed}`
       );
-      return;
+      return handedOff;
     }
 
     void vscode.window.showWarningMessage(
       `Solucion incorrecta: ${result.casesPassed}/${result.casesTotal} casos — mira la ventana Lumen Tests`
     );
+    return handedOff;
   }
 
   private renderExecutedTests(result: LumenExerciseTestsExecuted): string {

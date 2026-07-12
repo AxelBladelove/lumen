@@ -11,7 +11,9 @@ import {
   type LumenEngineMethodMap,
   type LumenEngineRequest,
   type LumenEngineResponse,
+  type LumenExerciseActivateResult,
   type LumenExerciseImportResult,
+  type LumenExerciseMode,
   type LumenExerciseRunTestsResult,
   type LumenModuleSnapshotResult
 } from "./lumenEngineProtocol";
@@ -128,6 +130,14 @@ export class LumenEngineClient implements vscode.Disposable {
 
   async getActiveExercise(): Promise<LumenActiveExerciseResult> {
     return this.request("exercise.getActive", {});
+  }
+
+  async activateExercise(
+    exerciseId: string,
+    mode: LumenExerciseMode,
+    workspaceRoot: string
+  ): Promise<LumenExerciseActivateResult> {
+    return this.request("exercise.activate", { exerciseId, mode, workspaceRoot });
   }
 
   async runExerciseTests(): Promise<LumenExerciseRunTestsResult> {

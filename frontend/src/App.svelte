@@ -24,6 +24,10 @@
   // Fuente efectiva del modulo actual: arranca en el mock y pasa a
   // `engine:<routeId>/<moduleId>` en cuanto llega `route.module.data`.
   let currentDataSource = routeModuleDataSource;
+  // Estado autoritativo empujado por el Extension Host durante `exercise.activate`.
+  // La UI solo lo refleja: nunca activa localmente ni inflige transiciones.
+  let busyExerciseId: string | null = null;
+  let activationError: string | null = null;
   // El intro arranca visible siempre: en el host el panel solo existe durante
   // la entrada a Lumen Mode, y fuera del host es la unica pantalla de carga.
   let introVisible = true;
@@ -65,12 +69,13 @@
       );
     }
 
-    if (message.type === "route.exercise.completed") {
-      window.dispatchEvent(
-        new CustomEvent("lumen:exercise-completed", {
-          detail: { nodeId: message.payload.nodeId }
-        })
-      );
+    // Los completados llegan implícitos en el siguiente `route.module.data`:
+    // el snapshot mueve `activeExerciseId` y `RoutePathView` anima el delta. El
+    // mensaje explícito se ignora para no duplicar avances.
+
+    if (message.type === "route.activation.state") {
+      busyExerciseId = message.payload.busy?.exerciseId ?? null;
+      activationError = message.payload.error?.message ?? null;
     }
 
     if (message.type === "lumen.entry.transition" && message.payload.phase === "entering") {
@@ -604,6 +609,8 @@
 
 <RoutePathView
   module={routeModule}
+  {busyExerciseId}
+  {activationError}
   onNodeSelected={handleNodeSelected}
   onContinueRequest={handleContinueRequest}
 />

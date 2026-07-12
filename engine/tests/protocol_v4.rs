@@ -192,7 +192,7 @@ fn passed_runs_are_persisted_once_as_progress_and_failed_runs_do_not_regress() {
     let mut engine = RunningEngine::start(&work.data_dir());
 
     let health = engine.request(json!({ "id": "health", "method": "engine.healthCheck" }));
-    assert_eq!(health["result"]["protocolVersion"], 4);
+    assert_eq!(health["result"]["protocolVersion"], 5);
     let install_path = install_active(&mut engine, &package_path);
     let source_path = install_path.join("starter/main.c");
     fs::write(&source_path, CORRECT_SOURCE).expect("correct solution should write");
@@ -236,7 +236,7 @@ fn passed_runs_are_persisted_once_as_progress_and_failed_runs_do_not_regress() {
     }));
     assert_eq!(
         snapshot["result"]["snapshot"]["activeExerciseId"],
-        "c.strings.count-lowercase-01"
+        Value::Null
     );
     assert_eq!(
         snapshot["result"]["snapshot"]["nodes"][0]["status"],
@@ -250,7 +250,7 @@ fn passed_runs_are_persisted_once_as_progress_and_failed_runs_do_not_regress() {
             row.get(0)
         })
         .expect("schema version");
-    assert_eq!(schema_version, 4);
+    assert_eq!(schema_version, 5);
     let attempts: Vec<String> = connection
         .prepare("SELECT status FROM exercise_attempts ORDER BY id")
         .expect("attempt query")

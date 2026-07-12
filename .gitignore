@@ -2,8 +2,10 @@
 node_modules/
 
 # Build outputs
+bin/
 dist/
 frontend/dist/
+content/packages/
 extension/out/
 engine/target/
 .vscode-test/

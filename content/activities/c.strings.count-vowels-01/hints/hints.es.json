@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "hints": [
+    {
+      "order": 1,
+      "text": "Usa el mismo recorrido hasta '\\0' que practicaste en el ejercicio anterior."
+    },
+    {
+      "order": 2,
+      "text": "En cada iteracion, guarda o consulta el caracter actual antes de avanzar el indice."
+    },
+    {
+      "order": 3,
+      "text": "Un caracter es vocal minuscula si coincide con 'a', 'e', 'i', 'o' o 'u'. Une las comparaciones con ||."
+    },
+    {
+      "order": 4,
+      "text": "La condicion puede tener esta forma: c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u'. Si es verdadera, incrementa count."
+    }
+  ]
+}

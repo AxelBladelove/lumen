@@ -2,8 +2,8 @@
 
 ## Estado actual del repo
 
-La implementación presente en este repositorio cubre el primer slice de Lumen
-como extensión de VS Code y un slice inicial del Local Engine:
+La implementación presente cubre un slice local-first de Lumen como extensión
+de VS Code y Route Loop v5:
 
 - Extension Host en TypeScript con comandos `lumen.open`, `lumen.enterMode`,
   `lumen.exitMode`, `lumen.engineStatus`, `lumen.refreshWebview` y
@@ -13,7 +13,8 @@ como extensión de VS Code y un slice inicial del Local Engine:
 - WebviewPanel de editor `lumen.routePathPanel` como superficie real del
   frontend de Lumen.
 - Frontend Svelte 5 + Vite empaquetado dentro de `frontend/dist`.
-- Route Path View mockeada para `Ruta C / Módulo 2: Cadenas de caracteres`.
+- Route Path View para `Ruta C / Módulo 2: Cadenas de caracteres`, alimentada
+  por snapshots del engine y con datos mock como fallback de desarrollo.
 - Renderer WebGL con Three.js para el snake path.
 - Scripts locales de medición CDP, harness visual y sincronización local en
   `scripts/`.
@@ -21,18 +22,19 @@ como extensión de VS Code y un slice inicial del Local Engine:
 - Reportes JSONL de webview real bajo `.lumen-perf/`.
 - Assets de marca en `assets/brand/`, incluyendo logo y wordmark runtime.
 - Local Engine en Rust bajo `engine/`, con binario `lumen-engine`, protocolo
-  v2 por NDJSON/stdio y SQLite local en `lumen.db`.
-- Migraciones versionadas con schema v2, incluyendo `compile_attempts`.
-- Métodos de engine implementados: `engine.healthCheck`,
-  `session.getLastState`, `session.saveLastState`, `exercise.compile` y
-  `toolchain.check`.
+  v5 por NDJSON/stdio y SQLite local en `lumen.db`.
+- Migraciones versionadas hasta schema v5, con intentos de compilación y tests,
+  progreso, inventario instalado y working copy activa.
+- Métodos para sesión, toolchain, importación `.esex`, snapshots de ruta,
+  compilación, tests IO, progreso y activación de working copies.
 - Compilación con `F9` implementada vía GCC en PATH o MSYS2, diagnósticos
   estructurados y registro de intentos en `compile_attempts`.
 
 Todavía no existen Ask Tutor, Cloudflare Workers, D1, R2, KV, AI Gateway,
-Tauri, standalone, Tree-sitter, formato `.esex` ni gestión de ejercicios en
-el engine. Las secciones siguientes siguen siendo la arquitectura objetivo, no
-una lista de módulos ya implementados.
+Tauri, standalone ni Tree-sitter. `.esex` y la gestión local de ejercicios sí
+existen como slice; reset, gates avanzados y aislamiento total de ejecución
+siguen pendientes. Las secciones siguientes mezclan tecnología actual y
+arquitectura objetivo según lo indique cada módulo.
 
 ## Frontend
 

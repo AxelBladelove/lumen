@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 1,
+  "id": "c.strings.count-vowels-01",
+  "version": "1.0.0",
+  "kind": "practice",
+  "title": "Contar vocales minúsculas",
+  "summary": "Recorre una cadena y cuenta únicamente sus vocales minúsculas.",
+  "language": "c",
+  "status": "approved",
+
+  "primaryTopics": ["strings", "chars"],
+  "supportTopics": ["loops", "conditionals"],
+  "newTopicFocus": ["chars"],
+  "requiredMastery": [
+    { "id": "strings", "kind": "topic", "minimumMastery": 0.5 }
+  ],
+
+  "learningObjectives": [
+    {
+      "id": "classify-lowercase-vowels",
+      "description": "Clasificar cada carácter de una cadena como vocal minúscula o no vocal.",
+      "skillIds": ["chars.classify-character"],
+      "successCriterion": "Superar los grupos de tests classification y boundaries.",
+      "criticality": "critical"
+    }
+  ],
+
+  "skills": [
+    {
+      "id": "chars.classify-character",
+      "role": "assesses",
+      "weight": 1.0,
+      "criticality": "critical",
+      "evidenceStrength": 0.9
+    },
+    {
+      "id": "strings.traverse-null-terminated",
+      "role": "practices",
+      "weight": 0.8,
+      "criticality": "major",
+      "evidenceStrength": 0.7
+    },
+    {
+      "id": "loops.single-pass-iteration",
+      "role": "reinforces",
+      "weight": 0.5,
+      "criticality": "supporting",
+      "evidenceStrength": 0.4
+    }
+  ],
+
+  "prerequisites": [
+    {
+      "skillId": "strings.traverse-null-terminated",
+      "minimumMastery": 0.5,
+      "minimumConfidence": 0.35,
+      "kind": "hard",
+      "rationale": "La actividad parte del recorrido seguro practicado en el ejercicio anterior."
+    }
+  ],
+
+  "commonErrors": ["off-by-one", "missing-null-terminator"],
+  "misconceptions": [
+    {
+      "id": "strings.iterate-capacity-instead-of-terminator",
+      "role": "reveals",
+      "diagnosticSignals": ["test-group:boundaries", "error:out-of-bounds-access"],
+      "confidenceCeiling": 0.75
+    }
+  ],
+
+  "route": {
+    "routeEligible": true,
+    "routeId": "c",
+    "moduleId": "strings",
+    "orderInModule": 5,
+    "role": "required",
+    "masteryChallengeEligible": false,
+    "freeModeAfterUnlock": true,
+    "nodeType": "exercise"
+  },
+
+  "visibility": {
+    "categoryVisible": true,
+    "projectEligible": false,
+    "recommendable": true,
+    "searchable": true,
+    "previewableWhenLocked": true,
+    "featuredEligible": false,
+    "allowedContexts": ["route", "free"]
+  },
+
+  "difficulty": {
+    "score": 45,
+    "band": "easy+",
+    "conceptualLevel": 3,
+    "syntaxLoad": 4,
+    "stateControl": 1,
+    "loopDepth": 1,
+    "stringComplexity": 4,
+    "inputParsingComplexity": 3,
+    "hiddenTraps": 3,
+    "edgeCaseDensity": 3,
+    "expectedMinutes": 22,
+    "expectedMinutesRange": { "min": 12, "max": 32 }
+  },
+
+  "unlock": {
+    "requiresModules": ["loops", "functions"],
+    "requiresSkills": [
+      {
+        "skillId": "strings.traverse-null-terminated",
+        "minimumMastery": 0.5,
+        "minimumConfidence": 0.35
+      }
+    ],
+    "logic": "all"
+  },
+
+  "scaffolding": {
+    "scaffoldingLevel": 2,
+    "starterCompleteness": 0.35,
+    "guidedSteps": false,
+    "hintPolicy": {
+      "maxHints": 4,
+      "generationMode": "authored",
+      "progression": "increasing-specificity",
+      "revealSolution": false
+    }
+  },
+
+  "recommendationPolicy": {
+    "eligibleContexts": ["route", "free"],
+    "purposes": ["learn", "reinforce"],
+    "repeatable": true,
+    "cooldownDays": 3,
+    "diversityTags": ["text", "single-pass", "classification"]
+  },
+
+  "testContract": {
+    "contractVersion": 1,
+    "mode": "io",
+    "allowAdapter": false,
+    "allowAiAdapter": false,
+    "adapterPolicy": "forbidden",
+    "phases": ["compile", "public", "local-private"],
+    "comparator": "exact-after-normalization",
+    "normalization": ["crlf-to-lf", "trim-final-newline"],
+    "expectedExitCode": 0,
+    "deterministic": true,
+    "scoring": "weighted-groups",
+    "testGroups": [
+      { "id": "classification", "phase": "public", "weight": 0.6 },
+      { "id": "boundaries", "phase": "local-private", "weight": 0.4 }
+    ],
+    "limits": {
+      "timeLimitMs": 2000,
+      "memoryLimitMb": 128,
+      "outputLimitKb": 256
+    }
+  },
+
+  "evidenceContract": {
+    "groups": [
+      {
+        "source": "test-group:classification",
+        "skillId": "chars.classify-character",
+        "weight": 1.0,
+        "polarity": "bidirectional",
+        "confidence": 0.9,
+        "maxEvidencePerAttempt": 1.0,
+        "requiresUnassisted": false
+      },
+      {
+        "source": "test-group:boundaries",
+        "skillId": "strings.traverse-null-terminated",
+        "misconceptionId": "strings.iterate-capacity-instead-of-terminator",
+        "weight": 0.8,
+        "polarity": "bidirectional",
+        "confidence": 0.8
+      }
+    ]
+  },
+
+  "execution": {
+    "languageStandard": "c17",
+    "compileProfile": "c17-console",
+    "executionMode": "console",
+    "entrypoint": "starter/main.c",
+    "sourceEncoding": "utf-8",
+    "requiredHeaders": ["stdio.h"],
+    "warningsPolicy": "recommended",
+    "inputModel": "stdin-lines",
+    "outputModel": "stdout-text",
+    "sandboxProfile": "c-console-default"
+  },
+
+  "sandbox": {
+    "network": false,
+    "filesystemScope": "exercise-directory",
+    "childProcesses": false,
+    "stdin": true,
+    "timeLimitMs": 2000,
+    "memoryLimitMb": 128,
+    "outputLimitKb": 256,
+    "temporaryDiskMb": 32,
+    "processLimit": 1
+  },
+
+  "content": {
+    "statement": { "path": "statement.md", "locale": "es", "required": true },
+    "starter": [
+      { "path": "starter/main.c", "role": "entrypoint", "editable": true, "required": true }
+    ],
+    "tests": [
+      { "path": "tests/io-cases.json", "role": "test-data", "editable": false, "required": true }
+    ],
+    "hints": [
+      { "path": "hints/hints.es.json", "locale": "es", "editable": false, "required": false }
+    ]
+  },
+
+  "compatibility": {
+    "minEngineVersion": "0.1.0",
+    "taxonomyVersion": 1
+  }
+}

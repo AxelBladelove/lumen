@@ -17,13 +17,16 @@ lumen.exitMode
 lumen.engineStatus
 lumen.refreshWebview
 lumen.compileCurrentExercise
+lumen.testCurrentExercise
+lumen.importExercise
 ```
 
-El repo contribuye dos keybindings:
+El repo contribuye tres keybindings:
 
 ```txt
 Esc -> lumen.exitMode
 F9  -> lumen.compileCurrentExercise
+F10 -> lumen.testCurrentExercise
 ```
 
 `Esc` está activo solo con `lumen.inMode` y con guardas de UI temporal
@@ -33,16 +36,15 @@ extensión de forma fiable, así que el frontend escucha `Escape` y emite el
 mensaje `lumen.exit.requested`; el Extension Host lo traduce a
 `lumen.exitMode`. Botón/tecla y comando comparten así la misma lógica.
 
-`F9` ya existe en `package.json` como `lumen.compileCurrentExercise`, con el
-título `Lumen: Compilar Ejercicio Actual`, pero su `when` actual es
-transicional: `editorTextFocus && resourceExtname == .c`. El objetivo de este
-plano sigue siendo `lumen.inMode && lumen.hasActiveExercise`, pendiente hasta
-que el engine gestione el ejercicio activo.
+`F9` y `F10` resuelven el mismo entrypoint activo del Engine Protocol v5. Sus
+guardas exigen `lumen.inMode`, `lumen.hasActiveExercise` y foco en el editor;
+no invaden proyectos C fuera de Lumen ni prueban un ejercicio diferente al que
+compilan.
 
 No existen todavía `lumen.askTutor` ni los keybindings de `Ctrl + Shift + R` o
 `Ctrl + B` propios de Lumen. La extensión setea `lumen.inMode` y `lumen.mode`,
-la base de los `when` futuros. Las context keys `lumen.hasActiveExercise`,
-`lumen.temporaryUiOpen` y `lumen.hasSelection` todavía no se setean.
+la base de los `when` futuros. `lumen.hasActiveExercise` ya refleja una working
+copy lista; `lumen.temporaryUiOpen` y `lumen.hasSelection` todavía no se setean.
 
 Tambien existen scripts npm/Bun para build local y performance, pero no son
 comandos contribuidos a VS Code.

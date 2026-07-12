@@ -33,7 +33,11 @@ fn output_text(output: &Output) -> String {
 }
 
 fn assert_removed(path: &Path) {
-    assert!(!path.exists(), "{} should have been removed", path.display());
+    assert!(
+        !path.exists(),
+        "{} should have been removed",
+        path.display()
+    );
 }
 
 #[test]
@@ -58,7 +62,10 @@ fn run_prints_codeblocks_footer_and_manages_lock() {
     while !lock.exists() && Instant::now() < deadline {
         thread::sleep(Duration::from_millis(10));
     }
-    assert!(lock.exists(), "lock should exist while the child is running");
+    assert!(
+        lock.exists(),
+        "lock should exist while the child is running"
+    );
 
     let output = child.wait_with_output().expect("runner should finish");
     assert_eq!(output.status.code(), Some(3));
@@ -77,6 +84,11 @@ fn report_prints_and_removes_report_and_lock() {
     let report = temp.join("report.txt");
     let contents = "\u{1b}[31mError de prueba\u{1b}[0m\n";
     fs::write(&report, contents).expect("report should be written");
+    fs::write(
+        &lock,
+        format!("reservation:{}:test-token", std::process::id()),
+    )
+    .expect("reservation should be written");
 
     let output = Command::new(runner())
         .arg("report")
@@ -84,6 +96,8 @@ fn report_prints_and_removes_report_and_lock() {
         .arg("Lumen report")
         .arg("--lock")
         .arg(&lock)
+        .arg("--lock-token")
+        .arg("test-token")
         .arg("--exit-code")
         .arg("1")
         .arg("--no-wait")

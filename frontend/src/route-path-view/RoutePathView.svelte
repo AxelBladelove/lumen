@@ -15,6 +15,11 @@
   export let onContinueRequest:
     | ((payload: { fromNodeId?: string; nextNodeId?: string }) => void)
     | undefined = undefined;
+  // Estado autoritativo empujado por el Extension Host: `busy` señala que el
+  // engine está activando/abriendo un ejercicio; `error` el último fallo de
+  // activación. La UI solo renderiza (no invita) y no adelanta la ruta.
+  export let busyExerciseId: string | null = null;
+  export let activationError: string | null = null;
 
   const stage = { width: 1086, height: 1448 };
   let scale = 1;
@@ -84,7 +89,6 @@
     mounted = true;
     updateScale();
     window.addEventListener("resize", updateScale);
-    window.addEventListener("lumen:exercise-completed", handleExerciseCompletedEvent);
     displayedLockedStartT = lockedStartT;
     splitAnimationTarget = lockedStartT;
     splitAnimationReady = true;
@@ -92,7 +96,6 @@
 
     return () => {
       window.removeEventListener("resize", updateScale);
-      window.removeEventListener("lumen:exercise-completed", handleExerciseCompletedEvent);
       cancelAnimationFrame(splitAnimationFrame);
       nodeMotionTimers.forEach((timer) => window.clearTimeout(timer));
     };
@@ -125,14 +128,18 @@
     (window as any).__LUMEN_DEFERRED_STATUS__.routeVisuals = "loaded";
   }
 
+  // Índice mostrado en pantalla. Nunca se muta desde clicks del usuario: solo
+  // reacciona al snapshot que empuja el engine (via el Extension Host).
   let activeNodeIndex = -1;
 
-  $: initialActiveIndex = Math.max(
-    0,
-    module.nodes.findIndex((node) => node.status === "active")
-  );
-  $: if (activeNodeIndex < 0 || !module.nodes[activeNodeIndex]) {
-    activeNodeIndex = initialActiveIndex;
+  $: snapshotActiveIndex = module.nodes.findIndex((node) => node.status === "active");
+  // Sincroniza el índice mostrado con el snapshot. Si el snapshot avanza a un
+  // índice mayor, corre la animación forward y transitions. Si retrocede o es
+  // el mismo, ajusta sin animar (los saltos hacia atrás sólo pasan por
+  // resnapshots del engine, nunca por click). `activeNodeIndex < 0` es el
+  // primer render: se posiciona sin animación.
+  $: if (mounted && splitAnimationReady && !isAdvancing && snapshotActiveIndex !== activeNodeIndex) {
+    reconcileToSnapshotActive(snapshotActiveIndex);
   }
   $: interactiveNodes = module.nodes.map((node, index) => ({
     ...node,
@@ -141,7 +148,6 @@
     reviewMode: node.id === reviewNodeId && index < activeNodeIndex ? "repeat" as const : undefined
   }));
   $: activeNode = interactiveNodes.find((node) => node.status === "active");
-  $: nextNode = interactiveNodes[activeNodeIndex + 1];
   $: firstLockedNode = interactiveNodes.find((node) => node.status === "locked");
   $: lockedStartT = activeNode
     ? activeNode.pathT
@@ -149,26 +155,25 @@
   $: if (!splitAnimationReady) {
     displayedLockedStartT = lockedStartT;
   }
-  $: completedCount = module.completed + Math.max(0, activeNodeIndex - initialActiveIndex);
-  $: completionPercent = Math.round((completedCount / module.total) * 100);
-  $: nextTargetTitle = nextNode?.title ?? "Módulo completado";
-  $: canContinue = Boolean(nextNode) && !isAdvancing;
+  // Todos los contadores son autoritativos del engine: no se inflan localmente.
+  $: completedCount = module.completed;
+  $: completionPercent = module.percent;
+  $: nextTargetTitle = module.nextAction.targetTitle || "Módulo completado";
+  $: canContinue = Boolean(activeNode) && !isAdvancing && !busyExerciseId;
 
-  function statusForNode(node: RoutePathNode, index: number, currentIndex: number): NodeStatus {
-    if (index < currentIndex) return "completed";
-    if (index === currentIndex) return "active";
-    if (node.type === "challenge") return "challenge";
-    return "locked";
+  function statusForNode(node: RoutePathNode, _index: number, _currentIndex: number): NodeStatus {
+    // `challenge` is a visual treatment for a locked challenge, not a locally
+    // invented progression state. All unlock/completion authority stays in Rust.
+    if (node.status === "locked" && node.type === "challenge") return "challenge";
+    return node.status;
   }
 
   function continueToNextNode() {
     performance.mark("lumen:continue-pressed");
-    const fromNodeId = activeNode?.id;
-    const nextNodeId = nextNode?.id;
-    completeActiveExercise();
+    // La UI ya no adelanta la ruta: solo delega en el Extension Host. La
+    // animación se dispara cuando llegue un snapshot con nuevo activeExerciseId.
     onContinueRequest?.({
-      fromNodeId,
-      nextNodeId
+      fromNodeId: activeNode?.id
     });
   }
 
@@ -178,7 +183,7 @@
     const selectedIndex = module.nodes.findIndex((candidate) => candidate.id === node.id);
     if (selectedIndex < 0) return;
 
-    if (selectedIndex < activeNodeIndex) {
+    if (node.status === "completed") {
       reviewNodeId = reviewNodeId === node.id ? null : node.id;
       return;
     }
@@ -188,20 +193,26 @@
     }
   }
 
-  function handleExerciseCompletedEvent(event: Event) {
-    const completedNodeId = (event as CustomEvent<{ nodeId?: string }>).detail?.nodeId;
-    const currentNode = module.nodes[activeNodeIndex];
-    if (completedNodeId && currentNode?.id !== completedNodeId) return;
-    completeActiveExercise();
-  }
-
-  function completeActiveExercise() {
-    if (!canContinue) return;
-    const targetIndex = activeNodeIndex + 1;
+  function reconcileToSnapshotActive(targetIndex: number) {
     const targetNode = module.nodes[targetIndex];
-    if (!targetNode) return;
-    const previousNode = module.nodes[activeNodeIndex];
 
+    if (activeNodeIndex < 0) {
+      activeNodeIndex = targetIndex;
+      if (targetNode) displayedLockedStartT = targetNode.pathT;
+      return;
+    }
+
+    if (!targetNode || targetIndex <= activeNodeIndex) {
+      // Snapshot retrocedió (reimport, recarga) o no cambió: encaje directo.
+      activeNodeIndex = targetIndex;
+      if (targetNode) displayedLockedStartT = targetNode.pathT;
+      return;
+    }
+
+    // Solo avanzar (targetIndex > activeNodeIndex): un paso a la vez basta para
+    // el módulo strings; si el engine reporta un salto múltiple, animar al
+    // final directo es aceptable y respeta el contrato "renderiza el snapshot".
+    const previousNode = module.nodes[activeNodeIndex];
     isAdvancing = true;
     advanceCommitDone = false;
     reviewNodeId = null;
@@ -309,7 +320,12 @@
   let progressFrameNotMarked = false;
 </script>
 
-<main class="lumen-route-app" style={themeVars(module.theme)}>
+<main
+  class="lumen-route-app"
+  class:route-busy={Boolean(busyExerciseId)}
+  aria-busy={Boolean(busyExerciseId)}
+  style={themeVars(module.theme)}
+>
   <div
     class="stage-viewport"
     style={`width:${layoutWidth * scale}px; height:${layoutHeight * scale}px;`}
@@ -367,4 +383,9 @@
       {/if}
     </section>
   </div>
+  {#if activationError}
+    <div class="route-activation-error" role="alert">
+      {activationError}
+    </div>
+  {/if}
 </main>

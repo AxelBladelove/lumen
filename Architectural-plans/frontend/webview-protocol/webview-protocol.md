@@ -21,6 +21,11 @@ El protocolo actual tiene version:
 lumenWebviewProtocolVersion = 1
 ```
 
+Esta versión del wire frontend-host convive con Engine Protocol v5; son
+versiones independientes. El slice Route Loop ya transporta snapshots reales
+y acciones de activación, aunque mantiene mensajes de entrada y performance
+del slice visual original.
+
 El bridge del frontend usa `window.acquireVsCodeApi()` cuando corre dentro de
 VS Code. En navegador normal, `post()` no hace nada porque no hay API de VS
 Code disponible.
@@ -81,7 +86,10 @@ status
 nodeType
 ```
 
-Hoy solo se registra en el output channel `Lumen`.
+El Extension Host trata este mensaje como intención. Para nodos `active` o
+`completed` solicita `exercise.activate`, abre el `entrypointPath` de la
+working copy y publica datos frescos. Un nodo `locked` no se activa; el engine
+mantiene la misma regla si recibe una llamada directa.
 
 ### `route.continue.requested`
 
@@ -94,8 +102,8 @@ fromNodeId
 nextNodeId
 ```
 
-Hoy no avanza el engine. La ruta ya avanzo localmente en el frontend mock y el
-mensaje queda como telemetria/contrato futuro.
+El Extension Host no confía en `nextNodeId`: consulta un snapshot fresco y
+activa su `activeExerciseId`. La webview no cambia progreso por anticipado.
 
 ### `lumen.exit.requested`
 
@@ -145,7 +153,9 @@ message
 
 ### `lumen.entry.state`
 
-Informa el estado de entrada de Lumen Mode mock.
+Informa el estado de entrada de Lumen Mode. El nombre de fase conserva por
+compatibilidad el literal histórico `mock-route-path-view`, aunque el módulo
+puede recibir datos reales del engine.
 
 Incluye:
 
@@ -189,10 +199,35 @@ modulo a pantalla completa.
 
 ### `route.module.snapshot`
 
-Permite reemplazar el modulo visible desde la extension.
+Permite reemplazar el módulo visual completo. Se conserva para fallback,
+harness y compatibilidad con el slice anterior.
 
-Hoy el frontend soporta el mensaje, pero el provider actual no lo produce
-desde un engine real.
+### `route.module.data`
+
+Proyecta el snapshot del engine sin exigir que Extension Host construya todo
+el modelo visual:
+
+```txt
+source: "engine"
+routeId
+moduleId
+activeExerciseId
+nodes[]: exerciseId, title, primaryTopics, nodeType, orderInModule, status
+```
+
+Los estados `completed`, `active` y `locked` se renderizan sin progresión
+local alternativa.
+
+### `route.activation.state`
+
+Comunica el estado transitorio de una activación:
+
+```txt
+busy: { exerciseId } | null
+error: { exerciseId?, message } | null
+```
+
+Sirve para feedback de UI; no es una fuente de progreso.
 
 ### `route.exercise.completed`
 
@@ -207,7 +242,8 @@ Todo mensaje importante debe tener `type`.
 
 El frontend no debe asumir que `acquireVsCodeApi` existe.
 
-El protocolo actual es mock y version 1.
+El protocolo frontend-host actual es version 1 y está parcialmente integrado
+con Engine Protocol v5.
 
 `perf.report` es instrumentacion local, no parte del producto pedagogico.
 
@@ -219,5 +255,5 @@ la webview.
 Frontend y Extension Host tienen un contrato pequeno, tipado y facil de
 inspeccionar.
 
-La vista mock puede funcionar en navegador sin VS Code, pero cuando corre
-dentro de la extension puede reportar estado, interaccion y performance.
+La vista puede funcionar en navegador con datos fallback. Dentro de la
+extension recibe estado real, solicita activación y reporta performance.

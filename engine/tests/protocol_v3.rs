@@ -173,7 +173,7 @@ fn migration_three_health_and_import_register_the_activity() {
     let mut engine = RunningEngine::start(&work.data_dir());
 
     let health = engine.request(json!({ "id": "health", "method": "engine.healthCheck" }));
-    assert_eq!(health["result"]["protocolVersion"], 4);
+    assert_eq!(health["result"]["protocolVersion"], 5);
     assert_eq!(health["result"]["dbStatus"], "ready");
 
     let imported = engine.request(import_request("import", &package_path));
@@ -206,7 +206,7 @@ fn migration_three_health_and_import_register_the_activity() {
             row.get(0)
         })
         .expect("schema version");
-    assert_eq!(max_version, 4);
+    assert_eq!(max_version, 5);
     let row: (String, String, String, String, String, i64, String) = connection
         .query_row(
             "SELECT title, entrypoint, route_id, module_id, primary_topics,
@@ -402,7 +402,7 @@ fn get_active_returns_none_missing_and_ready() {
 }
 
 #[test]
-fn module_snapshot_orders_nodes_and_marks_only_the_active_one() {
+fn module_snapshot_orders_nodes_and_marks_first_incomplete_active() {
     let work = TestDirectory::new("snapshot");
     let late = package(&work, "late", "c.strings.zeta-01", "1.0.0", None);
     let second = package(&work, "second", "c.strings.beta-01", "1.0.0", Some(2));
@@ -418,7 +418,7 @@ fn module_snapshot_orders_nodes_and_marks_only_the_active_one() {
         "params": { "routeId": "c", "moduleId": "strings" }
     }));
     let snapshot = &response["result"]["snapshot"];
-    assert_eq!(snapshot["activeExerciseId"], "c.strings.beta-01");
+    assert_eq!(snapshot["activeExerciseId"], "c.strings.alpha-01");
     assert_eq!(
         snapshot["nodes"]
             .as_array()
@@ -432,8 +432,8 @@ fn module_snapshot_orders_nodes_and_marks_only_the_active_one() {
             "c.strings.zeta-01"
         ]
     );
-    assert_eq!(snapshot["nodes"][0]["status"], "locked");
-    assert_eq!(snapshot["nodes"][1]["status"], "active");
+    assert_eq!(snapshot["nodes"][0]["status"], "active");
+    assert_eq!(snapshot["nodes"][1]["status"], "locked");
     assert_eq!(snapshot["nodes"][2]["orderInModule"], Value::Null);
     assert_eq!(snapshot["nodes"][1]["primaryTopics"], json!(["strings"]));
 

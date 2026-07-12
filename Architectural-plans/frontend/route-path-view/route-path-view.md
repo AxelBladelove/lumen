@@ -9,7 +9,9 @@ Archivo: `Architectural-plans/frontend/route-path-view/route-path-view.md`
 ## Estado actual del repo
 
 La implementación actual está en `frontend/src/route-path-view/` y renderiza
-un mock de `Ruta C / Módulo 2: Cadenas de caracteres`.
+`Ruta C / Módulo 2: Cadenas de caracteres`. Puede arrancar con datos fallback,
+pero el estado pedagógico real llega en snapshots del Local Engine a través
+del Extension Host.
 
 Archivos principales:
 
@@ -38,17 +40,18 @@ La vista actual:
   graphite/purple.
 - Monta nodos, progreso, hero y CTA bajo `deferredVisualsReady`, que hoy se
   activa inmediatamente y conserva el contrato de estado `routeVisuals`.
-- Permite avanzar localmente al siguiente nodo con animación de ruta,
-  transición `complete/unlock` y actualización de progreso.
+- Anima transiciones `complete/unlock` a partir del snapshot autoritativo; la
+  intención de continuar no desbloquea nodos por sí sola.
 - Permite seleccionar nodos completados para estado visual de repetición.
 - Respeta `prefers-reduced-motion` para saltar o apagar animaciones pesadas.
 - Expone marks de performance como `lumen:route-mounted`,
   `lumen:continue-pressed`, `lumen:route-advance-start` y
   `lumen:route-advance-first-frame`.
 
-Lo que todavía no existe: datos reales del Local Engine, persistencia,
-desbloqueos reales, explicación de bloqueo, estados de error, fallback WebGL
-visible, conexión a ejercicios reales o a Route Mode completo.
+Route Loop v5 aporta datos reales, persistencia, activación y desbloqueo
+secuencial. Todavía faltan explicación rica de bloqueo, estados completos de
+error/empty/loading, fallback WebGL visible, gates no secuenciales y módulos
+dinámicos más allá del slice actual.
 
 Es la pantalla tipo Duolingo donde el usuario ve un módulo de una ruta, su progreso, el snake path, los nodos completados, el nodo activo, los nodos bloqueados y el siguiente paso recomendado.
 
@@ -556,8 +559,9 @@ La vista no debe inventar estos datos en la arquitectura final.
 
 Vienen del Local Engine y metadata cacheada.
 
-En el repo actual vienen de `mockRouteModule.ts`, con opción de recibir un
-mensaje `route.module.snapshot` desde la extensión/webview bridge.
+En el repo actual `mockRouteModule.ts` es fallback visual. El estado real se
+recibe mediante `route.module.data`/`route.module.snapshot` desde el bridge y
+la UI no reinterpreta `completed`, `active` ni `locked`.
 
 ## Datos de nodo
 

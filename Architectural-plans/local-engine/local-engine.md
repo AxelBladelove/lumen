@@ -8,23 +8,22 @@ Archivo: `Architectural-plans/local-engine/local-engine.md`
 
 ## Estado actual del repo
 
-Existe el bootstrap del Local Engine: el crate Rust `engine/` compila el
-binario `lumen-engine`, que habla NDJSON por stdio según
-`Architectural-plans/extension-engine-bridge/protocol-v2.md`, abre SQLite en
-`<data-dir>/lumen.db` con migraciones versionadas y responde
-`engine.healthCheck`, `session.getLastState`, `session.saveLastState`,
-`exercise.compile` y `toolchain.check` con errores estructurados. Tiene tests
-de integración que lanzan el binario real (`cargo test` en `engine/`).
+El crate Rust `engine/` compila `lumen-engine`, habla NDJSON por stdio según
+`Architectural-plans/extension-engine-bridge/protocol-v5.md` y abre SQLite en
+`<data-dir>/lumen.db` con migraciones versionadas. Implementa sesión,
+toolchain, validación e importación `.esex`, inventario, snapshot secuencial de
+ruta, compilación, tests IO, progreso y activación de working copies. Los tests
+de integración lanzan el binario real (`cargo test` en `engine/`).
 
-La compilación existe como slice transicional de `F9`: la extensión resuelve
-el archivo `.c` activo, el engine descubre GCC en PATH o rutas conocidas de
-MSYS2, compila con `-Wall -Wextra -g` hacia `.lumen-build/`, devuelve
-diagnósticos estructurados y registra intentos en `compile_attempts`.
+La compilación con F9 y las pruebas con F10 usan GCC local. Route Loop v5
+materializa el starter editable fuera de la instalación y hace que ambas
+operaciones resuelvan el source de esa working copy; manifest y tests siguen
+viniendo del contenido instalado verificado.
 
-Todavía no hay Tree-sitter, colección de ejercicios, gates de ruta, Ask Tutor
-ni materialización de archivos: esas secciones de este documento siguen siendo
-arquitectura objetivo. `extension/src/lumenEntryState.ts` sigue calculando el
-estado de entrada de la webview mock por su cuenta.
+Todavía no hay Tree-sitter, gates pedagógicos no secuenciales, Ask Tutor,
+catálogo remoto, reset ni migración de working copies. El runner aplica
+timeouts y límites implementados, pero el repo no afirma todavía un sandbox
+completo de red, filesystem, memoria y descendientes.
 
 El Local Engine es la capa que ejecuta la lógica importante del producto en la máquina del usuario. No es la UI, no es la extensión de VS Code y no es la base de datos. Es el componente que decide, valida, prepara y ejecuta operaciones reales.
 

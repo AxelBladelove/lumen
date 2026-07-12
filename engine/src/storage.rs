@@ -6,7 +6,7 @@ use rusqlite::{params, Connection, OptionalExtension, Transaction};
 
 use crate::state::{LastState, StatePatch};
 
-const CURRENT_SCHEMA_VERSION: i64 = 4;
+const CURRENT_SCHEMA_VERSION: i64 = 5;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ExerciseProgressResult {
@@ -28,6 +28,14 @@ pub(crate) struct InstalledActivity {
     pub node_type: Option<String>,
     pub primary_topics: String,
     pub manifest_json: String,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ActiveExerciseRecord {
+    pub activity_id: String,
+    pub version: String,
+    pub workspace_path: String,
+    pub entrypoint_path: String,
 }
 
 pub(crate) struct Database {
@@ -204,10 +212,35 @@ impl Database {
         self.capture_runtime_error(result)
     }
 
+    pub(crate) fn get_active_exercise(&mut self) -> Result<Option<ActiveExerciseRecord>, String> {
+        let result = match &self.state {
+            DatabaseState::Ready(connection) => query_active_exercise(connection),
+            DatabaseState::Error(error) => return Err(error.clone()),
+        };
+        self.capture_runtime_error(result)
+    }
+
+    pub(crate) fn activate_exercise(
+        &mut self,
+        activity: &InstalledActivity,
+        mode: &str,
+        workspace_path: &Path,
+        entrypoint_path: &Path,
+    ) -> Result<ActiveExerciseRecord, String> {
+        let result = match &mut self.state {
+            DatabaseState::Ready(connection) => {
+                persist_active_exercise(connection, activity, mode, workspace_path, entrypoint_path)
+            }
+            DatabaseState::Error(error) => return Err(error.clone()),
+        };
+        self.capture_runtime_error(result)
+    }
+
     fn capture_runtime_error<T>(&mut self, result: Result<T, String>) -> Result<T, String> {
         if let Err(error) = &result {
-            eprintln!("SQLite dejo de estar disponible: {error}");
-            self.state = DatabaseState::Error(error.clone());
+            // Runtime errors may be transient (notably SQLITE_BUSY when two VS Code
+            // windows overlap). Keep the connection usable and let the caller retry.
+            eprintln!("SQLite operation failed: {error}");
         }
         result
     }
@@ -223,6 +256,15 @@ fn open_and_migrate(data_dir: &Path, db_path: &Path) -> Result<Connection, Strin
 
     let mut connection = Connection::open(db_path)
         .map_err(|error| format!("no se pudo abrir {}: {error}", db_path.display()))?;
+    connection
+        .busy_timeout(std::time::Duration::from_secs(5))
+        .map_err(|error| format!("no se pudo configurar busy_timeout: {error}"))?;
+    connection
+        .pragma_update(None, "journal_mode", "WAL")
+        .map_err(|error| format!("no se pudo activar WAL: {error}"))?;
+    connection
+        .pragma_update(None, "foreign_keys", "ON")
+        .map_err(|error| format!("no se pudieron activar foreign keys: {error}"))?;
     run_migrations(&mut connection)?;
     Ok(connection)
 }
@@ -271,9 +313,32 @@ fn run_migrations(connection: &mut Connection) -> Result<(), String> {
         apply_migration_4(&transaction)?;
     }
 
+    if version < 5 {
+        apply_migration_5(&transaction)?;
+    }
+
     transaction
         .commit()
         .map_err(|error| format!("no se pudo confirmar la migracion: {error}"))
+}
+
+fn apply_migration_5(transaction: &Transaction<'_>) -> Result<(), String> {
+    transaction
+        .execute_batch(
+            "CREATE TABLE active_exercise (
+              id INTEGER PRIMARY KEY CHECK (id = 1),
+              activity_id TEXT NOT NULL,
+              version TEXT NOT NULL,
+              mode TEXT NOT NULL CHECK (mode IN ('route', 'free')),
+              workspace_path TEXT NOT NULL,
+              entrypoint_path TEXT NOT NULL,
+              activated_at TEXT NOT NULL
+            );
+
+            INSERT INTO schema_migrations (version, applied_at)
+            VALUES (5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+        )
+        .map_err(|error| format!("fallo la migracion 5: {error}"))
 }
 
 fn apply_migration_4(transaction: &Transaction<'_>) -> Result<(), String> {
@@ -608,6 +673,90 @@ fn query_completed_activity_ids(connection: &Connection) -> Result<HashSet<Strin
         .map_err(|error| format!("no se pudo leer exercise_progress: {error}"))?;
     rows.collect::<Result<HashSet<String>, _>>()
         .map_err(|error| format!("no se pudo decodificar exercise_progress: {error}"))
+}
+
+fn query_active_exercise(connection: &Connection) -> Result<Option<ActiveExerciseRecord>, String> {
+    connection
+        .query_row(
+            "SELECT activity_id, version, workspace_path, entrypoint_path
+             FROM active_exercise WHERE id = 1",
+            [],
+            |row| {
+                Ok(ActiveExerciseRecord {
+                    activity_id: row.get(0)?,
+                    version: row.get(1)?,
+                    workspace_path: row.get(2)?,
+                    entrypoint_path: row.get(3)?,
+                })
+            },
+        )
+        .optional()
+        .map_err(|error| format!("no se pudo leer active_exercise: {error}"))
+}
+
+fn persist_active_exercise(
+    connection: &mut Connection,
+    activity: &InstalledActivity,
+    mode: &str,
+    workspace_path: &Path,
+    entrypoint_path: &Path,
+) -> Result<ActiveExerciseRecord, String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| format!("no se pudo iniciar la activacion: {error}"))?;
+    transaction
+        .execute(
+            "INSERT INTO active_exercise (
+                id, activity_id, version, mode, workspace_path, entrypoint_path, activated_at
+             ) VALUES (
+                1, ?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+             )
+             ON CONFLICT(id) DO UPDATE SET
+                activity_id = excluded.activity_id,
+                version = excluded.version,
+                mode = excluded.mode,
+                workspace_path = excluded.workspace_path,
+                entrypoint_path = excluded.entrypoint_path,
+                activated_at = excluded.activated_at",
+            params![
+                activity.activity_id,
+                activity.version,
+                mode,
+                workspace_path.to_string_lossy(),
+                entrypoint_path.to_string_lossy(),
+            ],
+        )
+        .map_err(|error| format!("no se pudo persistir active_exercise: {error}"))?;
+    transaction
+        .execute(
+            "INSERT INTO user_state (
+                id, last_mode, last_route_id, last_module_id, last_exercise_id, updated_at
+             ) VALUES (
+                1, ?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+             )
+             ON CONFLICT(id) DO UPDATE SET
+                last_mode = excluded.last_mode,
+                last_route_id = excluded.last_route_id,
+                last_module_id = excluded.last_module_id,
+                last_exercise_id = excluded.last_exercise_id,
+                updated_at = excluded.updated_at",
+            params![
+                mode,
+                activity.route_id,
+                activity.module_id,
+                activity.activity_id,
+            ],
+        )
+        .map_err(|error| format!("no se pudo actualizar user_state al activar: {error}"))?;
+    transaction
+        .commit()
+        .map_err(|error| format!("no se pudo confirmar la activacion: {error}"))?;
+    Ok(ActiveExerciseRecord {
+        activity_id: activity.activity_id.clone(),
+        version: activity.version.clone(),
+        workspace_path: workspace_path.to_string_lossy().into_owned(),
+        entrypoint_path: entrypoint_path.to_string_lossy().into_owned(),
+    })
 }
 
 fn persist_installed_activity(

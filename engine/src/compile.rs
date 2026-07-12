@@ -141,11 +141,7 @@ pub(crate) fn discover_gcc(cached_path: Option<&str>) -> Option<PathBuf> {
     // que garantiza paridad con el Code::Blocks de la universidad, y un cache
     // viejo apuntando a MSYS2 no debe impedir adoptarlo.
     find_gcc_in_lumen_toolchains()
-        .or_else(|| {
-            cached_path
-                .map(PathBuf::from)
-                .filter(|path| path.is_file())
-        })
+        .or_else(|| cached_path.map(PathBuf::from).filter(|path| path.is_file()))
         .or_else(find_gcc_on_path)
         .or_else(find_gcc_in_msys2)
 }
@@ -153,7 +149,9 @@ pub(crate) fn discover_gcc(cached_path: Option<&str>) -> Option<PathBuf> {
 #[cfg(windows)]
 fn find_gcc_in_lumen_toolchains() -> Option<PathBuf> {
     let local_app_data = env::var_os("LOCALAPPDATA")?;
-    let toolchains = PathBuf::from(local_app_data).join("Lumen").join("toolchains");
+    let toolchains = PathBuf::from(local_app_data)
+        .join("Lumen")
+        .join("toolchains");
     let mut candidates: Vec<PathBuf> = fs::read_dir(&toolchains)
         .ok()?
         .flatten()

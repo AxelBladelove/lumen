@@ -2243,3 +2243,34 @@ button {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* Estado autoritativo del engine mientras corre `exercise.activate`: la UI se
+   marca ocupada (cursor + ligero fade) sin cambiar el layout ni la ruta. */
+.lumen-route-app.route-busy {
+  cursor: progress;
+}
+
+.lumen-route-app.route-busy .route-stage {
+  opacity: 0.82;
+  transition: opacity 160ms ease;
+}
+
+/* Banner de error de activación empujado por el engine. Se ancla arriba, sin
+   tapar la ruta, y hereda la paleta del tema para mantener paridad visual. */
+.route-activation-error {
+  position: fixed;
+  left: 50%;
+  top: 20px;
+  z-index: 40;
+  max-width: min(560px, calc(100vw - 40px));
+  padding: 10px 18px;
+  border: 1px solid rgba(255, 128, 128, 0.42);
+  border-radius: 14px;
+  color: #ffe4e4;
+  background: rgba(52, 6, 12, 0.88);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  font-size: 14px;
+  line-height: 1.4;
+  transform: translateX(-50%);
+  pointer-events: none;
+}

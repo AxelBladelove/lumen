@@ -3,18 +3,20 @@ import {
   existsSync,
   mkdirSync,
   readdirSync,
+  readFileSync,
   renameSync,
   rmSync,
-  readFileSync
+  statSync
 } from "node:fs";
 import { homedir } from "node:os";
-import { join, dirname } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
 const extensionId = `${pkg.publisher}.${pkg.name}-${pkg.version}`;
 const targetDir = join(homedir(), ".vscode", "extensions", extensionId);
+const exeSuffix = process.platform === "win32" ? ".exe" : "";
 
 // This script exists because the extension is developed in this workspace but
 // VS Code's normal (non-debug) window loads it from a separate, static copy
@@ -22,73 +24,120 @@ const targetDir = join(homedir(), ".vscode", "extensions", extensionId);
 // itself. Run this after `bun run build` (or `bun run build:local`) so the
 // regular VS Code window picks up local changes too.
 
+function fail(message) {
+  console.error(message);
+  process.exit(1);
+}
+
+function requirePath(relative, kind) {
+  const fullPath = join(repoRoot, relative);
+  if (!existsSync(fullPath)) {
+    fail(`Missing ${kind}: ${relative}. Run "bun run build" first.`);
+  }
+  return fullPath;
+}
+
+function requireDirectory(relative) {
+  const fullPath = requirePath(relative, "directory");
+  if (!statSync(fullPath).isDirectory()) {
+    fail(`Expected directory: ${relative}`);
+  }
+  return fullPath;
+}
+
+function requireFile(relative) {
+  const fullPath = requirePath(relative, "file");
+  if (!statSync(fullPath).isFile()) {
+    fail(`Expected file: ${relative}`);
+  }
+  return fullPath;
+}
+
 if (!existsSync(targetDir)) {
-  console.error(
+  fail(
     `Lumen is not installed yet at ${targetDir}.\n` +
       "Install the packaged .vsix once with `code --install-extension <path-to-vsix>`, " +
       "then re-run this script after every local build to sync changes."
   );
-  process.exit(1);
+}
+
+const requiredBinaries = ["lumen-engine", "lumen-console-runner"].map(
+  (name) => `bin/${name}${exeSuffix}`
+);
+
+requireDirectory("frontend/dist");
+requireDirectory("extension/out");
+requireDirectory("assets");
+requireDirectory("content/packages");
+for (const binary of requiredBinaries) {
+  requireFile(binary);
+}
+
+const packageFiles = readdirSync(join(repoRoot, "content", "packages"))
+  .filter((name) => name.endsWith(".esex"))
+  .sort();
+if (packageFiles.length === 0) {
+  fail('Missing packages: content/packages/*.esex. Run "bun run build" first.');
+}
+for (const packageFile of packageFiles) {
+  requireFile(join("content", "packages", packageFile));
 }
 
 const copies = [
   ["extension/out", "extension/out"],
   ["frontend/dist", "frontend/dist"],
-  ["assets", "assets"]
+  ["assets", "assets"],
+  ["content/packages", "content/packages"]
 ];
 
-for (const [from, to] of copies) {
+function copyDirectory(from, to) {
   const src = join(repoRoot, from);
   const dest = join(targetDir, to);
-  if (!existsSync(src)) {
-    console.warn(`Skipping ${from}: not found. Did you run "bun run build"?`);
-    continue;
-  }
   rmSync(dest, { recursive: true, force: true });
   cpSync(src, dest, { recursive: true });
 }
 
-const binaryNames = ["lumen-engine", "lumen-console-runner"].map((name) =>
-  process.platform === "win32" ? `${name}.exe` : name
-);
-for (const binaryName of binaryNames) {
-  const builtBinary = join(repoRoot, "engine", "target", "release", binaryName);
-  if (!existsSync(builtBinary)) {
-    console.warn(`Skipping ${binaryName}: not found. Did you run "bun run build:engine"?`);
-    continue;
+function cleanupStaleBinaries(binDir, binaryName) {
+  if (!existsSync(binDir)) {
+    return;
   }
-
-  const binDir = join(targetDir, "bin");
-  mkdirSync(binDir, { recursive: true });
-
-  // Limpieza best-effort de binarios apartados en syncs anteriores.
   for (const stale of readdirSync(binDir)) {
     if (stale.startsWith(`${binaryName}.old-`)) {
       try {
         rmSync(join(binDir, stale), { force: true });
       } catch {
-        // Sigue bloqueado por un proceso en ejecución; se limpiará en otro sync.
+        // Still held by a running process; another sync can clean it later.
       }
     }
   }
+}
 
-  const target = join(binDir, binaryName);
+function copyBinary(relative) {
+  const src = join(repoRoot, relative);
+  const dest = join(targetDir, relative);
+  const binDir = dirname(dest);
+  const binaryName = basename(relative);
+  mkdirSync(binDir, { recursive: true });
+  cleanupStaleBinaries(binDir, binaryName);
+
   try {
-    cpSync(builtBinary, target);
+    cpSync(src, dest);
   } catch (error) {
-    // Windows no permite sobreescribir un exe en ejecución (un VS Code abierto
-    // mantiene vivo el engine), pero sí permite renombrarlo. Se aparta el
-    // binario bloqueado y se copia el nuevo en su lugar.
-    if (["EIO", "EBUSY", "EPERM", "EACCES"].includes(error.code) && existsSync(target)) {
-      renameSync(target, join(binDir, `${binaryName}.old-${Date.now()}`));
-      cpSync(builtBinary, target);
-      console.warn(
-        `${binaryName} estaba en ejecución: se apartó el binario bloqueado y se copió el nuevo.`
-      );
-    } else {
-      throw error;
+    if (["EIO", "EBUSY", "EPERM", "EACCES"].includes(error.code) && existsSync(dest)) {
+      renameSync(dest, join(binDir, `${binaryName}.old-${Date.now()}`));
+      cpSync(src, dest);
+      console.warn(`${binaryName} was running; moved the locked binary aside and copied the new one.`);
+      return;
     }
+    throw error;
   }
+}
+
+for (const [from, to] of copies) {
+  copyDirectory(from, to);
+}
+for (const binary of requiredBinaries) {
+  copyBinary(binary);
 }
 
 cpSync(join(repoRoot, "package.json"), join(targetDir, "package.json"));

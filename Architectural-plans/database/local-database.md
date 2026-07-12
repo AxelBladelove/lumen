@@ -8,15 +8,18 @@ Archivo: `Architectural-plans/database/local-database.md`
 
 ## Estado actual del repo
 
-La base local existe en su forma mínima: el Local Engine (`engine/`) crea
-`lumen.db` (SQLite vía rusqlite bundled) bajo el globalStorage de la extensión,
-con migraciones versionadas en transacción (`schema_migrations`). La migración
-1 crea `user_state` (fila única con último modo/ruta/módulo/ejercicio) y
-`settings`. El resto de entidades de este documento (intentos, errores,
-desbloqueos, catálogo) siguen siendo objetivo.
+El Local Engine (`engine/`) crea `lumen.db` (SQLite vía rusqlite bundled) bajo
+el globalStorage de la extensión, con migraciones versionadas en transacción
+(`schema_migrations`). El schema v5 incluye `user_state`, `settings`, intentos
+de compilación, inventario de actividades importadas, intentos de ejercicios y
+progreso completado, más `active_exercise` para la working copy autoritativa.
+Route Loop v5 reutiliza ese estado para activación y
+snapshots secuenciales; errores pedagógicos, gates y catálogo remoto siguen
+siendo objetivo.
 
 La extensión además persiste el `bootIntent` mínimo en `context.globalState`
-para la fase mock de entrada.
+para coordinar la entrada visual; SQLite sigue siendo la autoridad del estado
+pedagógico local.
 
 La base de datos local guarda el estado que Lumen necesita recordar entre sesiones: ejercicios importados, ejercicios creados, progreso, intentos, errores, desbloqueos, metadata local y último estado útil del usuario.
 

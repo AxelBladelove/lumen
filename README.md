@@ -1,12 +1,13 @@
 # Lumen
 
-Lumen es, en este estado del repo, una extension de VS Code que empaqueta un
-frontend Svelte/Vite dentro de un `WebviewPanel` de editor.
+Lumen es, en este estado del repo, una extension local-first de VS Code con un
+frontend Svelte/Vite dentro de un `WebviewPanel` y un Local Engine en Rust.
 
-El slice implementado es un mock visual de `Ruta C / Modulo 2: Cadenas de
-caracteres`. Sirve para validar la experiencia de Route Path View, el snake
-WebGL, la pantalla de entrada, el pipeline de build y la medicion de
-performance.
+El slice implementado cubre `Ruta C / Modulo 2: Cadenas de caracteres`: ruta
+visual, importacion de actividades `.esex`, compilacion y tests IO, progreso
+persistente y el Route Loop v5 para activar una copia editable. La integracion
+de extremo a extremo sigue parcial; gates avanzados, sandbox completo y
+servicios cloud no forman parte del slice actual.
 
 ## Implementacion Actual
 
@@ -25,7 +26,7 @@ performance.
 - App frontend: `frontend/src/App.svelte`.
 - Vista de ruta: `frontend/src/route-path-view/RoutePathView.svelte`.
 - Renderer WebGL del snake: `frontend/src/webgl-snake/WebGLSnake.svelte`.
-- Datos mock de ruta: `frontend/src/route-path-view/data/mockRouteModule.ts`.
+- Fallback visual de ruta: `frontend/src/route-path-view/data/mockRouteModule.ts`.
 - Assets de marca: `assets/brand/`.
 - Scripts de performance e instalacion local: `scripts/`.
 
@@ -43,6 +44,7 @@ lumen.exitMode
 lumen.refreshWebview
 lumen.engineStatus
 lumen.compileCurrentExercise
+lumen.testCurrentExercise
 ```
 
 ## Local Engine
@@ -50,28 +52,30 @@ lumen.compileCurrentExercise
 `engine/` contiene el Local Engine: un binario Rust (`lumen-engine`) que habla
 NDJSON por stdio con el Extension Host y persiste estado en SQLite (`lumen.db`
 bajo el globalStorage de la extension), con migraciones versionadas. El
-contrato normativo es
-`Architectural-plans/extension-engine-bridge/protocol-v2.md` (protocolo v2:
-`engine.healthCheck`, `session.getLastState`, `session.saveLastState`,
-`exercise.compile`, `toolchain.check`).
+contrato vigente es
+`Architectural-plans/extension-engine-bridge/protocol-v5.md`. Incluye sesiones,
+toolchain, importacion `.esex`, snapshots de ruta, compilacion, tests IO,
+progreso y `exercise.activate` con working copies separadas del contenido
+instalado.
 
-El flujo de compilacion `F9` esta implementado como slice transicional: la
-extension resuelve el archivo `.c` activo y llama `exercise.compile`; el
+El flujo de compilacion `F9` resuelve el entrypoint de la working copy activa
+en el engine y llama `exercise.compile`; el
 engine descubre GCC (PATH o MSYS2), compila con `-Wall -Wextra -g` a
 `.lumen-build/`, devuelve diagnosticos estructurados y registra el intento en
 `compile_attempts`. Con exito se abre una consola externa de Windows; con
 errores se muestra la terminal integrada `Lumen Compile` (errores en rojo,
 warnings en azul). Orquestacion en `extension/src/lumenCompile.ts`.
 
-La extension lanza el binario de forma lazy mediante
+La extension administra el binario mediante
 `extension/src/engine/lumenEngineClient.ts`, hace un health check al activar y
 expone `lumen.engineStatus` para inspeccionarlo. En desarrollo el cliente busca
 el binario en `engine/target/{release,debug}`; en la copia instalada, en
 `bin/lumen-engine.exe` (sincronizado por `install:local`).
 
-Todavia no existen Cloudflare backend, Ask Tutor ni coleccion de ejercicios
-empaquetada. El engine aun no gestiona ejercicios (bloqueos, importacion,
-metadata): la resolucion del ejercicio activo es transicional via el editor.
+Existen actividades locales empaquetadas bajo `content/activities/`. Todavia
+no existen Cloudflare backend ni Ask Tutor. La progresion implementada es
+secuencial y el aislamiento de ejecucion aplica solo los limites que el runner
+documenta; no debe interpretarse como un sandbox completo.
 
 ## Desarrollo
 
@@ -89,6 +93,9 @@ bun run dev:frontend
 bun run build:frontend
 bun run compile:extension
 bun run build:engine
+bun run build:package-assets
+bun run verify:package
+bun run test:frontend
 bun run build
 bun run build:local
 ```
@@ -96,8 +103,9 @@ bun run build:local
 `build:engine` requiere el toolchain de Rust (`cargo`). Los tests del engine
 corren con `cargo test` desde `engine/`.
 
-`build:local` compila el repo y sincroniza `extension/out`, `frontend/dist`,
-`assets` y `package.json` dentro de la copia instalada en
+`build:local` compila el repo, genera `bin/` y los `.esex` bundled, y sincroniza
+`extension/out`, `frontend/dist`, `assets`, `bin`, `content/packages` y
+`package.json` dentro de la copia instalada en
 `~/.vscode/extensions/lumen.lumen-0.0.1`. Despues de correrlo, VS Code debe
 recargarse con `Developer: Reload Window` para tomar la nueva copia.
 

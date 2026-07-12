@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import * as os from "node:os";
+import * as path from "node:path";
 import { LumenEngineClient } from "./engine/lumenEngineClient";
 import { LumenEngineError } from "./engine/lumenEngineProtocol";
 import { LumenCompileController } from "./lumenCompile";
@@ -14,6 +16,7 @@ let lumenEngineClient: LumenEngineClient | undefined;
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Lumen");
   context.subscriptions.push(outputChannel);
+  void vscode.commands.executeCommand("setContext", "lumen.hasActiveExercise", false);
 
   const engineClient = new LumenEngineClient(context, outputChannel);
   lumenEngineClient = engineClient;
@@ -96,6 +99,15 @@ export function activate(context: vscode.ExtensionContext) {
           `Import ${result.alreadyInstalled ? "no-op" : "ok"}: ${result.activityId}@${result.version} -> ${result.installPath}`
         );
         await vscode.window.showInformationMessage(message);
+
+        // Tras importar, el ejercicio recién instalado se activa por el mismo
+        // camino autoritativo que un click en su nodo: `exercise.activate` en el
+        // engine, abrir el entrypoint en el grupo izquierdo y refrescar el
+        // panel. Si Lumen Mode no está corriendo el activate no se ejecuta —
+        // no hay panel al que refrescar y el usuario debe entrar primero.
+        if (panel.exists) {
+          await panel.activateAndOpenExercise(result.activityId);
+        }
       } catch (error) {
         const detail = formatEngineError(error);
         outputChannel.appendLine(`Import command failed: ${detail}`);
@@ -112,10 +124,13 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   void engineClient.healthCheck().then(
-    (health) => {
+    async (health) => {
       outputChannel.appendLine(
         `Engine health: version=${health.engineVersion}, dbStatus=${health.dbStatus}, dbPath=${health.dbPath}`
       );
+      await seedBundledExercises(context, engineClient, outputChannel);
+      await migrateOrPublishActiveExerciseContext(engineClient, outputChannel);
+      if (panel.exists) await panel.refresh();
     },
     (error) => {
       outputChannel.appendLine(`Engine health check failed: ${formatEngineError(error)}`);
@@ -128,6 +143,68 @@ export function activate(context: vscode.ExtensionContext) {
       "Lumen no pudo inicializar su entrada. Intenta abrir Lumen nuevamente."
     );
   });
+}
+
+async function seedBundledExercises(
+  context: vscode.ExtensionContext,
+  engineClient: LumenEngineClient,
+  outputChannel: vscode.OutputChannel
+) {
+  const packagesUri = vscode.Uri.joinPath(context.extensionUri, "content", "packages");
+  let entries: [string, vscode.FileType][];
+  try {
+    entries = await vscode.workspace.fs.readDirectory(packagesUri);
+  } catch {
+    outputChannel.appendLine(`Bundled content directory not found: ${packagesUri.fsPath}`);
+    return;
+  }
+
+  const packages = entries
+    .filter(
+      ([name, type]) =>
+        (type & vscode.FileType.File) !== 0 && name.toLocaleLowerCase().endsWith(".esex")
+    )
+    .map(([name]) => name)
+    .sort((left, right) => left.localeCompare(right));
+  for (const packageName of packages) {
+    const packageUri = vscode.Uri.joinPath(packagesUri, packageName);
+    try {
+      const imported = await engineClient.importExercise(packageUri.fsPath);
+      outputChannel.appendLine(
+        `Bundled content ${imported.alreadyInstalled ? "ready" : "installed"}: ${imported.activityId}@${imported.version}`
+      );
+    } catch (error) {
+      // One bad package must be visible, but must not hide the rest of the local catalog.
+      outputChannel.appendLine(
+        `Bundled content failed (${packageName}): ${formatEngineError(error)}`
+      );
+    }
+  }
+}
+
+async function migrateOrPublishActiveExerciseContext(
+  engineClient: LumenEngineClient,
+  outputChannel: vscode.OutputChannel
+) {
+  try {
+    let active = await engineClient.getActiveExercise();
+    if (
+      active.status === "ready" &&
+      path.resolve(active.active.workspacePath) === path.resolve(active.active.installPath)
+    ) {
+      const migrated = await engineClient.activateExercise(
+        active.active.exerciseId,
+        active.active.routeId ? "route" : "free",
+        path.join(os.homedir(), ".lumen")
+      );
+      active = { status: "ready", active: migrated.active };
+      outputChannel.appendLine(`Migrated legacy active exercise to ${migrated.active.workspacePath}`);
+    }
+    await vscode.commands.executeCommand("setContext", "lumen.hasActiveExercise", active.status === "ready");
+  } catch (error) {
+    await vscode.commands.executeCommand("setContext", "lumen.hasActiveExercise", false);
+    outputChannel.appendLine(`Unable to publish active exercise context: ${formatEngineError(error)}`);
+  }
 }
 
 export function deactivate() {

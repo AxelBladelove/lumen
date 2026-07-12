@@ -10,7 +10,7 @@ fn main() {
 mod windows {
     use std::env;
     use std::ffi::{OsStr, OsString};
-    use std::fs;
+    use std::fs::{self, OpenOptions};
     use std::io::{self, Write};
     use std::os::windows::ffi::OsStrExt;
     use std::path::{Path, PathBuf};
@@ -64,6 +64,7 @@ mod windows {
     struct Options {
         title: OsString,
         lock_file: PathBuf,
+        lock_token: Option<String>,
         no_wait: bool,
         action: Action,
     }
@@ -73,8 +74,11 @@ mod windows {
     }
 
     impl LockFile {
-        fn create(path: PathBuf) -> Result<Self, String> {
-            if let Some(parent) = path.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+        fn create(path: PathBuf, token: Option<&str>) -> Result<Self, String> {
+            if let Some(parent) = path
+                .parent()
+                .filter(|parent| !parent.as_os_str().is_empty())
+            {
                 fs::create_dir_all(parent).map_err(|error| {
                     format!(
                         "No se pudo crear el directorio del lock file '{}': {error}",
@@ -82,12 +86,32 @@ mod windows {
                     )
                 })?;
             }
-            fs::write(&path, process::id().to_string()).map_err(|error| {
-                format!(
-                    "No se pudo escribir el lock file '{}': {error}",
-                    path.display()
-                )
-            })?;
+            if let Some(token) = token {
+                let reservation = fs::read_to_string(&path).map_err(|error| {
+                    format!("No se pudo leer la reserva '{}': {error}", path.display())
+                })?;
+                let expected_suffix = format!(":{token}");
+                if !reservation.trim().starts_with("reservation:")
+                    || !reservation.trim().ends_with(&expected_suffix)
+                {
+                    return Err("La reserva de consola no coincide con este proceso.".to_owned());
+                }
+                fs::write(&path, process::id().to_string()).map_err(|error| {
+                    format!("No se pudo reclamar el lock '{}': {error}", path.display())
+                })?;
+            } else {
+                let mut file = OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(&path)
+                    .map_err(|error| {
+                        format!("No se pudo adquirir el lock '{}': {error}", path.display())
+                    })?;
+                file.write_all(process::id().to_string().as_bytes())
+                    .map_err(|error| {
+                        format!("No se pudo escribir el lock '{}': {error}", path.display())
+                    })?;
+            }
             Ok(Self { path })
         }
     }
@@ -125,7 +149,7 @@ mod windows {
         set_console_title(&options.title);
         enable_virtual_terminal_processing();
 
-        let lock = match LockFile::create(options.lock_file) {
+        let lock = match LockFile::create(options.lock_file, options.lock_token.as_deref()) {
             Ok(lock) => lock,
             Err(message) => {
                 eprintln!("{message}");
@@ -157,6 +181,7 @@ mod windows {
             .ok_or_else(|| "Falta el comando run o report.".to_owned())?;
         let mut title = None;
         let mut lock_file = None;
+        let mut lock_token = None;
         let mut exit_code = None;
         let mut no_wait = false;
         let mut positional = Vec::new();
@@ -166,6 +191,13 @@ mod windows {
                 Some("--title") => title = Some(required_value(&mut args, "--title")?),
                 Some("--lock") => {
                     lock_file = Some(PathBuf::from(required_value(&mut args, "--lock")?))
+                }
+                Some("--lock-token") => {
+                    lock_token = Some(
+                        required_value(&mut args, "--lock-token")?
+                            .to_string_lossy()
+                            .into_owned(),
+                    )
                 }
                 Some("--exit-code") => {
                     let value = required_value(&mut args, "--exit-code")?;
@@ -212,6 +244,7 @@ mod windows {
         Ok(Options {
             title,
             lock_file,
+            lock_token,
             no_wait,
             action,
         })
@@ -259,10 +292,7 @@ mod windows {
         let status = match status {
             Ok(status) => status,
             Err(error) => {
-                eprintln!(
-                    "No se pudo ejecutar '{}': {error}",
-                    executable.display()
-                );
+                eprintln!("No se pudo ejecutar '{}': {error}", executable.display());
                 wait_after_error(no_wait);
                 return 1;
             }

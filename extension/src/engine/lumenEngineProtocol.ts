@@ -1,4 +1,4 @@
-export const lumenEngineProtocolVersion = 4;
+export const lumenEngineProtocolVersion = 5;
 
 export const lumenEngineErrorCodes = [
   "INVALID_REQUEST",
@@ -13,6 +13,10 @@ export const lumenEngineErrorCodes = [
   "TESTS_INVALID",
   "IMPORT_FAILED",
   "IMPORT_CONFLICT",
+  "ACTIVITY_NOT_FOUND",
+  "ACTIVITY_LOCKED",
+  "ACTIVITY_UNSUPPORTED",
+  "WORKSPACE_ERROR",
   "UNKNOWN_ERROR"
 ] as const;
 
@@ -191,24 +195,40 @@ export type LumenActiveExerciseMissing = {
   exerciseId: string;
 };
 
+export type LumenActiveExerciseDescriptor = {
+  exerciseId: string;
+  version: string;
+  installPath: string;
+  workspacePath: string;
+  entrypointPath: string;
+  title: string;
+  routeId: string | null;
+  moduleId: string | null;
+  nodeType: string | null;
+};
+
 export type LumenActiveExerciseReady = {
   status: "ready";
-  active: {
-    exerciseId: string;
-    version: string;
-    installPath: string;
-    entrypointPath: string;
-    title: string;
-    routeId: string | null;
-    moduleId: string | null;
-    nodeType: string | null;
-  };
+  active: LumenActiveExerciseDescriptor;
 };
 
 export type LumenActiveExerciseResult =
   | LumenActiveExerciseNone
   | LumenActiveExerciseMissing
   | LumenActiveExerciseReady;
+
+export type LumenExerciseMode = "route" | "free";
+
+export type LumenExerciseActivateParams = {
+  exerciseId: string;
+  mode: LumenExerciseMode;
+  workspaceRoot: string;
+};
+
+export type LumenExerciseActivateResult = {
+  created: boolean;
+  active: LumenActiveExerciseDescriptor;
+};
 
 export type LumenModuleSnapshotNodeStatus = "active" | "locked" | "completed";
 
@@ -265,6 +285,10 @@ export type LumenEngineMethodMap = {
   "exercise.getActive": {
     params: Record<string, never>;
     result: LumenActiveExerciseResult;
+  };
+  "exercise.activate": {
+    params: LumenExerciseActivateParams;
+    result: LumenExerciseActivateResult;
   };
   "route.getModuleSnapshot": {
     params: { routeId: string; moduleId: string };

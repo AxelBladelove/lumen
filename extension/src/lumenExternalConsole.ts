@@ -1,10 +1,16 @@
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync, unlinkSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type * as vscode from "vscode";
 
 const externalRunLockPath = path.join(os.tmpdir(), "lumen-external-run.lock");
+
+export type ExternalRunReservation = {
+  token: string;
+  release(): void;
+};
 
 export function resolveConsoleRunnerPath(context: vscode.ExtensionContext): string {
   return path.resolve(context.extensionUri.fsPath, "bin", "lumen-console-runner.exe");
@@ -16,7 +22,8 @@ export function isExternalRunActive(): boolean {
   let pid: number;
   try {
     const lockContents = readFileSync(externalRunLockPath, "utf8").trim();
-    pid = Number(lockContents);
+    const reservation = /^reservation:(\d+):/.exec(lockContents);
+    pid = Number(reservation?.[1] ?? lockContents);
     if (!Number.isSafeInteger(pid) || pid <= 0) {
       removeStaleLock();
       return false;
@@ -35,16 +42,49 @@ export function isExternalRunActive(): boolean {
   }
 }
 
+export function acquireExternalRunReservation(): ExternalRunReservation | undefined {
+  if (isExternalRunActive()) return undefined;
+  const token = randomUUID();
+  const contents = `reservation:${process.pid}:${token}`;
+  try {
+    writeFileSync(externalRunLockPath, contents, { encoding: "utf8", flag: "wx" });
+  } catch {
+    return undefined;
+  }
+  return {
+    token,
+    release() {
+      try {
+        if (readFileSync(externalRunLockPath, "utf8").trim() === contents) {
+          unlinkSync(externalRunLockPath);
+        }
+      } catch {
+        // The runner may already have claimed and removed the reservation.
+      }
+    }
+  };
+}
+
 export function launchProgram(options: {
   runnerPath: string;
   exePath: string;
   title: string;
+  reservation: ExternalRunReservation;
 }): void {
   launchRunner(
     options.runnerPath,
     path.dirname(options.exePath),
     "run",
-    ["--title", options.title, "--lock", externalRunLockPath, options.exePath]
+    [
+      "--title",
+      options.title,
+      "--lock",
+      externalRunLockPath,
+      "--lock-token",
+      options.reservation.token,
+      options.exePath
+    ],
+    options.reservation
   );
 }
 
@@ -53,6 +93,7 @@ export function launchReport(options: {
   reportPath: string;
   title: string;
   exitCode: number;
+  reservation: ExternalRunReservation;
 }): void {
   launchRunner(
     options.runnerPath,
@@ -63,10 +104,13 @@ export function launchReport(options: {
       options.title,
       "--lock",
       externalRunLockPath,
+      "--lock-token",
+      options.reservation.token,
       "--exit-code",
       String(options.exitCode),
       options.reportPath
-    ]
+    ],
+    options.reservation
   );
 }
 
@@ -74,7 +118,8 @@ function launchRunner(
   runnerPath: string,
   workingDir: string,
   mode: "run" | "report",
-  args: string[]
+  args: string[],
+  reservation: ExternalRunReservation
 ): void {
   if (process.platform !== "win32") {
     throw new Error("Lumen currently only launches external consoles on Windows.");
@@ -91,10 +136,12 @@ function launchRunner(
     windowsHide: false,
     windowsVerbatimArguments: true
   });
-  child.on("error", () => {
-    // A synchronous launch failure is thrown by spawn. There is no caller-owned
-    // process lifecycle after detaching, so late launcher errors cannot be acted on.
-  });
+  child.on("error", () => reservation.release());
+  // `start` detaches before the real runner claims the token. If cmd/runner
+  // never reaches that point, release our reservation instead of wedging F9/F10
+  // for the lifetime of the Extension Host. Once claimed, release() is a no-op.
+  const claimWatchdog = setTimeout(() => reservation.release(), 5_000);
+  claimWatchdog.unref();
   child.unref();
 }
 

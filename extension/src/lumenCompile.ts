@@ -6,7 +6,13 @@ import {
   type LumenCompileDiagnostic,
   type LumenCompileResult
 } from "./engine/lumenEngineProtocol";
-import { isExternalRunActive, launchProgram } from "./lumenExternalConsole";
+import { isLumenModeActive } from "./lumenEntry";
+import {
+  acquireExternalRunReservation,
+  launchProgram,
+  type ExternalRunReservation
+} from "./lumenExternalConsole";
+import { resolveActiveEntrypoint, saveEntrypointIfDirty } from "./lumenExercise";
 
 const compileRequestTimeoutMs = 60_000;
 const compileTerminalName = "Lumen Compile";
@@ -50,15 +56,30 @@ export class LumenCompileController implements vscode.Disposable {
   }
 
   async compileCurrentExercise(): Promise<void> {
+    if (!isLumenModeActive()) {
+      void vscode.window.showInformationMessage(
+        "Lumen: F9 solo compila dentro de Lumen Mode. Abre Lumen y selecciona un ejercicio."
+      );
+      return;
+    }
+
     if (this.compileInFlight) {
       this.outputChannel.appendLine("Compile requested while another compile is in flight; ignoring.");
       return;
     }
 
-    const sourcePath = await this.resolveSourcePath();
+    const sourcePath = await this.resolveActiveEntrypointForCompile();
     if (!sourcePath) return;
+    const reservation = acquireExternalRunReservation();
+    if (!reservation) {
+      void vscode.window.showWarningMessage(
+        "Ya hay una ventana externa de Lumen abierta. Ciérrala antes de compilar de nuevo."
+      );
+      return;
+    }
 
     this.compileInFlight = true;
+    let handedOff = false;
     try {
       let result: LumenCompileResult;
       try {
@@ -73,94 +94,54 @@ export class LumenCompileController implements vscode.Disposable {
       }
 
       if (result.status === "success") {
-        await this.presentSuccess(result, sourcePath);
+        handedOff = await this.presentSuccess(result, sourcePath, reservation);
       } else {
         this.presentCompileError(result, sourcePath);
       }
     } finally {
+      if (!handedOff) reservation.release();
       this.compileInFlight = false;
     }
   }
 
-  private async resolveSourcePath(): Promise<string | undefined> {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
+  private async resolveActiveEntrypointForCompile(): Promise<string | undefined> {
+    const entrypoint = await resolveActiveEntrypoint(this.engineClient, this.outputChannel);
+    if (!entrypoint) return undefined;
+
+    const saved = await saveEntrypointIfDirty(entrypoint);
+    if (!saved) {
       await vscode.window.showErrorMessage(
-        "Lumen: open a .c file in the editor before compiling."
+        `Lumen: no se pudo guardar ${path.basename(entrypoint)} antes de compilar.`
       );
       return undefined;
     }
 
-    const document = editor.document;
-    const activePath = document.uri.fsPath;
-    const activeIsCFile =
-      document.uri.scheme === "file" && path.extname(activePath).toLowerCase() === ".c";
-
-    let sourcePath: string | undefined;
-
-    if (activeIsCFile) {
-      sourcePath = activePath;
-    } else if (document.uri.scheme === "file") {
-      const folder = path.dirname(activePath);
-      const candidate = path.join(folder, "main.c");
-      try {
-        const stat = await vscode.workspace.fs.stat(vscode.Uri.file(candidate));
-        if ((stat.type & vscode.FileType.File) !== 0) sourcePath = candidate;
-      } catch {
-        // main.c not present next to the active file — fall through to error below.
-      }
-    }
-
-    if (!sourcePath) {
-      await vscode.window.showErrorMessage(
-        "Lumen: no compilable C file is active. Open a .c file or a folder that contains main.c."
-      );
-      return undefined;
-    }
-
-    const openDoc = vscode.workspace.textDocuments.find(
-      (d) => d.uri.scheme === "file" && d.uri.fsPath === sourcePath
-    );
-    if (openDoc?.isDirty) {
-      const saved = await openDoc.save();
-      if (!saved) {
-        await vscode.window.showErrorMessage(
-          `Lumen: could not save ${path.basename(sourcePath)} before compiling.`
-        );
-        return undefined;
-      }
-    }
-
-    return sourcePath;
+    return entrypoint;
   }
 
   private async presentSuccess(
     result: Extract<LumenCompileResult, { status: "success" }>,
-    sourcePath: string
-  ): Promise<void> {
+    sourcePath: string,
+    reservation: ExternalRunReservation
+  ): Promise<boolean> {
     this.outputChannel.appendLine(
       `Compile success: ${sourcePath} -> ${result.executablePath} in ${result.durationMs}ms.`
     );
 
-    if (isExternalRunActive()) {
-      void vscode.window.showWarningMessage(
-        "Ya hay una ventana externa de Lumen abierta. Ciérrala antes de compilar de nuevo."
+    try {
+      launchProgram({
+        runnerPath: this.runnerPath,
+        exePath: result.executablePath,
+        title: `${path.basename(result.executablePath)} - Lumen`,
+        reservation
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.outputChannel.appendLine(`External console failed: ${message}`);
+      await vscode.window.showErrorMessage(
+        `Lumen: could not open the external console. ${message}`
       );
-    } else {
-      try {
-        launchProgram({
-          runnerPath: this.runnerPath,
-          exePath: result.executablePath,
-          title: `${path.basename(result.executablePath)} - Lumen`
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        this.outputChannel.appendLine(`External console failed: ${message}`);
-        await vscode.window.showErrorMessage(
-          `Lumen: could not open the external console. ${message}`
-        );
-        return;
-      }
+      return false;
     }
 
     const warnings = result.diagnostics.filter((d) => d.kind === "warning");
@@ -175,6 +156,7 @@ export class LumenCompileController implements vscode.Disposable {
         preserveFocus: true
       });
     }
+    return true;
   }
 
   private presentCompileError(

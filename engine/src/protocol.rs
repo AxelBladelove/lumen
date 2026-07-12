@@ -10,8 +10,9 @@ use crate::esex::{self, EsexError};
 use crate::state::StatePatch;
 use crate::storage::{Database, ExerciseProgressResult, InstalledActivity};
 use crate::testing::{self, IoCaseStatus, RunOptions, TestingError};
+use crate::workspace;
 
-const PROTOCOL_VERSION: u64 = 4;
+const PROTOCOL_VERSION: u64 = 5;
 const ENGINE_VERSION: &str = "0.1.0";
 const PACKAGE_SHA_FILE: &str = ".package-sha256";
 
@@ -30,7 +31,8 @@ enum ActiveExercise {
     None,
     Missing(String),
     Ready {
-        activity: InstalledActivity,
+        activity: Box<InstalledActivity>,
+        workspace_path: PathBuf,
         entrypoint_path: PathBuf,
     },
 }
@@ -71,6 +73,7 @@ impl Engine {
             "session.saveLastState" => self.save_last_state(request.id, &request.params),
             "exercise.compile" => self.compile_exercise(request.id, &request.params),
             "exercise.import" => self.import_exercise(request.id, &request.params),
+            "exercise.activate" => self.activate_exercise(request.id, &request.params),
             "exercise.getActive" => self.get_active_exercise(request.id, &request.params),
             "exercise.runTests" => self.run_exercise_tests(request.id, &request.params),
             "route.getModuleSnapshot" => self.get_module_snapshot(request.id, &request.params),
@@ -232,7 +235,12 @@ impl Engine {
                     &imported.package_sha256,
                 ) {
                     Ok(activity) => activity,
-                    Err(errors) => return import_failed_response(id, &errors),
+                    Err(errors) => {
+                        if let Err(error) = fs::remove_dir_all(&imported.install_path) {
+                            eprintln!("No se pudo retirar la importacion rechazada: {error}");
+                        }
+                        return import_failed_response(id, &errors);
+                    }
                 };
                 let previously_registered = match self
                     .database
@@ -345,6 +353,7 @@ impl Engine {
             ),
             Ok(ActiveExercise::Ready {
                 activity,
+                workspace_path,
                 entrypoint_path,
             }) => success_response(
                 id,
@@ -354,6 +363,7 @@ impl Engine {
                         "exerciseId": activity.activity_id,
                         "version": activity.version,
                         "installPath": activity.install_path,
+                        "workspacePath": workspace_path,
                         "entrypointPath": entrypoint_path,
                         "title": activity.title,
                         "routeId": activity.route_id,
@@ -366,6 +376,96 @@ impl Engine {
         }
     }
 
+    fn activate_exercise(&mut self, id: String, params: &Value) -> Value {
+        let (exercise_id, mode, workspace_root) = match parse_activate_params(params) {
+            Ok(values) => values,
+            Err(()) => return invalid_params_response(id),
+        };
+        let activity = match self.database.get_latest_activity(&exercise_id) {
+            Ok(Some(activity)) => activity,
+            Ok(None) => {
+                return error_response(
+                    Some(id),
+                    "ACTIVITY_NOT_FOUND",
+                    "El ejercicio solicitado no esta instalado.",
+                    true,
+                )
+            }
+            Err(_) => return database_error_response(id, "No se pudo leer la actividad."),
+        };
+
+        if mode == "route" {
+            let (Some(route_id), Some(module_id)) =
+                (activity.route_id.as_deref(), activity.module_id.as_deref())
+            else {
+                return error_response(
+                    Some(id),
+                    "ACTIVITY_UNSUPPORTED",
+                    "La actividad no pertenece a una ruta.",
+                    true,
+                );
+            };
+            let module = match self.database.get_module_activities(route_id, module_id) {
+                Ok(module) => module,
+                Err(_) => return database_error_response(id, "No se pudo leer el modulo."),
+            };
+            let completed = match self.database.completed_activity_ids() {
+                Ok(completed) => completed,
+                Err(_) => return database_error_response(id, "No se pudo leer el progreso."),
+            };
+            let recommended = module
+                .iter()
+                .find(|candidate| !completed.contains(&candidate.activity_id))
+                .map(|candidate| candidate.activity_id.as_str());
+            if !completed.contains(&activity.activity_id)
+                && recommended != Some(activity.activity_id.as_str())
+            {
+                return error_response(
+                    Some(id),
+                    "ACTIVITY_LOCKED",
+                    "Completa el ejercicio activo antes de abrir este nodo.",
+                    true,
+                );
+            }
+        }
+
+        let materialized = match workspace::materialize(&activity, &mode, &workspace_root) {
+            Ok(materialized) => materialized,
+            Err(message) => {
+                return error_response_with_details(
+                    Some(id),
+                    "WORKSPACE_ERROR",
+                    "No se pudo preparar la copia editable del ejercicio.",
+                    true,
+                    vec![testing_detail(
+                        "WORKSPACE_ERROR",
+                        workspace_root.display().to_string(),
+                        message,
+                    )],
+                )
+            }
+        };
+        if self
+            .database
+            .activate_exercise(
+                &activity,
+                &mode,
+                &materialized.root,
+                &materialized.entrypoint,
+            )
+            .is_err()
+        {
+            return database_error_response(id, "No se pudo activar el ejercicio.");
+        }
+        success_response(
+            id,
+            json!({
+                "created": materialized.created,
+                "active": active_exercise_json(&activity, &materialized.root, &materialized.entrypoint),
+            }),
+        )
+    }
+
     fn run_exercise_tests(&mut self, id: String, params: &Value) -> Value {
         if !is_empty_object(params) {
             return invalid_params_response(id);
@@ -373,6 +473,7 @@ impl Engine {
         let (activity, entrypoint_path) = match self.resolve_active_exercise() {
             Ok(ActiveExercise::Ready {
                 activity,
+                workspace_path: _,
                 entrypoint_path,
             }) => (activity, entrypoint_path),
             Ok(ActiveExercise::None) => return no_active_exercise_response(id, None),
@@ -501,6 +602,27 @@ impl Engine {
     }
 
     fn resolve_active_exercise(&mut self) -> Result<ActiveExercise, ()> {
+        if let Some(active) = self.database.get_active_exercise().map_err(|_| ())? {
+            let Some(activity) = self
+                .database
+                .get_installed_activity(&active.activity_id, &active.version)
+                .map_err(|_| ())?
+            else {
+                return Ok(ActiveExercise::Missing(active.activity_id));
+            };
+            let workspace_path = PathBuf::from(active.workspace_path);
+            let entrypoint_path = PathBuf::from(active.entrypoint_path);
+            if !entrypoint_path.is_file() || !entrypoint_path.starts_with(&workspace_path) {
+                return Ok(ActiveExercise::Missing(activity.activity_id));
+            }
+            return Ok(ActiveExercise::Ready {
+                activity: Box::new(activity),
+                workspace_path,
+                entrypoint_path,
+            });
+        }
+
+        // Compatibility for v3/v4 callers that only persisted lastExerciseId.
         let exercise_id = self
             .database
             .get_last_state()
@@ -521,7 +643,8 @@ impl Engine {
             return Ok(ActiveExercise::Missing(exercise_id));
         }
         Ok(ActiveExercise::Ready {
-            activity,
+            workspace_path: PathBuf::from(&activity.install_path),
+            activity: Box::new(activity),
             entrypoint_path,
         })
     }
@@ -565,11 +688,6 @@ impl Engine {
             Ok(values) => values,
             Err(()) => return invalid_params_response(id),
         };
-        let active_id = match self.database.get_last_state() {
-            Ok(Some(state)) => state.last_exercise_id,
-            Ok(None) => None,
-            Err(_) => return database_error_response(id, "No se pudo leer el estado."),
-        };
         let activities = match self.database.get_module_activities(&route_id, &module_id) {
             Ok(activities) => activities,
             Err(_) => return database_error_response(id, "No se pudo leer el modulo."),
@@ -578,10 +696,10 @@ impl Engine {
             Ok(ids) => ids,
             Err(_) => return database_error_response(id, "No se pudo leer el progreso."),
         };
-        let installed_active = active_id
-            .as_ref()
-            .filter(|active| activities.iter().any(|item| &item.activity_id == *active))
-            .cloned();
+        let recommended_id = activities
+            .iter()
+            .find(|activity| !completed_ids.contains(&activity.activity_id))
+            .map(|activity| activity.activity_id.clone());
         let mut nodes = Vec::with_capacity(activities.len());
         for activity in activities {
             let primary_topics: Value = match serde_json::from_str(&activity.primary_topics) {
@@ -593,7 +711,7 @@ impl Engine {
             };
             let status = if completed_ids.contains(&activity.activity_id) {
                 "completed"
-            } else if active_id.as_deref() == Some(activity.activity_id.as_str()) {
+            } else if recommended_id.as_deref() == Some(activity.activity_id.as_str()) {
                 "active"
             } else {
                 "locked"
@@ -613,7 +731,7 @@ impl Engine {
                 "snapshot": {
                     "routeId": route_id,
                     "moduleId": module_id,
-                    "activeExerciseId": installed_active,
+                    "activeExerciseId": recommended_id,
                     "nodes": nodes,
                 }
             }),
@@ -678,6 +796,16 @@ fn run_options_from_manifest(manifest: &Value) -> RunOptions {
             .pointer("/testContract/expectedExitCode")
             .and_then(Value::as_i64)
             .or(defaults.expected_exit_code),
+        memory_limit_mb: manifest
+            .pointer("/sandbox/memoryLimitMb")
+            .and_then(Value::as_u64)
+            .and_then(|value| usize::try_from(value).ok())
+            .unwrap_or(defaults.memory_limit_mb),
+        process_limit: manifest
+            .pointer("/sandbox/processLimit")
+            .and_then(Value::as_u64)
+            .and_then(|value| u32::try_from(value).ok())
+            .unwrap_or(defaults.process_limit),
     }
 }
 
@@ -814,6 +942,33 @@ fn parse_esex_path(params: &Value) -> Result<PathBuf, ()> {
     parse_absolute_path_param(params, "esexPath")
 }
 
+fn parse_activate_params(params: &Value) -> Result<(String, String, PathBuf), ()> {
+    let fields = params.as_object().ok_or(())?;
+    if fields.len() != 3 {
+        return Err(());
+    }
+    let exercise_id = fields
+        .get("exerciseId")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or(())?
+        .to_owned();
+    let mode = fields
+        .get("mode")
+        .and_then(Value::as_str)
+        .filter(|value| matches!(*value, "route" | "free"))
+        .ok_or(())?
+        .to_owned();
+    let workspace_root = fields
+        .get("workspaceRoot")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .ok_or(())?;
+    Ok((exercise_id, mode, workspace_root))
+}
+
 fn parse_absolute_path_param(params: &Value, key: &str) -> Result<PathBuf, ()> {
     let fields = params.as_object().ok_or(())?;
     if fields.len() != 1 {
@@ -877,6 +1032,7 @@ fn activity_from_installed_manifest(
             message: format!("El manifest instalado no contiene JSON valido: {error}"),
         }]
     })?;
+    ensure_activity_supported(&manifest)?;
     let required = |pointer: &str| {
         manifest
             .pointer(pointer)
@@ -936,7 +1092,111 @@ fn activity_from_installed_manifest(
     })
 }
 
-fn invalid_request_response() -> Value {
+fn ensure_activity_supported(manifest: &Value) -> Result<(), Vec<EsexError>> {
+    let mut errors = Vec::new();
+    if manifest
+        .pointer("/testContract/mode")
+        .and_then(Value::as_str)
+        != Some("io")
+    {
+        errors.push(EsexError {
+            code: "ACTIVITY_UNSUPPORTED".to_owned(),
+            path: "/testContract/mode".to_owned(),
+            message: "Esta version del engine solo ejecuta actividades con tests IO.".to_owned(),
+        });
+    }
+    if let Some(normalizations) = manifest
+        .pointer("/testContract/normalization")
+        .and_then(Value::as_array)
+    {
+        for (index, normalization) in normalizations.iter().enumerate() {
+            let supported = normalization
+                .as_str()
+                .is_some_and(|name| matches!(name, "crlf-to-lf" | "trim-final-newline"));
+            if !supported {
+                errors.push(EsexError {
+                    code: "ACTIVITY_UNSUPPORTED".to_owned(),
+                    path: format!("/testContract/normalization/{index}"),
+                    message: "La normalizacion solicitada no esta implementada.".to_owned(),
+                });
+            }
+        }
+    }
+    if let Some(platforms) = manifest
+        .pointer("/compatibility/supportedPlatforms")
+        .and_then(Value::as_array)
+    {
+        let current = std::env::consts::OS;
+        let current_target = format!("{current}-{}", std::env::consts::ARCH);
+        if !platforms.iter().any(|platform| {
+            platform
+                .as_str()
+                .is_some_and(|platform| platform == current || platform == current_target)
+        }) {
+            errors.push(EsexError {
+                code: "ACTIVITY_UNSUPPORTED".to_owned(),
+                path: "/compatibility/supportedPlatforms".to_owned(),
+                message: format!("La actividad no declara soporte para {current_target}."),
+            });
+        }
+    }
+    if let Some(capabilities) = manifest
+        .pointer("/compatibility/requiredCapabilities")
+        .and_then(Value::as_array)
+    {
+        const SUPPORTED: [&str; 3] = ["gcc-ucrt64", "io-testing-v1", "workspace-v1"];
+        for (index, capability) in capabilities.iter().enumerate() {
+            if !capability
+                .as_str()
+                .is_some_and(|name| SUPPORTED.contains(&name))
+            {
+                errors.push(EsexError {
+                    code: "ACTIVITY_UNSUPPORTED".to_owned(),
+                    path: format!("/compatibility/requiredCapabilities/{index}"),
+                    message: "La actividad requiere una capacidad no implementada.".to_owned(),
+                });
+            }
+        }
+    }
+    match manifest
+        .pointer("/compatibility/minEngineVersion")
+        .and_then(Value::as_str)
+    {
+        Some(version)
+            if semver_tuple(version)
+                .zip(semver_tuple(ENGINE_VERSION))
+                .is_some_and(|(minimum, current)| minimum > current) =>
+        {
+            errors.push(EsexError {
+                code: "ACTIVITY_UNSUPPORTED".to_owned(),
+                path: "/compatibility/minEngineVersion".to_owned(),
+                message: format!(
+                    "La actividad requiere engine {version}; disponible {ENGINE_VERSION}."
+                ),
+            })
+        }
+        None => {}
+        Some(_) => {}
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn semver_tuple(value: &str) -> Option<(u64, u64, u64)> {
+    let core = value.split_once('-').map_or(value, |(core, _)| core);
+    let mut parts = core.split('.');
+    let tuple = (
+        parts.next()?.parse().ok()?,
+        parts.next()?.parse().ok()?,
+        parts.next()?.parse().ok()?,
+    );
+    parts.next().is_none().then_some(tuple)
+}
+
+pub(crate) fn invalid_request_response() -> Value {
     error_response(None, "INVALID_REQUEST", "La solicitud no es valida.", true)
 }
 
@@ -1036,6 +1296,24 @@ fn import_success_response(id: String, activity: &InstalledActivity, already: bo
             }
         }),
     )
+}
+
+fn active_exercise_json(
+    activity: &InstalledActivity,
+    workspace_path: &Path,
+    entrypoint_path: &Path,
+) -> Value {
+    json!({
+        "exerciseId": activity.activity_id,
+        "version": activity.version,
+        "installPath": activity.install_path,
+        "workspacePath": workspace_path,
+        "entrypointPath": entrypoint_path,
+        "title": activity.title,
+        "routeId": activity.route_id,
+        "moduleId": activity.module_id,
+        "nodeType": activity.node_type,
+    })
 }
 
 fn success_response(id: String, result: Value) -> Value {

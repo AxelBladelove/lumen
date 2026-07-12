@@ -1,10 +1,22 @@
 # Solution Testing
 
-Estado: `planned`
+Estado: `partial`
 
 ## Propósito
 
 Solution Testing decide si una solución cumple el ejercicio. Compilar no significa completar.
+
+## Estado actual del repo
+
+El protocolo v5 implementa el modo `io`: F10 compila el entrypoint de la
+working copy activa, carga manifest y casos desde la instalación validada,
+ejecuta grupos públicos y `local-private`, registra el intento y conserva el
+progreso completado. Los resultados ocultos no revelan entrada ni salida.
+
+Los modos `function`, `hybrid`, `project` y `manual-assisted` siguen planeados.
+El runner limita tiempo y salida según su implementación actual, pero todavía
+no garantiza por completo todas las propiedades declarativas de `sandbox`
+(red, filesystem, memoria y árbol de procesos).
 
 ## Modos de validación
 

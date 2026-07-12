@@ -325,6 +325,7 @@ fn options_from_manifest(manifest: &Value) -> RunOptions {
             .pointer("/testContract/expectedExitCode")
             .and_then(Value::as_i64)
             .or(Some(0)),
+        ..RunOptions::default()
     }
 }
 

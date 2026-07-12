@@ -8,14 +8,15 @@ Archivo: `Architectural-plans/lumen-modes/route-mode.md`
 
 ## Estado actual del repo
 
-Route Mode completo no está implementado todavía.
+Route Mode está implementado parcialmente como Route Loop v5. El Extension
+Host activa `lumen.mode = route`, usa `lumen.routePath` como launcher y abre el
+panel `lumen.routePathPanel`. El Local Engine entrega snapshots secuenciales,
+rechaza nodos bloqueados, materializa una working copy al activar, ejecuta F9
+y F10 sobre el mismo source y persiste completados en SQLite.
 
-La implementación actual es una vista mock de ruta: el Extension Host activa
-`lumen.mode = route`, usa `lumen.routePath` como launcher del Activity Bar y
-abre el frontend completo en el panel de editor `lumen.routePathPanel`. El
-frontend muestra un módulo mockeado de Ruta C. Avanzar de nodo ocurre
-localmente en `RoutePathView.svelte` y no registra progreso real, no
-materializa ejercicios, no evalúa gates y no consulta Local Engine ni SQLite.
+La webview representa el snapshot y envía intenciones de selección/continuar;
+no decide progreso. Gates no secuenciales, quizzes, proyectos, refuerzos y
+explicaciones ricas de bloqueo siguen siendo arquitectura objetivo.
 
 Este modo existe para que el usuario aprenda siguiendo una progresión estructurada. Lumen decide qué viene después, qué ejercicios pertenecen a cada módulo, cuándo se desbloquea una parte nueva y qué debe reforzarse según el progreso del usuario.
 

@@ -60,8 +60,7 @@ export function buildRouteModuleFromEngine(payload: RouteModuleDataPayload): Rou
   const completedCount = projectedNodes.filter((node) => node.status === "completed").length;
   const nextNode =
     projectedNodes.find((node) => node.status === "active") ??
-    projectedNodes.find((node) => node.status !== "completed") ??
-    projectedNodes[0];
+    projectedNodes.find((node) => node.status !== "completed");
 
   return {
     ...base,
@@ -73,7 +72,7 @@ export function buildRouteModuleFromEngine(payload: RouteModuleDataPayload): Rou
     nodes: projectedNodes,
     nextAction: {
       label: "Siguiente:",
-      targetTitle: nextNode?.title ?? ""
+      targetTitle: nextNode?.title ?? "Módulo completado"
     }
   };
 }

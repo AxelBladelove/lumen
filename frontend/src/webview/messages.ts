@@ -136,4 +136,11 @@ export type ExtensionToWebviewMessage =
   | {
       type: "route.module.data";
       payload: RouteModuleDataPayload;
+    }
+  | {
+      type: "route.activation.state";
+      payload: {
+        busy: { exerciseId: string } | null;
+        error: { exerciseId?: string; message: string } | null;
+      };
     };

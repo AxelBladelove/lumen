@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use wait_timeout::ChildExt;
 
+use crate::process_guard::ProcessGuard;
+
 const IO_CASES_SCHEMA_JSON: &str = include_str!("../../contracts/io-test-cases.v1.schema.json");
 
 const SCHEMA_VIOLATION: &str = "SCHEMA_VIOLATION";
@@ -19,6 +21,12 @@ const DUPLICATE_CASE_ID: &str = "DUPLICATE_CASE_ID";
 const UNKNOWN_TEST_GROUP: &str = "UNKNOWN_TEST_GROUP";
 const EMPTY_TEST_GROUP: &str = "EMPTY_TEST_GROUP";
 const TIMEOUT_EXCEEDS_LIMIT: &str = "TIMEOUT_EXCEEDS_LIMIT";
+const ENGINE_LIMIT_EXCEEDED: &str = "ENGINE_LIMIT_EXCEEDED";
+
+const MAX_CASES: usize = 256;
+const MAX_CASE_TIMEOUT_MS: u64 = 10_000;
+const MAX_TOTAL_TIMEOUT_MS: u64 = 120_000;
+const MAX_CASE_TEXT_BYTES: usize = 256 * 1024;
 
 static IO_CASES_SCHEMA: OnceLock<Result<JSONSchema, String>> = OnceLock::new();
 
@@ -53,6 +61,8 @@ pub struct RunOptions {
     pub default_timeout_ms: u64,
     pub output_limit_kb: usize,
     pub expected_exit_code: Option<i64>,
+    pub memory_limit_mb: usize,
+    pub process_limit: u32,
 }
 
 impl Default for RunOptions {
@@ -62,6 +72,8 @@ impl Default for RunOptions {
             default_timeout_ms: 2_000,
             output_limit_kb: 256,
             expected_exit_code: Some(0),
+            memory_limit_mb: 128,
+            process_limit: 1,
         }
     }
 }
@@ -217,6 +229,13 @@ fn compiled_schema() -> Result<&'static JSONSchema, String> {
 }
 
 fn validate_invariants(cases: &IoCases, manifest: &Value, errors: &mut Vec<TestingError>) {
+    if cases.cases.len() > MAX_CASES {
+        errors.push(TestingError::new(
+            ENGINE_LIMIT_EXCEEDED,
+            "/cases",
+            format!("El engine admite como maximo {MAX_CASES} casos por actividad."),
+        ));
+    }
     let mut seen_ids = HashSet::new();
     for (index, case) in cases.cases.iter().enumerate() {
         if !seen_ids.insert(case.id.as_str()) {
@@ -224,6 +243,20 @@ fn validate_invariants(cases: &IoCases, manifest: &Value, errors: &mut Vec<Testi
                 DUPLICATE_CASE_ID,
                 format!("/cases/{index}/id"),
                 format!("El id de caso '{}' está repetido.", case.id),
+            ));
+        }
+        if case.stdin.len() > MAX_CASE_TEXT_BYTES {
+            errors.push(TestingError::new(
+                ENGINE_LIMIT_EXCEEDED,
+                format!("/cases/{index}/stdin"),
+                "La entrada del caso supera 256 KiB.",
+            ));
+        }
+        if case.expected_stdout.len() > MAX_CASE_TEXT_BYTES {
+            errors.push(TestingError::new(
+                ENGINE_LIMIT_EXCEEDED,
+                format!("/cases/{index}/expectedStdout"),
+                "La salida esperada supera 256 KiB.",
             ));
         }
     }
@@ -274,6 +307,14 @@ fn validate_invariants(cases: &IoCases, manifest: &Value, errors: &mut Vec<Testi
         .pointer("/testContract/limits/timeLimitMs")
         .and_then(Value::as_u64)
     {
+        if limit > MAX_CASE_TIMEOUT_MS {
+            errors.push(TestingError::new(
+                ENGINE_LIMIT_EXCEEDED,
+                "/testContract/limits/timeLimitMs",
+                format!("El timeout del manifest supera {MAX_CASE_TIMEOUT_MS} ms."),
+            ));
+        }
+        let mut total_timeout_ms = 0_u64;
         for (index, case) in cases.cases.iter().enumerate() {
             if case.timeout_ms.is_some_and(|timeout| timeout > limit) {
                 errors.push(TestingError::new(
@@ -282,6 +323,15 @@ fn validate_invariants(cases: &IoCases, manifest: &Value, errors: &mut Vec<Testi
                     format!("El timeout del caso no puede superar el límite de {limit} ms."),
                 ));
             }
+            let effective = case.timeout_ms.unwrap_or(limit).min(MAX_CASE_TIMEOUT_MS);
+            total_timeout_ms = total_timeout_ms.saturating_add(effective);
+        }
+        if total_timeout_ms > MAX_TOTAL_TIMEOUT_MS {
+            errors.push(TestingError::new(
+                ENGINE_LIMIT_EXCEEDED,
+                "/cases",
+                format!("El presupuesto total de casos supera {MAX_TOTAL_TIMEOUT_MS} ms."),
+            ));
         }
     }
 }
@@ -334,12 +384,28 @@ fn run_io_case(binary: &Path, case: &IoCase, options: &RunOptions) -> IoCaseResu
             );
         }
     };
+    let process_guard =
+        match ProcessGuard::assign(&child, options.memory_limit_mb, options.process_limit) {
+            Ok(guard) => guard,
+            Err(error) => {
+                terminate_and_wait(&mut child, None);
+                return runtime_error_result(
+                    case,
+                    elapsed_millis(started_at),
+                    None,
+                    false,
+                    None,
+                    expected_normalized.clone(),
+                    format!("No se pudo aplicar la frontera de ejecucion: {error}"),
+                );
+            }
+        };
 
     let stdin = child.stdin.take();
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
     let (Some(mut stdin), Some(stdout), Some(stderr)) = (stdin, stdout, stderr) else {
-        terminate_and_wait(&mut child);
+        terminate_and_wait(&mut child, Some(&process_guard));
         return runtime_error_result(
             case,
             elapsed_millis(started_at),
@@ -357,8 +423,12 @@ fn run_io_case(binary: &Path, case: &IoCase, options: &RunOptions) -> IoCaseResu
     let stdout_reader = thread::spawn(move || read_limited(stdout, output_limit));
     let stderr_reader = thread::spawn(move || read_limited(stderr, output_limit));
 
-    let timeout = Duration::from_millis(case.timeout_ms.unwrap_or(options.default_timeout_ms));
-    let wait_outcome = wait_for_case(&mut child, timeout);
+    let timeout = Duration::from_millis(
+        case.timeout_ms
+            .unwrap_or(options.default_timeout_ms)
+            .min(MAX_CASE_TIMEOUT_MS),
+    );
+    let wait_outcome = wait_for_case(&mut child, timeout, &process_guard);
     let duration_ms = elapsed_millis(started_at);
 
     let _stdin_result = stdin_writer.join();
@@ -516,11 +586,10 @@ fn apply_normalizations(mut text: String, normalizations: &[String]) -> String {
     for normalization in normalizations {
         match normalization.as_str() {
             "crlf-to-lf" => text = text.replace("\r\n", "\n"),
-            "trim-final-newline" => {
-                if text.ends_with('\n') {
-                    text.pop();
-                }
+            "trim-final-newline" if text.ends_with('\n') => {
+                text.pop();
             }
+            "trim-final-newline" => {}
             _ => {}
         }
     }
@@ -576,15 +645,19 @@ impl WaitOutcome {
     }
 }
 
-fn wait_for_case(child: &mut Child, timeout: Duration) -> WaitOutcome {
+fn wait_for_case(
+    child: &mut Child,
+    timeout: Duration,
+    process_guard: &ProcessGuard,
+) -> WaitOutcome {
     match child.wait_timeout(timeout) {
         Ok(Some(status)) => WaitOutcome::Exited(status),
         Ok(None) => {
-            terminate_and_wait(child);
+            terminate_and_wait(child, Some(process_guard));
             WaitOutcome::TimedOut
         }
         Err(error) => {
-            terminate_and_wait(child);
+            terminate_and_wait(child, Some(process_guard));
             WaitOutcome::WaitFailed(format!(
                 "No se pudo esperar la finalización del programa: {error}"
             ))
@@ -592,7 +665,10 @@ fn wait_for_case(child: &mut Child, timeout: Duration) -> WaitOutcome {
     }
 }
 
-fn terminate_and_wait(child: &mut Child) {
+fn terminate_and_wait(child: &mut Child, process_guard: Option<&ProcessGuard>) {
+    if let Some(process_guard) = process_guard {
+        process_guard.terminate();
+    }
     let _kill_result = child.kill();
     let _wait_result = child.wait();
 }

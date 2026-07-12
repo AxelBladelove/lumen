@@ -33,7 +33,11 @@ Estos tres artefactos son parte del contrato. Cambiarlos es cambiar el contrato.
 
 ## Estado actual del repo
 
-Existen el schema v1, la taxonomía v1 (semilla centrada en el módulo Cadenas de Ruta C), los ejemplos y un validador ejecutable en el Local Engine (`engine/src/manifest.rs`, cubierto por `cargo test`). Todavía no existen: pipeline de contenido, formato `.esex`, importación, ni ninguna actividad publicada. El validador aún no se expone por protocolo; eso llega con la importación de ejercicios.
+Existen el schema v1, la taxonomía v1, ejemplos y un validador ejecutable en el
+Local Engine (`engine/src/manifest.rs`, cubierto por `cargo test`). El formato
+`.esex`, su importación validada y actividades locales aprobadas bajo
+`content/activities/` forman parte del slice actual. El contenido instalado es
+inmutable y el starter editable se materializa aparte según ADR 0002.
 
 ## Identidad
 
