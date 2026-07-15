@@ -112,12 +112,6 @@ export async function enterLumenMode(deps: LumenModeDeps) {
   panel.setPhase("entering");
 
   try {
-    // El HTML ya se precargo al activar la extension. El launcher se cierra de
-    // inmediato y no hay una lectura de disco adicional antes de la cortina.
-    await vscode.commands
-      .executeCommand("workbench.action.closeSidebar")
-      .then(undefined, () => undefined);
-
     if (entryState.workspace.action !== "ready") {
       await switchToLumenWorkspace(context, entryState.workspace);
       launcher.setPhase("idle");
@@ -140,18 +134,24 @@ export async function enterLumenMode(deps: LumenModeDeps) {
       .executeCommand("workbench.action.unlockEditorGroup")
       .then(undefined, () => undefined);
 
-    // Panel y Zen Mode comparten el turno final: la primera superficie propia
-    // que se pinta es la cortina ya en el layout fullscreen de carga.
+    // Crear primero el panel conserva el layout actual mientras Chromium prepara
+    // su primera pintura. Si Zen o el cierre del sidebar se adelantan, VS Code
+    // expande un webview todavía transparente y deja ver el fondo desnudo.
     panel.createFullScreen(rawHtml);
-    await activateLumenModeZen();
 
-    // Boot del frontend a pantalla completa, sin tocar el layout. El panel
-    // reintenta el HTML una vez por su cuenta (watchdog) si el primer boot
-    // no reporta ready.
+    // El panel reintenta el HTML una vez por su cuenta (watchdog) si el primer
+    // boot no reporta ready. Sólo después de esta barrera visual se permite
+    // cambiar el layout: el primer frame fullscreen ya contiene la cortina.
     const ready = await panel.waitForReady(frontendReadyTimeoutMs);
     if (!ready) {
       throw new Error("Lumen frontend did not become ready in time");
     }
+
+    const sidebarClosing = vscode.commands
+      .executeCommand("workbench.action.closeSidebar")
+      .then(undefined, () => undefined);
+    const zenActivating = activateLumenModeZen();
+    await Promise.all([sidebarClosing, zenActivating]);
 
     // Prearmar durante la propia carga elimina el roundtrip que antes ocurria
     // DESPUES del punch-in. El frontend instala los observadores pero mantiene

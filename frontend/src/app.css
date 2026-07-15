@@ -35,9 +35,9 @@ button {
   font: inherit;
 }
 
-/* Se aplica sincronicamente desde el primer callback de geometria del commit.
-   `display:none` es deliberado: un fade aqui volveria a pintar el fondo de la
-   carga dentro del grupo derecho durante varios frames. */
+/* Fallback de reconciliación. El primer frame del resize lo resuelve la media
+   query prearmada por App.svelte; esta clase mantiene el DOM oculto mientras
+   Svelte termina de desmontarlo. */
 .lumen-layout-committed .lumen-intro {
   display: none !important;
 }
@@ -86,8 +86,8 @@ button {
   display: grid;
   justify-items: center;
   gap: 20px;
-  opacity: 0;
-  transform: translate3d(0, 2px, 0) scale(0.985);
+  opacity: 1;
+  transform: translate3d(0, -12px, 0) scale(1);
   /* El isotipo ocupa los primeros 92px de un bloque de 152px. Este origen
      coincide con su centro, no con el centro conjunto logo + wordmark. */
   transform-origin: 50% 30.25%;
@@ -114,10 +114,6 @@ button {
   );
   transform: translate3d(-50%, -50%, 0) scale(0.86);
   will-change: opacity, transform;
-}
-
-.lumen-intro.intro-assets-ready .lumen-intro-mark {
-  animation: lumenIntroMark 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .lumen-intro-mark img.lumen-intro-logo {
@@ -274,17 +270,6 @@ button {
 .lumen-intro.intro-exiting .lumen-intro-bar,
 .lumen-intro.intro-exiting .lumen-intro-percent {
   opacity: 0;
-}
-
-@keyframes lumenIntroMark {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 4px, 0) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, -12px, 0) scale(1);
-  }
 }
 
 @keyframes lumenIntroMarkFocus {
@@ -531,15 +516,6 @@ button {
 .lumen-ui-revealing .lumen-route-app {
   animation: lumenUiReveal 280ms cubic-bezier(0.2, 0.88, 0.24, 1) both;
   will-change: opacity;
-}
-
-/* Segunda mitad del zoom transition: se activa en el mismo callback que
-   retira la cortina. La UI ya está en el panel final y aterriza desde una
-   escala ligeramente sobredimensionada, sin exponer geometría fullscreen. */
-.lumen-ui-entering .lumen-route-app {
-  animation: lumenUiZoomOut 160ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
-  transform-origin: 50% 50%;
-  will-change: opacity, transform;
 }
 
 @keyframes lumenUiReveal {

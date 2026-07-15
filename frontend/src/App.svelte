@@ -1,8 +1,11 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { onDestroy, tick } from "svelte";
   import RoutePathView from "./route-path-view/RoutePathView.svelte";
   import { lumenBrand, ensureLumenFavicon } from "./brand/lumenBrand";
-  import { hasLayoutCommitGeometryChanged } from "./entry/layoutCommit";
+  import {
+    createLayoutCommitMediaRule,
+    hasLayoutCommitGeometryChanged
+  } from "./entry/layoutCommit";
   import {
     buildRouteModuleFromEngine,
     cloneRouteModule,
@@ -56,19 +59,21 @@
   const introStableFrameBudgetMs = 26;
   const introRevealDurationMs = 280;
   const introFocusDurationMs = 180;
-  const introLayoutLeadMs = 120;
-  const introLayoutHandoffAtMs = introFocusDurationMs - introLayoutLeadMs;
+  // El host empieza a trabajar a 60 ms; su latencia natural hace que el primer
+  // split caiga sobre el pico óptico de cobertura (~100–150 ms), sin añadir
+  // una pausa artificial a la transición.
+  const introLayoutHandoffAtMs = 60;
   const introUiZoomOutDurationMs = 160;
 
-  // Commit de layout prearmado: los observadores se instalan durante la carga,
-  // pero sólo pasan a `enabled` dentro del tramo final del punch-in. El primer
-  // resize posterior lo aplica en el mismo ciclo de render. Por construccion,
-  // el fondo del loader no puede sobrevivir dentro del panel derecho.
+  // Commit de layout prearmado: CSS es dueño del primer frame con geometría
+  // nueva; los observadores sólo confirman el cambio y desmontan el estado.
   type LayoutCommitPhase = "idle" | "armed" | "enabled" | "committed";
   let layoutCommitPhase: LayoutCommitPhase = "idle";
   let layoutCommitSourceWidth = 0;
   let layoutCommitSourceHeight = 0;
   let stopLayoutCommitObservation = () => {};
+  let layoutCommitLatchStyle: HTMLStyleElement | null = null;
+  let uiZoomOutStarted = false;
 
   performance.mark("lumen:app-mounted");
   window.setTimeout(() => ensureLumenFavicon(), 80);
@@ -136,15 +141,24 @@
     }
   });
 
-  bridge.post({
-    type: "frontend.ready",
-    payload: {
-      protocolVersion: lumenWebviewProtocolVersion,
-      view: "route-path-view",
-      routeId: "route-c",
-      moduleId: routeModule.path.id,
-      dataSource: currentDataSource
-    }
+  // `frontend.ready` es también la barrera visual del Extension Host. No debe
+  // salir durante el montaje síncrono: dos rAF garantizan que la cortina ya
+  // atravesó al menos una pintura antes de permitir cerrar el sidebar/entrar
+  // en Zen. Así un webview transparente nunca se expande a fullscreen.
+  let readyPaintFrame = 0;
+  let readySignalFrame = window.requestAnimationFrame(() => {
+    readyPaintFrame = window.requestAnimationFrame(() => {
+      bridge.post({
+        type: "frontend.ready",
+        payload: {
+          protocolVersion: lumenWebviewProtocolVersion,
+          view: "route-path-view",
+          routeId: "route-c",
+          moduleId: routeModule.path.id,
+          dataSource: currentDataSource
+        }
+      });
+    });
   });
 
   const stopPerfReporting = setupPerfReporting();
@@ -181,12 +195,15 @@
   }
 
   onDestroy(() => {
+    window.cancelAnimationFrame(readySignalFrame);
+    window.cancelAnimationFrame(readyPaintFrame);
     stopListening();
     stopPerfReporting();
     stopIntroAssets();
     stopIntroGate();
     stopIntroProgress();
     stopLayoutCommitObservation();
+    removeLayoutCommitVisualLatch();
     resetUiZoomOut();
     window.removeEventListener("keydown", handleEscapeKey);
   });
@@ -242,6 +259,7 @@
     resetUiZoomOut();
     stopIntroGate();
     stopIntroProgress();
+    removeStaticIntro();
     document.documentElement.classList.remove("lumen-ui-revealing");
     introVisible = false;
     introCovering = false;
@@ -256,6 +274,25 @@
     const progress = Number((window as any).__LUMEN_STATIC_INTRO__?.progress ?? 0);
     if (!Number.isFinite(progress)) return 0;
     return Math.min(92, Math.max(0, progress));
+  }
+
+  function syncStaticIntroProgress(progress: number) {
+    const clamped = Math.min(100, Math.max(0, progress));
+    const staticState = (window as any).__LUMEN_STATIC_INTRO__;
+    if (staticState) {
+      staticState.controlled = true;
+      staticState.progress = clamped;
+    }
+    const fill = document.getElementById("lumen-static-fill");
+    const value = document.getElementById("lumen-static-percent-value");
+    const bar = document.querySelector<HTMLElement>(".lumen-static-bar");
+    if (fill) fill.style.transform = `scaleX(${(clamped / 100).toFixed(4)})`;
+    if (value) value.textContent = String(Math.floor(clamped));
+    bar?.setAttribute("aria-valuenow", String(Math.floor(clamped)));
+  }
+
+  function removeStaticIntro() {
+    document.getElementById("lumen-static-intro")?.remove();
   }
 
   // El Extension Host usa esta señal como confirmación final, después de haber
@@ -275,29 +312,67 @@
     layoutCommitSourceWidth = 0;
     layoutCommitSourceHeight = 0;
     document.documentElement.classList.remove("lumen-layout-committed");
+    removeLayoutCommitVisualLatch();
   }
 
   function resetUiZoomOut() {
     window.clearTimeout(uiZoomOutTimer);
     uiZoomOutTimer = 0;
-    document.documentElement.classList.remove("lumen-ui-entering");
+    uiZoomOutStarted = false;
   }
 
-  function beginUiZoomOut() {
-    resetUiZoomOut();
+  function settleUiZoomOut() {
+    if (!uiZoomOutStarted) return;
+    window.clearTimeout(uiZoomOutTimer);
+    uiZoomOutTimer = 0;
+    uiZoomOutStarted = false;
+    removeLayoutCommitVisualLatch();
+    document.documentElement.classList.remove("lumen-layout-committed");
+    performance.mark("lumen:ui-zoom-out-end");
+    performance.measure(
+      "lumen:ui-zoom-out",
+      "lumen:ui-zoom-out-start",
+      "lumen:ui-zoom-out-end"
+    );
+    window.dispatchEvent(new Event("lumen:entry-transition-settled"));
+  }
+
+  function beginUiZoomOutTelemetry() {
+    if (uiZoomOutStarted) return;
+    uiZoomOutStarted = true;
     performance.mark("lumen:ui-zoom-out-start");
-    document.documentElement.classList.add("lumen-ui-entering");
     uiZoomOutTimer = window.setTimeout(() => {
-      uiZoomOutTimer = 0;
-      document.documentElement.classList.remove("lumen-ui-entering");
-      performance.mark("lumen:ui-zoom-out-end");
-      performance.measure(
-        "lumen:ui-zoom-out",
-        "lumen:ui-zoom-out-start",
-        "lumen:ui-zoom-out-end"
-      );
-      window.dispatchEvent(new Event("lumen:entry-transition-settled"));
-    }, introUiZoomOutDurationMs);
+      settleUiZoomOut();
+    }, introUiZoomOutDurationMs + 80);
+  }
+
+  function handleUiZoomOutAnimationStart(event: AnimationEvent) {
+    if (event.animationName !== "lumenUiZoomOut") return;
+    beginUiZoomOutTelemetry();
+  }
+
+  function handleUiZoomOutAnimationEnd(event: AnimationEvent) {
+    if (event.animationName !== "lumenUiZoomOut") return;
+    settleUiZoomOut();
+  }
+
+  function removeLayoutCommitVisualLatch() {
+    document.documentElement.classList.remove("lumen-layout-commit-enabled");
+    layoutCommitLatchStyle?.remove();
+    layoutCommitLatchStyle = null;
+  }
+
+  function installLayoutCommitVisualLatch() {
+    removeLayoutCommitVisualLatch();
+    const style = document.createElement("style");
+    style.id = "lumen-layout-commit-latch";
+    style.textContent = createLayoutCommitMediaRule(
+      { width: layoutCommitSourceWidth, height: layoutCommitSourceHeight },
+      introUiZoomOutDurationMs
+    );
+    document.head.append(style);
+    layoutCommitLatchStyle = style;
+    document.documentElement.classList.add("lumen-layout-commit-enabled");
   }
 
   function armLayoutCommit() {
@@ -333,6 +408,7 @@
     // cientos de ms instalado, pero ningun resize previo autoriza el reveal.
     layoutCommitSourceWidth = window.innerWidth;
     layoutCommitSourceHeight = window.innerHeight;
+    installLayoutCommitVisualLatch();
     layoutCommitPhase = "enabled";
     performance.mark("lumen:layout-commit-enabled");
     return true;
@@ -346,12 +422,11 @@
     );
     if (!geometryChanged) return;
 
-    // Esta clase se aplica dentro del callback de geometria, antes del paint.
-    // Svelte desmonta el DOM despues; no hay fade ni fondo opaco que Chromium
-    // pueda confinar al panel derecho.
+    // La media query preinstalada ya retiró la cortina en el primer cálculo de
+    // estilo de esta geometría. Este callback sólo confirma y limpia el DOM.
     layoutCommitPhase = "committed";
     document.documentElement.classList.add("lumen-layout-committed");
-    beginUiZoomOut();
+    beginUiZoomOutTelemetry();
     stopLayoutCommitObservation();
     stopLayoutCommitObservation = () => {};
     introVisible = false;
@@ -564,16 +639,28 @@
 
   function setupIntroAssets() {
     let cancelled = false;
-    const reveal = () => {
-      if (cancelled || introAssetsReady) return;
+    let handoffStarted = false;
+    const reveal = async () => {
+      if (cancelled || introAssetsReady || handoffStarted) return;
+      handoffStarted = true;
+
+      // El intro estático vive fuera de #app y permanece por encima durante
+      // toda la carga y los resizes de Zen. Svelte queda preparado debajo; el
+      // relevo visual se pospone al punch-in, cuando el layout ya es estable.
+      introProgress = Math.max(introProgress, readStaticIntroProgress());
+      introProgressVisible = true;
       introAssetsReady = true;
+      await tick();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      if (cancelled) return;
+      syncStaticIntroProgress(introProgress);
       window.dispatchEvent(new Event("lumen:intro-assets-ready"));
     };
-    const fallbackTimer = window.setTimeout(reveal, 360);
+    const fallbackTimer = window.setTimeout(() => void reveal(), 360);
 
     Promise.all([waitForImage(lumenBrand.logoUrl), waitForImage(lumenBrand.wordmarkUrl)])
-      .then(reveal)
-      .catch(reveal)
+      .then(() => void reveal())
+      .catch(() => void reveal())
       .finally(() => window.clearTimeout(fallbackTimer));
 
     return () => {
@@ -608,6 +695,7 @@
     let completed = false;
     let handoffReady = false;
     let cancelled = false;
+    let staticHandoffFrame = 0;
 
     const beginReveal = () => {
       if (cancelled) return;
@@ -643,6 +731,10 @@
     const beginFocusZoom = () => {
       if (cancelled) return;
       introCovering = true;
+      // La capa HTML evita el descarte de texturas observado durante los
+      // resizes de Zen. Permanece encima hasta que el zoom Svelte ya arrancó
+      // detrás y se retira justo en el siguiente frame.
+      staticHandoffFrame = requestAnimationFrame(removeStaticIntro);
       // La marca mantiene cubierta la pantalla mientras el host prepara el
       // split. Sólo el commit geométrico desmonta la cortina completa: nunca
       // existe un estado de espera con el fondo de carga desnudo.
@@ -680,6 +772,7 @@
       cancelled = true;
       window.removeEventListener("lumen:route-visual-complete", markReadyToReveal);
       window.removeEventListener("lumen:intro-progress-complete", markProgressComplete);
+      cancelAnimationFrame(staticHandoffFrame);
       document.documentElement.classList.remove("lumen-ui-revealing");
       timers.forEach((timer) => window.clearTimeout(timer));
     };
@@ -703,6 +796,7 @@
       if (completed) return;
       completed = true;
       introProgress = 100;
+      syncStaticIntroProgress(introProgress);
       window.clearInterval(progressInterval);
       window.clearTimeout(progressTimer);
       window.dispatchEvent(new Event("lumen:intro-progress-complete"));
@@ -714,6 +808,7 @@
       if (completed) return;
       const progress = Math.min(1, (performance.now() - progressStartedAt) / introProgressDurationMs);
       introProgress = progress >= 1 ? 100 : Math.floor(progressBase + (100 - progressBase) * progress);
+      syncStaticIntroProgress(introProgress);
       if (progress >= 1) completeProgress();
     }
 
@@ -787,6 +882,11 @@
     };
   }
 </script>
+
+<svelte:window
+  on:animationstart={handleUiZoomOutAnimationStart}
+  on:animationend={handleUiZoomOutAnimationEnd}
+/>
 
 <div class="route-scene">
   <RoutePathView

@@ -29,8 +29,9 @@ const bootWatchdogMs = 5000;
  * 1. `createFullScreen()` crea el panel en el grupo ACTIVO (sin split) y le
  *    asigna el HTML en el mismo turno; la cortina estatica del propio HTML
  *    cubre el editor desde el primer frame.
- * 2. El frontend bootea a pantalla completa sin que se toque el layout.
- * 3. Al recibir `frontend.ready`, el host prearma el commit mientras continua
+ * 2. El frontend bootea sin que se toque el layout. `frontend.ready` sólo se
+ *    emite después de que la cortina haya atravesado una pintura real.
+ * 3. Al recibir `frontend.ready`, el host entra a Zen y prearma el commit mientras continua
  *    la carga. El frontend todavía no permite retirar la cortina.
  * 4. Al arrancar el punch-in, el frontend habilita el commit y entrega al
  *    Extension Host el delay del handoff. Ese reloj vive fuera del iframe, así

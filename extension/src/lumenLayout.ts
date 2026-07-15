@@ -62,9 +62,9 @@ export async function prepareLumenModeLayout(context: vscode.ExtensionContext) {
     } satisfies LayoutRestoreState);
   }
 
-  // Todas las escrituras de settings son lentas pero invisibles: Zen todavia
-  // no se activo y enter-lumen-mode ya cerro el sidebar. Lo visible (cortina +
-  // Zen) ocurre despues, junto, en activateLumenModeZen().
+  // Todas las escrituras de settings son lentas pero invisibles: Zen todavía
+  // no se activó y el layout permanece intacto. El panel se crea después y
+  // sólo tras pintar su cortina se cierra el sidebar y se activa Zen.
   for (const [key, value] of Object.entries(allLumenLayoutSettings)) {
     await updateWorkspaceSetting(config, key, value);
   }

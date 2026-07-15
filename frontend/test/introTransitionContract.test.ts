@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 
 const appCss = readFileSync(new URL("../src/app.css", import.meta.url), "utf8");
 const appSvelte = readFileSync(new URL("../src/App.svelte", import.meta.url), "utf8");
+const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const viteConfig = readFileSync(new URL("../vite.config.ts", import.meta.url), "utf8");
 const extensionEntry = readFileSync(
   new URL("../../extension/src/lumenEntry.ts", import.meta.url),
   "utf8"
@@ -19,6 +21,37 @@ function focusKeyframes() {
 }
 
 describe("intro transition visual contract", () => {
+  test("keeps the static curtain alive through the Svelte punch-in handoff", () => {
+    const staticIntro = indexHtml.indexOf('id="lumen-static-intro"');
+    const appRoot = indexHtml.indexOf('<div id="app">');
+
+    expect(staticIntro).toBeGreaterThanOrEqual(0);
+    expect(appRoot).toBeGreaterThan(staticIntro);
+    expect(indexHtml.slice(staticIntro, appRoot)).toContain("data-lumen-static-intro");
+    expect(indexHtml).toMatch(/\.lumen-static-intro\s*\{[\s\S]*z-index:\s*200/);
+    expect(indexHtml).not.toContain("lumenStaticMarkIn");
+    const staticMarkCss = indexHtml.slice(
+      indexHtml.indexOf(".lumen-static-mark {"),
+      indexHtml.indexOf(".lumen-static-bar {")
+    );
+    expect(staticMarkCss).not.toContain("drop-shadow");
+    expect(staticMarkCss).not.toContain("translateY");
+    expect(staticMarkCss).toMatch(/position:\s*absolute/);
+    expect(staticMarkCss).toMatch(/left:\s*calc\(50% - 116px\)/);
+    expect(staticMarkCss).toMatch(/top:\s*calc\(50% - 88px\)/);
+    expect(viteConfig).toMatch(/data:image\/svg\+xml;base64/);
+    expect(viteConfig).toMatch(/data:image\/webp;base64/);
+    expect(appSvelte).toMatch(/await tick\(\);[\s\S]*requestAnimationFrame[\s\S]*syncStaticIntroProgress\(introProgress\)/);
+    expect(appSvelte).toMatch(
+      /introCovering = true;[\s\S]*requestAnimationFrame\(removeStaticIntro\)/
+    );
+    expect(indexHtml).toContain("controlled: false");
+    expect(appCss).toMatch(
+      /\.lumen-intro-mark\s*\{[\s\S]*opacity:\s*1;[\s\S]*translate3d\(0, -12px, 0\) scale\(1\)/
+    );
+    expect(appCss).not.toContain("@keyframes lumenIntroMark {");
+  });
+
   test("keeps the Lumen mark visible at the terminal focus frame", () => {
     const { focusStart, focusEnd, css } = focusKeyframes();
 
@@ -50,18 +83,18 @@ describe("intro transition visual contract", () => {
 
   test("lands the final UI with the matching zoom-out after layout commit", () => {
     expect(appCss).toMatch(
-      /\.lumen-ui-entering\s+\.lumen-route-app[\s\S]*lumenUiZoomOut 160ms/
-    );
-    expect(appCss).toMatch(
       /@keyframes lumenUiZoomOut[\s\S]*scale\(1\.11\)[\s\S]*scale\(1\)/
     );
     expect(appSvelte).toMatch(
-      /classList\.add\("lumen-layout-committed"\);\s*beginUiZoomOut\(\);/
+      /style\.textContent = createLayoutCommitMediaRule\([\s\S]*introUiZoomOutDurationMs/
+    );
+    expect(appSvelte).toMatch(
+      /on:animationstart=\{handleUiZoomOutAnimationStart\}[\s\S]*on:animationend=\{handleUiZoomOutAnimationEnd\}/
     );
   });
 
   test("prearms the commit and overlaps VS Code layout work with the punch-in", () => {
-    expect(appSvelte).toMatch(/const introLayoutLeadMs = 120;/);
+    expect(appSvelte).toMatch(/const introLayoutHandoffAtMs = 60;/);
     expect(appSvelte).toMatch(
       /type LayoutCommitPhase = "idle" \| "armed" \| "enabled" \| "committed";/
     );
@@ -75,6 +108,10 @@ describe("intro transition visual contract", () => {
       /this\.layoutHandoffTimer = setTimeout\(\(\) => \{[\s\S]*this\.layoutHandoffSignal\.resolve\(\);[\s\S]*\}, safeDelayMs\);/
     );
     expect(appSvelte).toMatch(/if \(layoutCommitPhase !== "enabled"\) return;/);
+    const latchInstalled = appSvelte.indexOf("installLayoutCommitVisualLatch();");
+    const phaseEnabled = appSvelte.indexOf('layoutCommitPhase = "enabled";', latchInstalled);
+    expect(latchInstalled).toBeGreaterThanOrEqual(0);
+    expect(phaseEnabled).toBeGreaterThan(latchInstalled);
 
     const ready = extensionEntry.indexOf("await panel.waitForReady");
     const prearm = extensionEntry.indexOf("panel.requestLayoutCommit();", ready);
@@ -87,6 +124,23 @@ describe("intro transition visual contract", () => {
     expect(armed).toBeGreaterThan(prearm);
     expect(handoff).toBeGreaterThan(armed);
     expect(move).toBeGreaterThan(handoff);
+  });
+
+  test("does not expose fullscreen until the curtain frontend is ready", () => {
+    const prepare = extensionEntry.indexOf("await prepareLumenModeLayout");
+    const createCurtain = extensionEntry.indexOf("panel.createFullScreen(rawHtml)", prepare);
+    const ready = extensionEntry.indexOf("await panel.waitForReady", createCurtain);
+    const closeLauncher = extensionEntry.indexOf("const sidebarClosing", ready);
+    const awaitLayout = extensionEntry.indexOf("await Promise.all([sidebarClosing, zenActivating])", closeLauncher);
+
+    expect(prepare).toBeGreaterThanOrEqual(0);
+    expect(createCurtain).toBeGreaterThan(prepare);
+    expect(ready).toBeGreaterThan(createCurtain);
+    expect(closeLauncher).toBeGreaterThan(ready);
+    expect(awaitLayout).toBeGreaterThan(closeLauncher);
+    expect(appSvelte).toMatch(
+      /requestAnimationFrame\(\(\) => \{[\s\S]*requestAnimationFrame\(\(\) => \{[\s\S]*type:\s*"frontend\.ready"/
+    );
   });
 
   test("reports the measured focus-to-commit interval for runtime proof", () => {
@@ -110,6 +164,9 @@ describe("intro transition visual contract", () => {
   test("removes the complete curtain atomically at layout commit", () => {
     expect(appCss).toMatch(
       /\.lumen-layout-committed\s+\.lumen-intro\s*\{\s*display:\s*none\s*!important;/
+    );
+    expect(appSvelte).toMatch(
+      /document\.head\.append\(style\);[\s\S]*classList\.add\("lumen-layout-commit-enabled"\)/
     );
   });
 });

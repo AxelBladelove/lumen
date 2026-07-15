@@ -23,19 +23,25 @@ Esa secuencia:
 - Aplica el layout enfocado (`extension/src/lumenLayout.ts`): snapshot de los
   settings a nivel workspace, escribe los defaults de Lumen Mode
   (`zenMode.*` con `centerLayout: false`).
-- Crea `lumen.routePathPanel` A PANTALLA COMPLETA y activa Zen Mode en el mismo
-  turno visual, de modo que la primera superficie propia que se pinta es la
-  cortina fullscreen.
+- Sólo después de preparar esos settings crea `lumen.routePathPanel` dentro del
+  layout todavía estable y espera `frontend.ready`. El frontend demora esa
+  señal dos `requestAnimationFrame`, de modo que la cortina ya atravesó una
+  pintura real. Únicamente entonces cierra el sidebar y activa Zen Mode en
+  el mismo turno. De este modo nunca se expande a fullscreen un webview aún
+  transparente; la primera superficie fullscreen propia ya es la cortina.
   La cortina de entrada (logo + wordmark + barra + porcentaje) vive DENTRO del
   HTML del panel como intro estático, así que no existe un panel de cortina
   separado y —crítico— ninguna mutación de layout ocurre mientras el webview
   carga sus módulos. (Un cambio de layout de editor a mitad del boot corrompía
   la carga del bundle: el chunk llegaba roto con un SyntaxError de
   identificador duplicado y la cortina quedaba congelada.)
-- El frontend bootea detrás de su propia cortina; la app Svelte retoma el
+- El frontend bootea detrás de su propia cortina, que vive fuera de `#app` y
+  mantiene logo, wordmark y barra durante el montaje. La app Svelte retoma el
   porcentaje del intro estático (`window.__LUMEN_STATIC_INTRO__`) y lo lleva a
-  100 con sus señales reales de listo. Un watchdog en el panel reintenta el
-  HTML una vez si `frontend.ready` no llega en 5s.
+  100 con sus señales reales de listo. La capa estática permanece por encima
+  durante los resizes de entrada y sólo se elimina después de iniciar el
+  punch-in de Svelte con el layout ya estable. Un watchdog en el panel reintenta
+  el HTML una vez si `frontend.ready` no llega en 5s.
 - Después de `frontend.ready`, el host envía `lumen.layoutCommitRequested` y
   espera `frontend.layoutCommitArmed` mientras la carga continúa. El frontend
   instala los observadores, pero todavía no permite retirar la cortina.
@@ -45,9 +51,12 @@ Esa secuencia:
   `frontend.layoutHandoffReady` con `delayMs: 60`. El reloj se cumple en el
   Extension Host, fuera del iframe, para que el throttling de Chromium no pueda
   alargarlo a ~1 s. Así el layout ocurre durante la máxima velocidad del zoom.
-- Solo entonces el panel se mueve al grupo derecho (~1/3). En el primer resize
-  real, el frontend retira la cortina sin fade y antes del paint; por ello el
-  fondo de carga no puede sobrevivir dentro del panel derecho.
+- Antes de emitir el handoff, el frontend instala una media query efímera
+  relativa a la geometría de origen (±24 px en ancho o alto). Solo entonces el
+  panel se mueve al grupo derecho (~1/3). Cuando Chromium recibe la nueva
+  geometría, esa regla retira la cortina sin fade y arranca el zoom-out de la UI
+  en el mismo cálculo de estilo. Los observadores confirman y limpian después;
+  no son la barrera visual ni pueden autorizar el primer frame del panel derecho.
 - `lumen.layoutCommitted` confirma que los comandos del host terminaron, pero no
   revela por sí solo. `frontend.revealed` confirma el commit geométrico y permite
   marcar la sesión como activa. Si falta cualquier señal o resize, la entrada

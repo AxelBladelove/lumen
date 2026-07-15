@@ -97,8 +97,14 @@ function injectStaticIntroBrandAssets() {
       const wordmarkFile = assetFiles.find((name) => /^lumen-wordmark-.+\.webp$/.test(name));
 
       let html = readFileSync(indexPath, "utf8");
-      if (logoFile) html = html.replace("__LUMEN_BRAND_LOGO__", `./assets/${logoFile}`);
-      if (wordmarkFile) html = html.replace("__LUMEN_BRAND_WORDMARK__", `./assets/${wordmarkFile}`);
+      if (logoFile) {
+        const logoPayload = readFileSync(join(assetsDirectory, logoFile)).toString("base64");
+        html = html.replace("__LUMEN_BRAND_LOGO__", `data:image/svg+xml;base64,${logoPayload}`);
+      }
+      if (wordmarkFile) {
+        const wordmarkPayload = readFileSync(join(assetsDirectory, wordmarkFile)).toString("base64");
+        html = html.replace("__LUMEN_BRAND_WORDMARK__", `data:image/webp;base64,${wordmarkPayload}`);
+      }
       writeFileSync(indexPath, html);
     }
   };

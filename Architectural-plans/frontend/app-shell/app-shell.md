@@ -25,8 +25,10 @@ frontend/src/webview/messages.ts
 frontend/src/webview/vscodeBridge.ts
 ```
 
-`main.ts` limpia el HTML estatico inicial con `target.replaceChildren()` y
-monta `App.svelte`.
+`main.ts` limpia solamente el fallback de `#app` y monta `App.svelte`. La
+cortina estatica es hermana de `#app`, permanece por encima con `z-index: 200`
+y conserva el control visual hasta que Svelte inicia el punch-in con el layout
+ya estabilizado.
 
 `App.svelte`:
 
@@ -42,7 +44,8 @@ monta `App.svelte`.
   habilitar todavía el reveal;
 - al terminar la barra hace el punch-in al isotipo a pantalla completa, habilita
   el commit y emite `frontend.layoutHandoffReady` con `delayMs: 60`; el reloj
-  vive en el Extension Host y la cortina sale sin fade en el primer resize real;
+  vive en el Extension Host y una media query de geometría prearmada retira la
+  cortina sin fade en el primer frame nuevo del webview;
 - emite reportes `perf.report`.
 
 ## Pantalla de entrada
@@ -57,6 +60,17 @@ assets/brand/lumen-wordmark.webp
 La pantalla no es el flujo final de bienvenida de Lumen Mode. Es una capa
 visual local del mock para cubrir el handoff entre el HTML estatico inicial,
 Svelte, los assets principales y el primer render estable de la ruta.
+
+Logo y wordmark del HTML compilado se incrustan como `data:` URI: la primera
+pintura de la cortina no depende de una segunda lectura. El lockup está visible
+desde ese primer frame, sin fade de entrada. La cortina estática continúa
+actualizando la barra mientras carga el bundle; Svelte lee el porcentaje justo
+en el relevo y prepara su propio lockup debajo, en exactamente la misma opacidad,
+posición y escala, sin una segunda animación de entrada. La capa HTML permanece
+por encima durante todos los resizes y recibe el porcentaje real de Svelte hasta
+100; sólo se elimina un frame después de arrancar el punch-in, ya con el layout
+estable. Por ello no puede aparecer fondo desnudo, marca tenue ni retroceder el
+contador durante el montaje.
 
 El intro se mantiene visible hasta que:
 
@@ -75,10 +89,13 @@ El intro se mantiene visible hasta que:
   durante la carga, instala los observadores y responde
   `frontend.layoutCommitArmed`; al arrancar el punch-in recaptura la geometría,
   cambia la barrera a `enabled` y agenda el handoff en el Extension Host;
-- el primer cambio real de ancho/alto aplica sincrónicamente
-  `.lumen-layout-committed`, que elimina la cortina con `display: none` antes
-  del paint del panel derecho. `lumen.layoutCommitted` sólo reevalúa la misma
-  condición por si el resize ocurrió durante los comandos del host.
+- antes del handoff se instala una media query efímera relativa al ancho y alto
+  de origen (±24 px). El primer cambio real de geometría hace que esa misma
+  actualización de estilo oculte la cortina con `display: none` y arranque
+  `lumenUiZoomOut`; no espera un callback JavaScript. Después, el observer aplica
+  `.lumen-layout-committed`, desmonta el DOM y conserva la regla hasta terminar
+  la animación. `lumen.layoutCommitted` sólo reevalúa la misma condición por si
+  el resize ocurrió durante los comandos del host.
 
 El gesto posterior al 100% debe quedar por debajo de un segundo en el camino
 normal. No es una segunda espera ni un splash adicional: es el puente visual
@@ -91,7 +108,7 @@ del lockup y de la atmósfera. El fondo completo sólo recibe un shake de pocos
 píxeles sobre `scale(1.012)`, de modo que nunca expone los bordes del viewport.
 La curva acelera de forma exponencial y no tiene asentamiento antes del commit.
 
-La segunda mitad empieza exactamente en el commit geométrico. La cortina se
+La segunda mitad empieza exactamente en el latch CSS geométrico. La cortina se
 retira con `display: none` y, ya dentro del panel final, `.lumen-route-app`
 aterriza durante 160 ms desde `scale(1.11)` hasta su escala real. Esa mitad no
 puede comenzar antes del resize: hacerlo transformaría la geometría fullscreen
@@ -102,9 +119,9 @@ La invariante visual del commit es estricta: mientras la geometría sea la de
 origen, la cortina fullscreen permanece cubierta por la marca —primero por el
 lockup y después por el interior ampliado del isotipo—; no existe un estado
 válido de fondo de carga desnudo. Cuando la geometría cambia, la cortina deja de
-participar en layout/pintura en ese mismo callback. Un timeout nunca autoriza el
-reveal. Si no existe resize observable, la entrada falla cerrada y el Extension
-Host restaura el workspace.
+participar en layout/pintura en ese mismo cálculo de estilo. Un callback o un
+timeout nunca autorizan el reveal. Si no existe resize observable, la entrada
+falla cerrada y el Extension Host restaura el workspace.
 
 Si la URL contiene `lumenPerfHoldIntro`, el intro se mantiene para capturas de
 performance visual.
