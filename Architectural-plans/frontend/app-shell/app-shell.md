@@ -40,12 +40,15 @@ ya estabilizado.
 - muestra la pantalla de entrada de Lumen encima de la ruta;
 - precarga logo y wordmark;
 - decide cuando esconder el intro;
-- prearma el commit de geometría al recibir `lumen.layoutCommitRequested`, sin
+- prearma el ciclo al recibir `lumen.layoutCommitRequested { token }`, sin
   habilitar todavía el reveal;
-- al terminar la barra hace el punch-in al isotipo a pantalla completa, habilita
-  el commit y emite `frontend.layoutHandoffReady` con `delayMs: 60`; el reloj
-  vive en el Extension Host y una media query de geometría prearmada retira la
-  cortina sin fade en el primer frame nuevo del webview;
+- al terminar la barra hace el punch-in al isotipo a pantalla completa y emite
+  `frontend.layoutHandoffReady { delayMs: 88, token }`; el reloj vive en el
+  Extension Host;
+- al recibir `lumen.layoutHandoffPrepare { token }`, sustituye ambas cortinas
+  por la ruta congelada en `scale(1.11)`, espera dos frames y responde
+  `frontend.layoutHandoffPrepared { token }`. Sólo entonces el host puede mover
+  el panel;
 - emite reportes `perf.report`.
 
 ## Pantalla de entrada
@@ -86,19 +89,20 @@ El intro se mantiene visible hasta que:
   RGB desplazadas, blur progresivo, skew alterno y un shake amortiguado de la
   cortina; todas desaparecen antes del estado final;
 - si corre dentro del Extension Host, recibe `lumen.layoutCommitRequested`
-  durante la carga, instala los observadores y responde
-  `frontend.layoutCommitArmed`; al arrancar el punch-in recaptura la geometría,
-  cambia la barrera a `enabled` y agenda el handoff en el Extension Host;
-- antes del handoff se instala una media query efímera relativa al ancho y alto
-  de origen (±24 px). El primer cambio real de geometría hace que esa misma
-  actualización de estilo oculte tanto la cortina HTML estática como la de
-  Svelte con `display: none` y arranque `lumenUiZoomOut`; no espera un callback
-  JavaScript. Después, el observer aplica
-  `.lumen-layout-committed`, desmonta el DOM y conserva la regla hasta terminar
-  la animación. Antes de retirar esa regla elimina también el nodo HTML estático
-  de forma idempotente, aunque su `requestAnimationFrame` original se hubiera
-  retrasado. `lumen.layoutCommitted` sólo reevalúa la misma condición por si el
-  resize ocurrió durante los comandos del host.
+  durante la carga, conserva su token y responde
+  `frontend.layoutCommitArmed { token }`; al arrancar el punch-in agenda el
+  handoff en el reloj del Extension Host;
+- al cumplirse el delay, el host envía `lumen.layoutHandoffPrepare { token }`.
+  El frontend aplica `.lumen-ui-handoff-frozen`, retira de forma síncrona tanto
+  el intro HTML como el de Svelte y espera dos `requestAnimationFrame`. El
+  segundo callback prueba que la superficie intro-free ya atravesó un paint;
+  entonces emite `frontend.layoutHandoffPrepared { token }`;
+- el host mueve el panel únicamente después de esa confirmación. Cualquier
+  textura atrasada que el compositor reutilice ya contiene la ruta válida en el
+  primer frame del landing. `lumen.layoutCommitted { token }` intercambia la
+  clase frozen por `.lumen-ui-entering` en el mismo task y arranca el zoom-out.
+  La geometría se mide sólo para telemetría: ni un resize arbitrario ni la falta
+  de resize gobiernan el estado visual.
 
 El gesto posterior al 100% debe quedar por debajo de un segundo en el camino
 normal. No es una segunda espera ni un splash adicional: es el puente visual
@@ -111,20 +115,21 @@ del lockup y de la atmósfera. El fondo completo sólo recibe un shake de pocos
 píxeles sobre `scale(1.012)`, de modo que nunca expone los bordes del viewport.
 La curva acelera de forma exponencial y no tiene asentamiento antes del commit.
 
-La segunda mitad empieza exactamente en el latch CSS geométrico. La cortina se
-retira con `display: none` y, ya dentro del panel final, `.lumen-route-app`
-aterriza durante 160 ms desde `scale(1.11)` hasta su escala real. Esa mitad no
-puede comenzar antes del resize: hacerlo transformaría la geometría fullscreen
-dentro del panel estrecho. El par punch-in/zoom-out forma una sola transición
-de aproximadamente 340 ms.
+La segunda mitad se prepara antes del movimiento como una superficie congelada.
+`.lumen-route-app` ya está en `opacity: 0.86` y `scale(1.11)` cuando el host
+recibe el ack post-paint; después del movimiento, el token de commit inicia un
+landing de 160 ms hasta la escala real. El estado inicial de la preparación y
+el keyframe inicial son idénticos, por lo que no existe salto óptico. El lock
+del grupo se completa en paralelo con el landing y no añade una espera visual.
 
-La invariante visual del commit es estricta: mientras la geometría sea la de
-origen, la cortina fullscreen permanece cubierta por la marca —primero por el
-lockup y después por el interior ampliado del isotipo—; no existe un estado
-válido de fondo de carga desnudo. Cuando la geometría cambia, la cortina deja de
-participar en layout/pintura en ese mismo cálculo de estilo. Un callback o un
-timeout nunca autorizan el reveal. Si no existe resize observable, la entrada
-falla cerrada y el Extension Host restaura el workspace.
+La invariante visual del commit es estricta: antes de mover el panel existe una
+superficie webview confirmada que no contiene ningún nodo del intro. Por ello el
+split final nunca puede coincidir con el lockup ampliado, aunque el workbench
+recomponga una textura anterior a la confirmación del host. Sólo el mismo token
+puede avanzar `armed -> scheduled -> preparing -> safe -> committed`; mensajes
+atrasados, resizes o movimientos entre grupos de igual tamaño no alteran la
+secuencia. Si falta cualquier ack, la entrada falla cerrada y restaura el
+workspace.
 
 Si la URL contiene `lumenPerfHoldIntro`, el intro se mantiene para capturas de
 performance visual.
@@ -141,6 +146,9 @@ lumen:route-visual-complete
 lumen:route-interactive
 lumen:intro-exit-start
 lumen:intro-hidden
+lumen:layout-handoff-prepare-start
+lumen:layout-handoff-safe-frame-painted
+lumen:layout-commit-applied
 ```
 
 Medidas principales:

@@ -3,14 +3,15 @@
 ## Milestone M1 — Evidence and diagnosis
 
 - [x] `T1` Capture the current cold/warm transition and identify the invalid frame. Size S, effort high, deps none, parallel-ok false. Perf: measured focus-to-commit at 128.5–184.3 ms; split can precede the 180 ms punch-in end, while sampled timer completion for the 160 ms UI zoom-out arrived at 327.2–382.5 ms under load.
-- [x] `T2` Obtain independent host/webview and optical-timing diagnoses. Size S, effort medium (ECONOMY ceiling), deps T1, parallel-ok true. Perf: both reviews preserve the existing optical stack; host review confirms CSS must own the first resized frame, while optical review retains the 60 ms host initiation window.
+- [x] `T2` Obtain independent host/webview and optical-timing diagnoses. Size S, effort medium (ECONOMY ceiling), deps T1, parallel-ok true. Perf: both reviews preserve the existing optical stack; the first review proposed a CSS geometry latch and optical review retained the existing punch-in/landing grammar.
 
 ## Milestone M2 — Deterministic handoff
 
-- [x] `T3` Implement a geometry-atomic visual latch and explicit transition phases. Size M, effort medium (xhigh deferred by ECONOMY band), deps T1/T2, parallel-ok false. Perf: one ephemeral style element; CSS owns the geometry cut and JS only acknowledges/cleans it.
-- [x] `T4` Extend transition contracts, telemetry assertions, and architecture docs. Size S, effort low, deps T3, parallel-ok false. Perf: 14 focused tests pass in 255 ms; production frontend build succeeds.
+- [x] `T3` Implement, then hostile-review, the geometry latch. Size M, effort medium, deps T1/T2, parallel-ok false. Review proved that CSS cannot prevent VS Code from recomposing an already-submitted stale webview surface.
+- [x] `T4` Replace geometry authority with a token-correlated prepaint protocol: frozen intro-free route -> double-rAF ack -> host move -> explicit landing commit. Size M, effort high, deps T3, parallel-ok false. Perf: 38 frontend contracts pass; frontend and extension compile.
+- [x] `T5` Extend transition contracts, accessibility cancellation, telemetry assertions, and architecture docs for protocol v5. Size S, effort low, deps T4, parallel-ok false.
 
 ## Milestone M3 — Proof and publication
 
-- [ ] `T5` Build, install, and validate repeated cold/warm entries in real VS Code. Size M, effort medium, deps T3/T4, parallel-ok false. Perf: record animation and timing evidence.
-- [ ] `T6` Publish the branch as a PR, run independent review, inspect thread-aware GitHub feedback, and address every actionable finding. Size S, effort low, deps T5, parallel-ok false.
+- [ ] `T6` Build, package, install, and validate repeated cold/warm entries in real VS Code. Size M, effort medium, deps T4/T5, parallel-ok false. Perf: record animation and timing evidence. Blocked only while the Windows session remains locked.
+- [ ] `T7` Update the existing draft PR, re-run independent review, inspect thread-aware GitHub feedback, and address every actionable finding. Size S, effort low, deps T6, parallel-ok false.

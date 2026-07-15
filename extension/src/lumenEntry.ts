@@ -25,6 +25,7 @@ type LumenBootIntent = {
 const frontendReadyTimeoutMs = 12_000;
 const frontendLayoutHandoffTimeoutMs = 10_000;
 const frontendLayoutCommitArmedTimeoutMs = 2_000;
+const frontendLayoutHandoffPreparedTimeoutMs = 2_000;
 const frontendRevealTimeoutMs = 10_000;
 
 type LumenModeDeps = {
@@ -82,11 +83,12 @@ export async function resumePendingLumenOpen(deps: LumenModeDeps) {
  * (Un cambio de layout a mitad del boot corrompia la carga del bundle y la
  * cortina quedaba congelada para siempre.)
  *
- * Orden critico del final: tras `frontend.ready`, el host prearma el commit de
- * geometria sin habilitarlo. La barra termina y el frontend hace el punch-in A
- * PANTALLA COMPLETA. Al arrancar, habilita la barrera y entrega al Extension
- * Host el delay cubierto de 60 ms; ese reloj no puede ser throttled por el
- * iframe. El primer resize retira la cortina antes de pintar el panel estrecho. Si el usuario
+ * Orden crítico del final: tras `frontend.ready`, el host asigna un token a la
+ * entrada. La barra termina y el frontend hace el punch-in A PANTALLA COMPLETA.
+ * En el punto óptico cubierto, el host ordena pintar la UI de ruta sin intro y
+ * espera una confirmación post-paint con ese mismo token. Sólo entonces mueve
+ * el panel. Una textura atrasada de Chromium ya es, por construcción, un frame
+ * válido de la UI y nunca el logo al máximo zoom. Si el usuario
  * entra sin ningun archivo abierto, el grupo izquierdo queda vacio y se mantiene
  * asi gracias a `workbench.editor.closeEmptyGroups: false` (ver lumenLayout) —
  * sin abrir ningun documento placeholder. Si Lumen Mode ya esta activo, solo se
@@ -153,10 +155,9 @@ export async function enterLumenMode(deps: LumenModeDeps) {
     const zenActivating = activateLumenModeZen();
     await Promise.all([sidebarClosing, zenActivating]);
 
-    // Prearmar durante la propia carga elimina el roundtrip que antes ocurria
-    // DESPUES del punch-in. El frontend instala los observadores pero mantiene
-    // el commit deshabilitado hasta el punto de handoff, asi un resize espurio
-    // de Zen Mode no puede retirar la cortina antes de tiempo.
+    // Prearmar durante la carga elimina un roundtrip posterior al punch-in. El
+    // token liga todas las fases a esta entrada; un resize o mensaje atrasado
+    // no puede consumir la transición de otra sesión.
     panel.requestLayoutCommit();
     const commitArmed = await panel.waitForLayoutCommitArmed(frontendLayoutCommitArmedTimeoutMs);
     if (!commitArmed) {
@@ -164,22 +165,38 @@ export async function enterLumenMode(deps: LumenModeDeps) {
     }
 
     // La señal se agenda al arrancar el punch-in, pero su delay se cumple en el
-    // Extension Host. Así el coste de mover el panel queda solapado con la
-    // máxima velocidad aunque Chromium aplique timer throttling al iframe.
+    // Extension Host. Así Chromium no puede convertir el tramo cubierto en una
+    // pausa por throttling de timers del iframe.
     const handoffReady = await panel.waitForLayoutHandoff(frontendLayoutHandoffTimeoutMs);
     if (!handoffReady) {
       throw new Error("Lumen frontend did not reach the covered layout handoff in time");
     }
 
-    // Unico cambio de layout de toda la entrada, en el punto cubierto entre las
-    // dos mitades de la animacion.
+    // Antes del único cambio de layout, sustituir la cortina por el primer frame
+    // congelado del landing y exigir dos rAF. Si el workbench reutiliza una
+    // textura vieja al recomponer, esa textura ya es intro-free.
+    if (!panel.requestLayoutHandoffPreparation()) {
+      throw new Error("Lumen layout handoff has no active transition token");
+    }
+    const handoffPrepared = await panel.waitForLayoutHandoffPrepared(
+      frontendLayoutHandoffPreparedTimeoutMs
+    );
+    if (!handoffPrepared) {
+      throw new Error("Lumen frontend did not paint the safe layout handoff in time");
+    }
+
+    // Único cambio de layout de toda la entrada.
     await panel.moveAsideAndLock();
 
-    // Confirmacion/fallback del host. La retirada normal ya ocurre en el primer
-    // resize observado; este mensaje cubre un resize entregado durante el await.
-    panel.confirmLayoutCommitted();
+    // El token de commit es la única autorización para arrancar el zoom-out.
+    if (!panel.confirmLayoutCommitted()) {
+      throw new Error("Lumen layout commit lost its active transition token");
+    }
 
-    const revealed = await panel.waitForRevealed(frontendRevealTimeoutMs);
+    const [revealed] = await Promise.all([
+      panel.waitForRevealed(frontendRevealTimeoutMs),
+      panel.waitForLayoutLock()
+    ]);
     if (!revealed) {
       throw new Error("Lumen frontend did not commit the final layout in time");
     }

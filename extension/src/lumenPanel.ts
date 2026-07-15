@@ -10,6 +10,7 @@ import { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
 import { LumenWebviewHost, type LumenModePhase } from "./lumenWebviewHost";
 
 const lumenPanelViewType = "lumen.routePathPanel";
+let layoutTransitionSequence = 0;
 
 /**
  * Si el frontend no reporta `frontend.ready` en este plazo, el HTML se
@@ -31,13 +32,13 @@ const bootWatchdogMs = 5000;
  *    cubre el editor desde el primer frame.
  * 2. El frontend bootea sin que se toque el layout. `frontend.ready` sólo se
  *    emite después de que la cortina haya atravesado una pintura real.
- * 3. Al recibir `frontend.ready`, el host entra a Zen y prearma el commit mientras continua
- *    la carga. El frontend todavía no permite retirar la cortina.
- * 4. Al arrancar el punch-in, el frontend habilita el commit y entrega al
- *    Extension Host el delay del handoff. Ese reloj vive fuera del iframe, así
- *    Chromium no puede throttlear 60 ms hasta convertirlos en un segundo.
- * 5. El primer resize real retira la cortina de forma sincrona, en el mismo
- *    ciclo de pintura que coloca el panel a la derecha.
+ * 3. Al recibir `frontend.ready`, el host crea un token por entrada y prearma
+ *    el protocolo mientras continúa la carga.
+ * 4. Al arrancar el punch-in, el frontend entrega al Extension Host el delay
+ *    óptico. Al cumplirse, el host pide una superficie segura sin intro.
+ * 5. Sólo después de `frontend.layoutHandoffPrepared` se mueve el panel. Aunque
+ *    VS Code recomponga una textura atrasada, esa textura ya contiene la UI de
+ *    ruta congelada en el primer frame del landing, nunca el logo ampliado.
  */
 export class LumenPanelController {
   private readonly host: LumenWebviewHost;
@@ -50,7 +51,10 @@ export class LumenPanelController {
   private readySignal = createSignal();
   private layoutHandoffSignal = createSignal();
   private layoutCommitArmedSignal = createSignal();
+  private layoutHandoffPreparedSignal = createSignal();
   private revealedSignal = createSignal();
+  private activeLayoutToken: string | undefined;
+  private layoutLockPromise: Promise<void> = Promise.resolve();
   private frontendIndexHtmlPromise: Promise<string | undefined>;
 
   constructor(
@@ -72,8 +76,13 @@ export class LumenPanelController {
         this.clearWatchdog();
         this.readySignal.resolve();
       },
-      onFrontendLayoutHandoffReady: (delayMs) => this.scheduleLayoutHandoff(delayMs),
-      onFrontendLayoutCommitArmed: () => this.layoutCommitArmedSignal.resolve(),
+      onFrontendLayoutHandoffReady: (delayMs, token) => this.scheduleLayoutHandoff(delayMs, token),
+      onFrontendLayoutCommitArmed: (token) => {
+        if (token === this.activeLayoutToken) this.layoutCommitArmedSignal.resolve();
+      },
+      onFrontendLayoutHandoffPrepared: (token) => {
+        if (token === this.activeLayoutToken) this.layoutHandoffPreparedSignal.resolve();
+      },
       onFrontendRevealed: () => this.revealedSignal.resolve(),
       perfViewType: LumenRoutePathViewProvider.viewType
     });
@@ -116,7 +125,10 @@ export class LumenPanelController {
     this.readySignal = createSignal();
     this.layoutHandoffSignal = createSignal();
     this.layoutCommitArmedSignal = createSignal();
+    this.layoutHandoffPreparedSignal = createSignal();
     this.revealedSignal = createSignal();
+    this.activeLayoutToken = undefined;
+    this.layoutLockPromise = Promise.resolve();
     this.watchdogRebooted = false;
     this.clearLayoutHandoffTimer();
 
@@ -177,9 +189,14 @@ export class LumenPanelController {
     return this.layoutHandoffSignal.wait(timeoutMs);
   }
 
-  /** Espera que el frontend observe la geometria antes del unico resize. */
+  /** Espera que el frontend acepte el token antes del único movimiento. */
   waitForLayoutCommitArmed(timeoutMs: number) {
     return this.layoutCommitArmedSignal.wait(timeoutMs);
+  }
+
+  /** Espera que la superficie sin intro atraviese una pintura real. */
+  waitForLayoutHandoffPrepared(timeoutMs: number) {
+    return this.layoutHandoffPreparedSignal.wait(timeoutMs);
   }
 
   /** Espera `frontend.revealed`; false si no llega dentro del timeout. */
@@ -187,14 +204,30 @@ export class LumenPanelController {
     return this.revealedSignal.wait(timeoutMs);
   }
 
-  /** Prearma el retiro atomico; el frontend lo habilita al arrancar el punch-in. */
-  requestLayoutCommit() {
-    this.host.postLayoutCommitRequested();
+  /** El lock no es visual: puede completarse en paralelo con el zoom-out. */
+  waitForLayoutLock() {
+    return this.layoutLockPromise;
   }
 
-  /** Confirma que el host termino sus comandos de layout. */
+  /** Prearma el protocolo y asigna un token exclusivo a esta entrada. */
+  requestLayoutCommit() {
+    const token = `${Date.now().toString(36)}-${(++layoutTransitionSequence).toString(36)}`;
+    this.activeLayoutToken = token;
+    this.host.postLayoutCommitRequested(token);
+  }
+
+  /** Ordena sustituir el intro por el frame seguro antes de mover el panel. */
+  requestLayoutHandoffPreparation() {
+    if (!this.activeLayoutToken) return false;
+    this.host.postLayoutHandoffPrepare(this.activeLayoutToken);
+    return true;
+  }
+
+  /** Confirma que el host terminó sus comandos y autoriza el zoom-out. */
   confirmLayoutCommitted() {
-    this.host.postLayoutCommitted();
+    if (!this.activeLayoutToken) return false;
+    this.host.postLayoutCommitted(this.activeLayoutToken);
+    return true;
   }
 
   async postExerciseCompleted(exerciseId: string) {
@@ -211,8 +244,8 @@ export class LumenPanelController {
    * Unico cambio de layout de la entrada: panel al grupo derecho, proporcion
    * 2/3 editor + 1/3 Lumen y grupo bloqueado para que abrir archivos no
    * aterrice sobre la UI. Se ejecuta cuando el frontend reporta
-   * `frontend.layoutHandoffReady`: el commit ya está habilitado y el reloj del
-   * host acaba de alcanzar el tramo cubierto del punch-in.
+   * `frontend.layoutHandoffPrepared`: el frame seguro ya fue pintado y el host
+   * acaba de alcanzar el tramo cubierto del punch-in.
    */
   async moveAsideAndLock() {
     const panel = this.panel;
@@ -238,7 +271,7 @@ export class LumenPanelController {
     );
     if (panelGroup && panelGroup.tabs.length === 1) {
       if (!revealSafely(panel)) return;
-      await executeCommandSafely("workbench.action.lockEditorGroup");
+      this.layoutLockPromise = executeCommandSafely("workbench.action.lockEditorGroup");
     }
   }
 
@@ -314,11 +347,13 @@ export class LumenPanelController {
     }
   }
 
-  private scheduleLayoutHandoff(delayMs: number) {
+  private scheduleLayoutHandoff(delayMs: number, token: string) {
+    if (!this.activeLayoutToken || token !== this.activeLayoutToken) return;
     this.clearLayoutHandoffTimer();
     const safeDelayMs = Number.isFinite(delayMs) ? Math.min(1000, Math.max(0, delayMs)) : 0;
     this.layoutHandoffTimer = setTimeout(() => {
       this.layoutHandoffTimer = undefined;
+      if (token !== this.activeLayoutToken) return;
       this.layoutHandoffSignal.resolve();
     }, safeDelayMs);
   }

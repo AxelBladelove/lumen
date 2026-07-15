@@ -13,6 +13,10 @@ const extensionPanel = readFileSync(
   new URL("../../extension/src/lumenPanel.ts", import.meta.url),
   "utf8"
 );
+const extensionHost = readFileSync(
+  new URL("../../extension/src/lumenWebviewHost.ts", import.meta.url),
+  "utf8"
+);
 
 function focusKeyframes() {
   const focusStart = appCss.indexOf("@keyframes lumenIntroMarkFocus");
@@ -85,45 +89,52 @@ describe("intro transition visual contract", () => {
     expect(appCss).toMatch(
       /@keyframes lumenUiZoomOut[\s\S]*scale\(1\.11\)[\s\S]*scale\(1\)/
     );
-    expect(appSvelte).toMatch(
-      /style\.textContent = createLayoutCommitMediaRule\([\s\S]*introUiZoomOutDurationMs/
+    expect(appCss).toMatch(
+      /\.lumen-ui-handoff-frozen \.lumen-route-app\s*\{[\s\S]*opacity:\s*0\.86;[\s\S]*scale\(1\.11\)/
+    );
+    expect(appCss).toMatch(
+      /\.lumen-ui-entering \.lumen-route-app\s*\{[\s\S]*animation:\s*lumenUiZoomOut 160ms/
     );
     expect(appSvelte).toMatch(
-      /on:animationstart=\{handleUiZoomOutAnimationStart\}[\s\S]*on:animationend=\{handleUiZoomOutAnimationEnd\}/
+      /on:animationstart=\{handleUiZoomOutAnimationStart\}[\s\S]*on:animationend=\{handleUiZoomOutAnimationEnd\}[\s\S]*on:animationcancel=\{handleUiZoomOutAnimationCancel\}/
     );
   });
 
-  test("prearms the commit and overlaps VS Code layout work with the punch-in", () => {
-    expect(appSvelte).toMatch(/const introLayoutHandoffAtMs = 60;/);
+  test("prepaints a token-correlated safe frame before VS Code moves the panel", () => {
+    expect(appSvelte).toMatch(/const introLayoutHandoffAtMs = 88;/);
     expect(appSvelte).toMatch(
-      /type LayoutCommitPhase = "idle" \| "armed" \| "enabled" \| "committed";/
+      /type LayoutCommitPhase =[\s\S]*"armed"[\s\S]*"preparing"[\s\S]*"safe"[\s\S]*"committed"[\s\S]*"settled";/
     );
     expect(appSvelte).toMatch(
-      /if \(runningInExtensionHost && !enableLayoutCommit\(\)\) return;/
+      /if \(runningInExtensionHost && !scheduleLayoutCommit\(\)\) return;/
     );
     expect(appSvelte).toMatch(
-      /payload:\s*\{\s*delayMs:\s*introLayoutHandoffAtMs\s*\}/
+      /payload:\s*\{\s*delayMs:\s*introLayoutHandoffAtMs,\s*token:\s*layoutCommitToken!\s*\}/
     );
     expect(extensionPanel).toMatch(
-      /this\.layoutHandoffTimer = setTimeout\(\(\) => \{[\s\S]*this\.layoutHandoffSignal\.resolve\(\);[\s\S]*\}, safeDelayMs\);/
+      /if \(token !== this\.activeLayoutToken\) return;[\s\S]*this\.layoutHandoffSignal\.resolve\(\);/
     );
-    expect(appSvelte).toMatch(/if \(layoutCommitPhase !== "enabled"\) return;/);
-    const latchInstalled = appSvelte.indexOf("installLayoutCommitVisualLatch();");
-    const phaseEnabled = appSvelte.indexOf('layoutCommitPhase = "enabled";', latchInstalled);
-    expect(latchInstalled).toBeGreaterThanOrEqual(0);
-    expect(phaseEnabled).toBeGreaterThan(latchInstalled);
+    expect(extensionHost).toMatch(
+      /postLayoutHandoffPrepare\(token: string\)[\s\S]*lumen\.layoutHandoffPrepare[\s\S]*payload: \{ token \}/
+    );
 
     const ready = extensionEntry.indexOf("await panel.waitForReady");
     const prearm = extensionEntry.indexOf("panel.requestLayoutCommit();", ready);
     const armed = extensionEntry.indexOf("await panel.waitForLayoutCommitArmed", prearm);
     const handoff = extensionEntry.indexOf("await panel.waitForLayoutHandoff", armed);
-    const move = extensionEntry.indexOf("await panel.moveAsideAndLock", handoff);
+    const prepare = extensionEntry.indexOf("panel.requestLayoutHandoffPreparation()", handoff);
+    const prepared = extensionEntry.indexOf("await panel.waitForLayoutHandoffPrepared", prepare);
+    const move = extensionEntry.indexOf("await panel.moveAsideAndLock", prepared);
+    const commit = extensionEntry.indexOf("panel.confirmLayoutCommitted()", move);
 
     expect(ready).toBeGreaterThanOrEqual(0);
     expect(prearm).toBeGreaterThan(ready);
     expect(armed).toBeGreaterThan(prearm);
     expect(handoff).toBeGreaterThan(armed);
-    expect(move).toBeGreaterThan(handoff);
+    expect(prepare).toBeGreaterThan(handoff);
+    expect(prepared).toBeGreaterThan(prepare);
+    expect(move).toBeGreaterThan(prepared);
+    expect(commit).toBeGreaterThan(move);
   });
 
   test("does not expose fullscreen until the curtain frontend is ready", () => {
@@ -157,22 +168,24 @@ describe("intro transition visual contract", () => {
       /schedule\("entry-transition-settled", 0\)/
     );
     expect(appSvelte).toMatch(
-      /if \(layoutCommitPhase === "committed"\) \{\s*postRevealedOnce\(\);\s*return;/
+      /if \(layoutCommitPhase === "committed" \|\| layoutCommitPhase === "settled"\) \{\s*postRevealedOnce\(\);\s*return;/
     );
   });
 
-  test("removes the complete curtain atomically at layout commit", () => {
-    expect(appCss).toMatch(
-      /\.lumen-layout-committed\s+\.lumen-intro,\s*\.lumen-layout-committed\s+\[data-lumen-static-intro\]\s*\{\s*display:\s*none\s*!important;/
+  test("makes every compositor-safe surface intro-free before host movement", () => {
+    expect(appSvelte).toMatch(
+      /classList\.add\("lumen-ui-handoff-frozen"\);\s*removeStaticIntro\(\);\s*introVisible = false;[\s\S]*await tick\(\);/
     );
     expect(appSvelte).toMatch(
-      /document\.head\.append\(style\);[\s\S]*classList\.add\("lumen-layout-commit-enabled"\)/
+      /safeHandoffFrame = requestAnimationFrame\(\(\) => \{[\s\S]*safeHandoffPaintFrame = requestAnimationFrame\(\(\) => \{[\s\S]*type: "frontend\.layoutHandoffPrepared"/
     );
     expect(appSvelte).toMatch(
-      /classList\.add\("lumen-layout-committed"\);\s*removeStaticIntro\(\);\s*beginUiZoomOutTelemetry\(\)/
+      /if \(!reduceMotion\) document\.documentElement\.classList\.add\("lumen-ui-entering"\);\s*document\.documentElement\.classList\.remove\("lumen-ui-handoff-frozen"\);/
     );
-    expect(appSvelte).toMatch(
-      /removeStaticIntro\(\);\s*removeLayoutCommitVisualLatch\(\);\s*document\.documentElement\.classList\.remove\("lumen-layout-committed"\)/
+    expect(appSvelte).not.toContain("new ResizeObserver");
+    expect(appSvelte).not.toContain("createLayoutCommitMediaRule");
+    expect(extensionPanel).toMatch(
+      /onFrontendLayoutHandoffPrepared: \(token\) => \{\s*if \(token === this\.activeLayoutToken\)/
     );
   });
 });

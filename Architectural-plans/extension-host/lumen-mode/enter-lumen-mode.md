@@ -42,25 +42,24 @@ Esa secuencia:
   durante los resizes de entrada y sólo se elimina después de iniciar el
   punch-in de Svelte con el layout ya estable. Un watchdog en el panel reintenta
   el HTML una vez si `frontend.ready` no llega en 5s.
-- Después de `frontend.ready`, el host envía `lumen.layoutCommitRequested` y
-  espera `frontend.layoutCommitArmed` mientras la carga continúa. El frontend
-  instala los observadores, pero todavía no permite retirar la cortina.
+- Después de `frontend.ready`, el host crea un token exclusivo, envía
+  `lumen.layoutCommitRequested { token }` y espera
+  `frontend.layoutCommitArmed { token }` mientras la carga continúa.
 - Al llegar a 100, la barra y el porcentaje salen mientras el isotipo hace un
   punch-in rápido todavía A PANTALLA COMPLETA. En ese mismo turno el frontend
-  recaptura la geometría, habilita el commit y emite
-  `frontend.layoutHandoffReady` con `delayMs: 60`. El reloj se cumple en el
+  agenda el ciclo y emite `frontend.layoutHandoffReady` con `delayMs: 88` y el
+  mismo token. El reloj se cumple en el
   Extension Host, fuera del iframe, para que el throttling de Chromium no pueda
   alargarlo a ~1 s. Así el layout ocurre durante la máxima velocidad del zoom.
-- Antes de emitir el handoff, el frontend instala una media query efímera
-  relativa a la geometría de origen (±24 px en ancho o alto). Solo entonces el
-  panel se mueve al grupo derecho (~1/3). Cuando Chromium recibe la nueva
-  geometría, esa regla retira la cortina sin fade y arranca el zoom-out de la UI
-  en el mismo cálculo de estilo. Los observadores confirman y limpian después;
-  no son la barrera visual ni pueden autorizar el primer frame del panel derecho.
-- `lumen.layoutCommitted` confirma que los comandos del host terminaron, pero no
-  revela por sí solo. `frontend.revealed` confirma el commit geométrico y permite
-  marcar la sesión como activa. Si falta cualquier señal o resize, la entrada
-  falla cerrada y restaura el workspace.
+- Al cumplirse el delay, el host todavía NO mueve el panel: envía
+  `lumen.layoutHandoffPrepare { token }`. El frontend reemplaza intro estático y
+  Svelte por la UI de ruta congelada en el inicio del landing y espera dos rAF.
+  `frontend.layoutHandoffPrepared { token }` confirma que esa superficie ya fue
+  pintada. Sólo después el host mueve el panel al grupo derecho (~1/3).
+- `lumen.layoutCommitted { token }` autoriza el zoom-out de 160 ms. El lock del
+  grupo, que no cambia la composición visual, se completa en paralelo.
+  `frontend.revealed` permite marcar la sesión como activa. Si falta cualquier
+  señal o no coincide el token, la entrada falla cerrada y restaura el workspace.
 - Envía `lumen.entry.state` a la webview al crear la entrada y después de cada
   `frontend.ready`.
 

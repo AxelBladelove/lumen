@@ -35,14 +35,6 @@ button {
   font: inherit;
 }
 
-/* Fallback de reconciliación. El primer frame del resize lo resuelve la media
-   query prearmada por App.svelte; esta clase mantiene el DOM oculto mientras
-   Svelte termina de desmontarlo. */
-.lumen-layout-committed .lumen-intro,
-.lumen-layout-committed [data-lumen-static-intro] {
-  display: none !important;
-}
-
 .lumen-intro {
   --lumen-intro-focus-duration: 180ms;
 
@@ -537,6 +529,23 @@ button {
     opacity: 1;
     transform: translateZ(0) scale(1);
   }
+}
+
+/* Superficie que el webview pinta ANTES de que VS Code mueva el panel. Si el
+   workbench recompone una textura atrasada, sólo puede reutilizar este frame
+   de ruta válido, nunca el punch-in del logo. El landing parte exactamente del
+   mismo estado, por lo que no hay salto entre preparación y animación. */
+.lumen-ui-handoff-frozen .lumen-route-app {
+  opacity: 0.86;
+  transform: translateZ(0) scale(1.11);
+  transform-origin: 50% 50%;
+  will-change: opacity, transform;
+}
+
+.lumen-ui-entering .lumen-route-app {
+  animation: lumenUiZoomOut 160ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
+  transform-origin: 50% 50%;
+  will-change: opacity, transform;
 }
 
 .lumen-route-app {
@@ -2442,6 +2451,13 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .lumen-ui-handoff-frozen .lumen-route-app,
+  .lumen-ui-entering .lumen-route-app {
+    opacity: 1;
+    animation: none;
+    transform: none;
+  }
+
   .hero-text-input,
   .hero-text-asset,
   .hero-star-pulse,

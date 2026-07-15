@@ -1,4 +1,4 @@
-export const lumenWebviewProtocolVersion = 4;
+export const lumenWebviewProtocolVersion = 5;
 
 export type LumenEntryState = {
   protocolVersion: number;

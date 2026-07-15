@@ -2,10 +2,7 @@
   import { onDestroy, tick } from "svelte";
   import RoutePathView from "./route-path-view/RoutePathView.svelte";
   import { lumenBrand, ensureLumenFavicon } from "./brand/lumenBrand";
-  import {
-    createLayoutCommitMediaRule,
-    hasLayoutCommitGeometryChanged
-  } from "./entry/layoutCommit";
+  import { hasLayoutCommitGeometryChanged } from "./entry/layoutCommit";
   import {
     buildRouteModuleFromEngine,
     cloneRouteModule,
@@ -59,20 +56,29 @@
   const introStableFrameBudgetMs = 26;
   const introRevealDurationMs = 280;
   const introFocusDurationMs = 180;
-  // El host empieza a trabajar a 60 ms; su latencia natural hace que el primer
-  // split caiga sobre el pico óptico de cobertura (~100–150 ms), sin añadir
-  // una pausa artificial a la transición.
-  const introLayoutHandoffAtMs = 60;
+  // A 88 ms el punch-in ya cubre el lockup casi por completo. El host pide en
+  // ese punto el frame seguro y el doble rAF lo confirma alrededor del pico
+  // óptico, sin añadir un hold terminal a la transición.
+  const introLayoutHandoffAtMs = 88;
   const introUiZoomOutDurationMs = 160;
 
-  // Commit de layout prearmado: CSS es dueño del primer frame con geometría
-  // nueva; los observadores sólo confirman el cambio y desmontan el estado.
-  type LayoutCommitPhase = "idle" | "armed" | "enabled" | "committed";
+  // Protocolo de superficie segura: antes del movimiento de VS Code se pinta
+  // la ruta congelada en el inicio exacto del landing. El token hace que sólo
+  // el host que prearmó este ciclo pueda prepararlo y confirmarlo.
+  type LayoutCommitPhase =
+    | "idle"
+    | "armed"
+    | "scheduled"
+    | "preparing"
+    | "safe"
+    | "committed"
+    | "settled";
   let layoutCommitPhase: LayoutCommitPhase = "idle";
+  let layoutCommitToken: string | null = null;
   let layoutCommitSourceWidth = 0;
   let layoutCommitSourceHeight = 0;
-  let stopLayoutCommitObservation = () => {};
-  let layoutCommitLatchStyle: HTMLStyleElement | null = null;
+  let safeHandoffFrame = 0;
+  let safeHandoffPaintFrame = 0;
   let uiZoomOutStarted = false;
 
   performance.mark("lumen:app-mounted");
@@ -131,13 +137,15 @@
     }
 
     if (message.type === "lumen.layoutCommitRequested") {
-      armLayoutCommit();
+      armLayoutCommit(message.payload.token);
     }
 
-    // Fallback para el caso en que el resize ocurrio durante los awaits de los
-    // comandos de VS Code. No revela por tiempo: exige geometria distinta.
+    if (message.type === "lumen.layoutHandoffPrepare") {
+      void prepareSafeLayoutHandoff(message.payload.token);
+    }
+
     if (message.type === "lumen.layoutCommitted") {
-      commitLayoutIfResized();
+      commitPreparedLayout(message.payload.token);
     }
   });
 
@@ -202,9 +210,7 @@
     stopIntroAssets();
     stopIntroGate();
     stopIntroProgress();
-    stopLayoutCommitObservation();
-    removeLayoutCommitVisualLatch();
-    resetUiZoomOut();
+    resetLayoutCommit();
     window.removeEventListener("keydown", handleEscapeKey);
   });
 
@@ -247,16 +253,14 @@
   }
 
   function dismissIntroNow() {
-    // `active` llega inmediatamente después de los comandos del host. Si el
-    // commit geométrico ya ocurrió, el zoom-out sigue siendo dueño de sus
-    // 160 ms; reiniciarlo aquí cancelaba la animación de aterrizaje.
-    if (layoutCommitPhase === "committed") {
+    // `active` llega después de `frontend.revealed`. Si el landing ya empezó,
+    // sus 160 ms siguen siendo dueños del estado visual.
+    if (layoutCommitPhase === "committed" || layoutCommitPhase === "settled") {
       postRevealedOnce();
       return;
     }
 
-    stopLayoutCommitObservation();
-    resetUiZoomOut();
+    resetLayoutCommit();
     stopIntroGate();
     stopIntroProgress();
     removeStaticIntro();
@@ -305,14 +309,19 @@
   }
 
   function resetLayoutCommit() {
-    stopLayoutCommitObservation();
     resetUiZoomOut();
-    stopLayoutCommitObservation = () => {};
+    cancelAnimationFrame(safeHandoffFrame);
+    cancelAnimationFrame(safeHandoffPaintFrame);
+    safeHandoffFrame = 0;
+    safeHandoffPaintFrame = 0;
     layoutCommitPhase = "idle";
+    layoutCommitToken = null;
     layoutCommitSourceWidth = 0;
     layoutCommitSourceHeight = 0;
-    document.documentElement.classList.remove("lumen-layout-committed");
-    removeLayoutCommitVisualLatch();
+    document.documentElement.classList.remove(
+      "lumen-ui-handoff-frozen",
+      "lumen-ui-entering"
+    );
   }
 
   function resetUiZoomOut() {
@@ -322,21 +331,26 @@
   }
 
   function settleUiZoomOut() {
-    if (!uiZoomOutStarted) return;
+    if (!uiZoomOutStarted && layoutCommitPhase !== "committed") return;
     window.clearTimeout(uiZoomOutTimer);
     uiZoomOutTimer = 0;
     uiZoomOutStarted = false;
-    // El rAF que retiraba la cortina HTML puede haber sido throttled. El nodo
-    // debe desaparecer antes de soltar la regla que lo mantiene oculto.
     removeStaticIntro();
-    removeLayoutCommitVisualLatch();
-    document.documentElement.classList.remove("lumen-layout-committed");
-    performance.mark("lumen:ui-zoom-out-end");
-    performance.measure(
-      "lumen:ui-zoom-out",
-      "lumen:ui-zoom-out-start",
-      "lumen:ui-zoom-out-end"
+    document.documentElement.classList.remove(
+      "lumen-ui-handoff-frozen",
+      "lumen-ui-entering"
     );
+    layoutCommitPhase = "settled";
+    performance.mark("lumen:ui-zoom-out-end");
+    try {
+      performance.measure(
+        "lumen:ui-zoom-out",
+        "lumen:ui-zoom-out-start",
+        "lumen:ui-zoom-out-end"
+      );
+    } catch {
+      // La telemetría nunca puede bloquear el asentamiento visual.
+    }
     window.dispatchEvent(new Event("lumen:entry-transition-settled"));
   }
 
@@ -359,93 +373,116 @@
     settleUiZoomOut();
   }
 
-  function removeLayoutCommitVisualLatch() {
-    document.documentElement.classList.remove("lumen-layout-commit-enabled");
-    layoutCommitLatchStyle?.remove();
-    layoutCommitLatchStyle = null;
+  function handleUiZoomOutAnimationCancel(event: AnimationEvent) {
+    if (event.animationName !== "lumenUiZoomOut") return;
+    // Un cambio de accesibilidad, resize o navegación no puede dejar la ruta
+    // atrapada a scale(1.11). Cancelar significa asentar, nunca reiniciar.
+    settleUiZoomOut();
   }
 
-  function installLayoutCommitVisualLatch() {
-    removeLayoutCommitVisualLatch();
-    const style = document.createElement("style");
-    style.id = "lumen-layout-commit-latch";
-    style.textContent = createLayoutCommitMediaRule(
-      { width: layoutCommitSourceWidth, height: layoutCommitSourceHeight },
-      introUiZoomOutDurationMs
-    );
-    document.head.append(style);
-    layoutCommitLatchStyle = style;
-    document.documentElement.classList.add("lumen-layout-commit-enabled");
-  }
-
-  function armLayoutCommit() {
-    if (!runningInExtensionHost || !introVisible || layoutCommitPhase === "committed") return;
-    if (layoutCommitPhase === "armed" || layoutCommitPhase === "enabled") {
-      bridge.post({ type: "frontend.layoutCommitArmed", payload: {} });
+  function armLayoutCommit(token: string) {
+    if (!runningInExtensionHost || !introVisible || !token.trim()) return;
+    if (token === layoutCommitToken && layoutCommitPhase !== "idle") {
+      bridge.post({ type: "frontend.layoutCommitArmed", payload: { token } });
       return;
     }
 
+    resetLayoutCommit();
+    layoutCommitToken = token;
     layoutCommitPhase = "armed";
     layoutCommitSourceWidth = window.innerWidth;
     layoutCommitSourceHeight = window.innerHeight;
     performance.mark("lumen:layout-commit-armed");
-
-    const observe = () => commitLayoutIfResized();
-    window.addEventListener("resize", observe);
-    window.visualViewport?.addEventListener("resize", observe);
-    const resizeObserver = new ResizeObserver(observe);
-    resizeObserver.observe(document.documentElement);
-    stopLayoutCommitObservation = () => {
-      window.removeEventListener("resize", observe);
-      window.visualViewport?.removeEventListener("resize", observe);
-      resizeObserver.disconnect();
-    };
-
-    bridge.post({ type: "frontend.layoutCommitArmed", payload: {} });
+    bridge.post({ type: "frontend.layoutCommitArmed", payload: { token } });
   }
 
-  function enableLayoutCommit() {
-    if (layoutCommitPhase !== "armed") return layoutCommitPhase === "enabled";
+  function scheduleLayoutCommit() {
+    if (layoutCommitPhase !== "armed" || !layoutCommitToken) return false;
 
-    // Recaptura justo antes del movimiento real. El observador puede llevar
-    // cientos de ms instalado, pero ningun resize previo autoriza el reveal.
+    // Recaptura para telemetría únicamente. La geometría nunca autoriza el
+    // reveal: sólo lo hacen el token preparado y el commit explícito del host.
     layoutCommitSourceWidth = window.innerWidth;
     layoutCommitSourceHeight = window.innerHeight;
-    installLayoutCommitVisualLatch();
-    layoutCommitPhase = "enabled";
-    performance.mark("lumen:layout-commit-enabled");
+    layoutCommitPhase = "scheduled";
+    performance.mark("lumen:layout-handoff-scheduled");
     return true;
   }
 
-  function commitLayoutIfResized() {
-    if (layoutCommitPhase !== "enabled") return;
+  async function prepareSafeLayoutHandoff(token: string) {
+    if (token !== layoutCommitToken) return;
+    if (layoutCommitPhase === "safe") {
+      bridge.post({ type: "frontend.layoutHandoffPrepared", payload: { token } });
+      return;
+    }
+    if (layoutCommitPhase !== "scheduled") return;
+
+    layoutCommitPhase = "preparing";
+    performance.mark("lumen:layout-handoff-prepare-start");
+
+    // Congelar primero la ruta y retirar después ambas cortinas, en el mismo
+    // task. El próximo frame ya es el keyframe inicial del zoom-out.
+    document.documentElement.classList.add("lumen-ui-handoff-frozen");
+    removeStaticIntro();
+    introVisible = false;
+    introCovering = false;
+    introExiting = false;
+    introProgressVisible = false;
+    await tick();
+
+    if (token !== layoutCommitToken || layoutCommitPhase !== "preparing") return;
+    safeHandoffFrame = requestAnimationFrame(() => {
+      safeHandoffFrame = 0;
+      if (token !== layoutCommitToken || layoutCommitPhase !== "preparing") return;
+      safeHandoffPaintFrame = requestAnimationFrame(() => {
+        safeHandoffPaintFrame = 0;
+        if (token !== layoutCommitToken || layoutCommitPhase !== "preparing") return;
+        layoutCommitPhase = "safe";
+        performance.mark("lumen:layout-handoff-safe-frame-painted");
+        bridge.post({ type: "frontend.layoutHandoffPrepared", payload: { token } });
+      });
+    });
+  }
+
+  function commitPreparedLayout(token: string) {
+    if (token !== layoutCommitToken) return;
+    if (layoutCommitPhase === "committed" || layoutCommitPhase === "settled") {
+      postRevealedOnce();
+      return;
+    }
+    if (layoutCommitPhase !== "safe") return;
+
     const geometryChanged = hasLayoutCommitGeometryChanged(
       { width: layoutCommitSourceWidth, height: layoutCommitSourceHeight },
       { width: window.innerWidth, height: window.innerHeight }
     );
-    if (!geometryChanged) return;
+    performance.mark(
+      geometryChanged ? "lumen:layout-geometry-changed" : "lumen:layout-geometry-unchanged"
+    );
 
-    // La media query preinstalada ya retiró la cortina en el primer cálculo de
-    // estilo de esta geometría. Este callback sólo confirma y limpia el DOM.
     layoutCommitPhase = "committed";
-    document.documentElement.classList.add("lumen-layout-committed");
     removeStaticIntro();
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reduceMotion) document.documentElement.classList.add("lumen-ui-entering");
+    document.documentElement.classList.remove("lumen-ui-handoff-frozen");
     beginUiZoomOutTelemetry();
-    stopLayoutCommitObservation();
-    stopLayoutCommitObservation = () => {};
     introVisible = false;
     introCovering = false;
     introExiting = false;
     introProgressVisible = false;
     performance.mark("lumen:intro-hidden");
     performance.mark("lumen:layout-commit-applied");
-    performance.measure(
-      "lumen:intro-focus-to-layout-commit",
-      "lumen:intro-loading-complete",
-      "lumen:layout-commit-applied"
-    );
+    try {
+      performance.measure(
+        "lumen:intro-focus-to-layout-commit",
+        "lumen:intro-loading-complete",
+        "lumen:layout-commit-applied"
+      );
+    } catch {
+      // Métricas best-effort; el contrato visual ya está confirmado por token.
+    }
     window.dispatchEvent(new Event("lumen:entry-transition-committed"));
     postRevealedOnce();
+    if (reduceMotion) settleUiZoomOut();
   }
 
   function handleIntroMarkAnimationEnd(event: AnimationEvent) {
@@ -719,7 +756,7 @@
 
     const scheduleHandoff = () => {
       if (cancelled || handoffReady) return;
-      if (runningInExtensionHost && !enableLayoutCommit()) return;
+      if (runningInExtensionHost && !scheduleLayoutCommit()) return;
       handoffReady = true;
       performance.mark("lumen:intro-handoff-scheduled");
       if (!runningInExtensionHost) {
@@ -728,7 +765,7 @@
       }
       bridge.post({
         type: "frontend.layoutHandoffReady",
-        payload: { delayMs: introLayoutHandoffAtMs }
+        payload: { delayMs: introLayoutHandoffAtMs, token: layoutCommitToken! }
       });
     };
 
@@ -739,12 +776,9 @@
       // resizes de Zen. Permanece encima hasta que el zoom Svelte ya arrancó
       // detrás y se retira justo en el siguiente frame.
       staticHandoffFrame = requestAnimationFrame(removeStaticIntro);
-      // La marca mantiene cubierta la pantalla mientras el host prepara el
-      // split. Sólo el commit geométrico desmonta la cortina completa: nunca
-      // existe un estado de espera con el fondo de carga desnudo.
-      // Se agenda sincrónicamente al arrancar el zoom. El delay de 60 ms lo
-      // ejecuta el Extension Host, fuera del iframe: los timers throttled de
-      // Chromium ya no pueden introducir una pausa terminal de ~1 segundo.
+      // La marca cubre el punch-in hasta que el host pide el frame seguro. El
+      // delay se ejecuta fuera del iframe; la UI sólo sustituye la cortina para
+      // atravesar una pintura confirmada antes de cualquier movimiento.
       scheduleHandoff();
     };
 
@@ -890,6 +924,7 @@
 <svelte:window
   on:animationstart={handleUiZoomOutAnimationStart}
   on:animationend={handleUiZoomOutAnimationEnd}
+  on:animationcancel={handleUiZoomOutAnimationCancel}
 />
 
 <div class="route-scene">

@@ -40,11 +40,11 @@ grupo activo (el HTML incluye la cortina estática de entrada), usa
 `retainContextWhenHidden: true` y sirve el frontend completo sin el header
 nativo del sidebar. El controlador arma un watchdog de boot
 (reintenta el HTML una vez si `frontend.ready` no llega en 5s) y expone
-señales `frontend.ready`, `frontend.layoutHandoffReady`,
-`frontend.layoutCommitArmed` y `frontend.revealed`. `lumenEntry.ts` espera el
-handoff cubierto, arma la barrera de geometría y sólo entonces mueve el panel.
-El primer resize retira la cortina de forma atómica; `frontend.revealed` confirma
-ese commit antes de activar la sesión.
+  señales `frontend.ready`, `frontend.layoutCommitArmed`,
+  `frontend.layoutHandoffReady`, `frontend.layoutHandoffPrepared` y
+  `frontend.revealed`. `lumenEntry.ts` correlaciona las fases con un token,
+  espera una superficie intro-free post-paint y sólo entonces mueve el panel.
+  `lumen.layoutCommitted` arranca el landing antes de activar la sesión.
 
 Detalle de robustez: dentro de `onDidDispose` no debe leerse `panel.webview`
 (el getter lanza "Webview is disposed"); el controlador captura la referencia
@@ -121,12 +121,13 @@ El handshake de entrada actual es:
 
 ```txt
 frontend.ready -> extension.ready + estado/fase
-lumen.layoutCommitRequested -> frontend.layoutCommitArmed (prearm durante carga)
+lumen.layoutCommitRequested { token } -> frontend.layoutCommitArmed { token }
 barra 100 -> zoom-in fullscreen al wordmark
-frontend.layoutHandoffReady { delayMs: 60 } -> reloj del Extension Host
-delay cumplido -> mover panel al grupo derecho y bloquearlo
-primer resize -> retirar cortina sin fade
-lumen.layoutCommitted -> confirmar/reintentar la comprobación de geometría
+frontend.layoutHandoffReady { delayMs: 88, token } -> reloj del Extension Host
+delay cumplido -> lumen.layoutHandoffPrepare { token }
+doble rAF intro-free -> frontend.layoutHandoffPrepared { token }
+mover panel al grupo derecho; iniciar lock no visual
+lumen.layoutCommitted { token } -> zoom-out de la UI final
 frontend.revealed -> la extension marca la sesion activa
 ```
 

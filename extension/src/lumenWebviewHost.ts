@@ -52,11 +52,20 @@ export type LumenWebviewMessage =
       type: "frontend.layoutHandoffReady";
       payload: {
         delayMs: number;
+        token: string;
       };
     }
   | {
       type: "frontend.layoutCommitArmed";
-      payload: Record<string, never>;
+      payload: {
+        token: string;
+      };
+    }
+  | {
+      type: "frontend.layoutHandoffPrepared";
+      payload: {
+        token: string;
+      };
     }
   | {
       type: "lumen.exit.requested";
@@ -98,11 +107,13 @@ type LumenWebviewHostOptions = {
   /**
    * El punch-in acaba de arrancar y el frontend ya habilitó el commit.
    * El Extension Host conserva el reloj del handoff para que el throttling del
-   * iframe no pueda convertir 60 ms en una pausa de un segundo.
+   * iframe no pueda convertir el tramo óptico en una pausa de un segundo.
    */
-  onFrontendLayoutHandoffReady?: (delayMs: number) => void;
-  /** El frontend armó el observador que retira la cortina en el primer resize. */
-  onFrontendLayoutCommitArmed?: () => void;
+  onFrontendLayoutHandoffReady?: (delayMs: number, token: string) => void;
+  /** El frontend aceptó el token que gobernará este único ciclo de entrada. */
+  onFrontendLayoutCommitArmed?: (token: string) => void;
+  /** La UI sin intro atravesó una pintura y ya es segura para mover el panel. */
+  onFrontendLayoutHandoffPrepared?: (token: string) => void;
   /** El intro terminó: la ruta está pintada y no quedan módulos en vuelo. */
   onFrontendRevealed?: () => void;
   perfViewType: string;
@@ -142,14 +153,19 @@ export class LumenWebviewHost {
     this.postEntryState();
   }
 
-  /** Prearma el commit visual; todavía no autoriza retirar la cortina. */
-  postLayoutCommitRequested() {
-    this.postToWebview({ type: "lumen.layoutCommitRequested", payload: {} });
+  /** Prearma el ciclo visual; todavía no autoriza retirar la cortina. */
+  postLayoutCommitRequested(token: string) {
+    this.postToWebview({ type: "lumen.layoutCommitRequested", payload: { token } });
   }
 
-  /** Confirma que los comandos de layout terminaron; no autoriza un fade. */
-  postLayoutCommitted() {
-    this.postToWebview({ type: "lumen.layoutCommitted", payload: {} });
+  /** Pide pintar una superficie segura antes de tocar el layout de VS Code. */
+  postLayoutHandoffPrepare(token: string) {
+    this.postToWebview({ type: "lumen.layoutHandoffPrepare", payload: { token } });
+  }
+
+  /** Confirma que los comandos de layout terminaron y autoriza el landing. */
+  postLayoutCommitted(token: string) {
+    this.postToWebview({ type: "lumen.layoutCommitted", payload: { token } });
   }
 
   async postExerciseCompleted(exerciseId: string) {
@@ -392,11 +408,15 @@ export class LumenWebviewHost {
         break;
 
       case "frontend.layoutHandoffReady":
-        this.options.onFrontendLayoutHandoffReady?.(message.payload.delayMs);
+        this.options.onFrontendLayoutHandoffReady?.(message.payload.delayMs, message.payload.token);
         break;
 
       case "frontend.layoutCommitArmed":
-        this.options.onFrontendLayoutCommitArmed?.();
+        this.options.onFrontendLayoutCommitArmed?.(message.payload.token);
+        break;
+
+      case "frontend.layoutHandoffPrepared":
+        this.options.onFrontendLayoutHandoffPrepared?.(message.payload.token);
         break;
 
       case "frontend.revealed":
