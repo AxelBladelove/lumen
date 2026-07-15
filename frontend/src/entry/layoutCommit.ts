@@ -34,7 +34,8 @@ export function createLayoutCommitMediaRule(
 ) {
   const mediaQuery = createLayoutCommitMediaQuery(source, thresholdPx);
   return `@media ${mediaQuery} {
-  html.lumen-layout-commit-enabled .lumen-intro {
+  html.lumen-layout-commit-enabled .lumen-intro,
+  html.lumen-layout-commit-enabled [data-lumen-static-intro] {
     display: none !important;
   }
 

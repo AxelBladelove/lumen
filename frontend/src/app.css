@@ -38,7 +38,8 @@ button {
 /* Fallback de reconciliación. El primer frame del resize lo resuelve la media
    query prearmada por App.svelte; esta clase mantiene el DOM oculto mientras
    Svelte termina de desmontarlo. */
-.lumen-layout-committed .lumen-intro {
+.lumen-layout-committed .lumen-intro,
+.lumen-layout-committed [data-lumen-static-intro] {
   display: none !important;
 }
 

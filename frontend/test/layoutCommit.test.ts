@@ -52,6 +52,7 @@ describe("layout commit geometry barrier", () => {
     const rule = createLayoutCommitMediaRule({ width: 1920, height: 1080 }, 160);
 
     expect(rule).toContain("html.lumen-layout-commit-enabled .lumen-intro");
+    expect(rule).toContain("html.lumen-layout-commit-enabled [data-lumen-static-intro]");
     expect(rule).toContain("display: none !important");
     expect(rule).toContain("html.lumen-layout-commit-enabled .lumen-route-app");
     expect(rule).toContain("animation: lumenUiZoomOut 160ms");

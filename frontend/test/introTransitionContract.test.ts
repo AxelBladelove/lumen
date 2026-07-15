@@ -163,7 +163,7 @@ describe("intro transition visual contract", () => {
 
   test("removes the complete curtain atomically at layout commit", () => {
     expect(appCss).toMatch(
-      /\.lumen-layout-committed\s+\.lumen-intro\s*\{\s*display:\s*none\s*!important;/
+      /\.lumen-layout-committed\s+\.lumen-intro,\s*\.lumen-layout-committed\s+\[data-lumen-static-intro\]\s*\{\s*display:\s*none\s*!important;/
     );
     expect(appSvelte).toMatch(
       /document\.head\.append\(style\);[\s\S]*classList\.add\("lumen-layout-commit-enabled"\)/

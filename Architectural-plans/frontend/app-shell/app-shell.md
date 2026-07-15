@@ -91,8 +91,9 @@ El intro se mantiene visible hasta que:
   cambia la barrera a `enabled` y agenda el handoff en el Extension Host;
 - antes del handoff se instala una media query efímera relativa al ancho y alto
   de origen (±24 px). El primer cambio real de geometría hace que esa misma
-  actualización de estilo oculte la cortina con `display: none` y arranque
-  `lumenUiZoomOut`; no espera un callback JavaScript. Después, el observer aplica
+  actualización de estilo oculte tanto la cortina HTML estática como la de
+  Svelte con `display: none` y arranque `lumenUiZoomOut`; no espera un callback
+  JavaScript. Después, el observer aplica
   `.lumen-layout-committed`, desmonta el DOM y conserva la regla hasta terminar
   la animación. `lumen.layoutCommitted` sólo reevalúa la misma condición por si
   el resize ocurrió durante los comandos del host.
