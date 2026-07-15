@@ -54,6 +54,9 @@ export class LumenPanelController {
   private layoutHandoffPreparedSignal = createSignal();
   private revealedSignal = createSignal();
   private activeLayoutToken: string | undefined;
+  private layoutHandoffReached = false;
+  private layoutPreparationRequested = false;
+  private layoutPreparationCompleted = false;
   private layoutLockPromise: Promise<void> = Promise.resolve();
   private frontendIndexHtmlPromise: Promise<string | undefined>;
 
@@ -81,7 +84,9 @@ export class LumenPanelController {
         if (token === this.activeLayoutToken) this.layoutCommitArmedSignal.resolve();
       },
       onFrontendLayoutHandoffPrepared: (token) => {
-        if (token === this.activeLayoutToken) this.layoutHandoffPreparedSignal.resolve();
+        if (token !== this.activeLayoutToken || !this.layoutPreparationRequested) return;
+        this.layoutPreparationCompleted = true;
+        this.layoutHandoffPreparedSignal.resolve();
       },
       onFrontendRevealed: () => this.revealedSignal.resolve(),
       perfViewType: LumenRoutePathViewProvider.viewType
@@ -128,6 +133,9 @@ export class LumenPanelController {
     this.layoutHandoffPreparedSignal = createSignal();
     this.revealedSignal = createSignal();
     this.activeLayoutToken = undefined;
+    this.layoutHandoffReached = false;
+    this.layoutPreparationRequested = false;
+    this.layoutPreparationCompleted = false;
     this.layoutLockPromise = Promise.resolve();
     this.watchdogRebooted = false;
     this.clearLayoutHandoffTimer();
@@ -213,19 +221,23 @@ export class LumenPanelController {
   requestLayoutCommit() {
     const token = `${Date.now().toString(36)}-${(++layoutTransitionSequence).toString(36)}`;
     this.activeLayoutToken = token;
+    this.layoutHandoffReached = false;
+    this.layoutPreparationRequested = false;
+    this.layoutPreparationCompleted = false;
     this.host.postLayoutCommitRequested(token);
   }
 
   /** Ordena sustituir el intro por el frame seguro antes de mover el panel. */
   requestLayoutHandoffPreparation() {
-    if (!this.activeLayoutToken) return false;
+    if (!this.activeLayoutToken || !this.layoutHandoffReached) return false;
+    this.layoutPreparationRequested = true;
     this.host.postLayoutHandoffPrepare(this.activeLayoutToken);
     return true;
   }
 
   /** Confirma que el host terminó sus comandos y autoriza el zoom-out. */
   confirmLayoutCommitted() {
-    if (!this.activeLayoutToken) return false;
+    if (!this.activeLayoutToken || !this.layoutPreparationCompleted) return false;
     this.host.postLayoutCommitted(this.activeLayoutToken);
     return true;
   }
@@ -354,6 +366,7 @@ export class LumenPanelController {
     this.layoutHandoffTimer = setTimeout(() => {
       this.layoutHandoffTimer = undefined;
       if (token !== this.activeLayoutToken) return;
+      this.layoutHandoffReached = true;
       this.layoutHandoffSignal.resolve();
     }, safeDelayMs);
   }

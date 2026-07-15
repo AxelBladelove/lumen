@@ -185,7 +185,13 @@ describe("intro transition visual contract", () => {
     expect(appSvelte).not.toContain("new ResizeObserver");
     expect(appSvelte).not.toContain("createLayoutCommitMediaRule");
     expect(extensionPanel).toMatch(
-      /onFrontendLayoutHandoffPrepared: \(token\) => \{\s*if \(token === this\.activeLayoutToken\)/
+      /onFrontendLayoutHandoffPrepared: \(token\) => \{\s*if \(token !== this\.activeLayoutToken \|\| !this\.layoutPreparationRequested\) return;/
+    );
+    expect(extensionPanel).toMatch(
+      /if \(!this\.activeLayoutToken \|\| !this\.layoutHandoffReached\) return false;/
+    );
+    expect(extensionPanel).toMatch(
+      /if \(!this\.activeLayoutToken \|\| !this\.layoutPreparationCompleted\) return false;/
     );
   });
 });
