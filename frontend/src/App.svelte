@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import RoutePathView from "./route-path-view/RoutePathView.svelte";
-  import ExerciseDetailPanel from "./exercise-detail/ExerciseDetailPanel.svelte";
   import { lumenBrand, ensureLumenFavicon } from "./brand/lumenBrand";
+  import { hasLayoutCommitGeometryChanged } from "./entry/layoutCommit";
   import {
     buildRouteModuleFromEngine,
     cloneRouteModule,
@@ -11,7 +11,6 @@
     routeModuleDataSource
   } from "./route-path-view/data/routeModuleSource";
   import type { RoutePathNode } from "./route-path-view/types/routePath";
-  import { themeVars } from "./route-path-view/theme/moduleTheme";
   import type { ExerciseDetailPayload } from "./webview/messages";
   import { lumenWebviewProtocolVersion } from "./webview/messages";
   import { createVscodeBridge } from "./webview/vscodeBridge";
@@ -32,14 +31,16 @@
   let busyExerciseId: string | null = null;
   let activationError: string | null = null;
   // Último detail publicado por el host (protocolo v6 `exercise.detail.data`).
-  // El panel se abre automaticamente SOLO cuando cambia el `exerciseId`, no en
-  // cada re-snapshot: el usuario no debe verlo saltar en cada `route.module.data`.
+  // Tener datos no abre la vista: el CTA cambia a Detalles únicamente después
+  // de que el ejercicio haya sido activado desde la ruta en esta sesión.
   let exerciseDetail: ExerciseDetailPayload | null = null;
   let detailPanelOpen = false;
-  let lastAutoOpenedDetailId: string | null = null;
+  let activatedExerciseId: string | null = null;
+  let activationTargetId: string | null = null;
   // El intro arranca visible siempre: en el host el panel solo existe durante
   // la entrada a Lumen Mode, y fuera del host es la unica pantalla de carga.
   let introVisible = true;
+  let introCovering = false;
   let introExiting = false;
   let introAssetsReady = false;
   let introProgressVisible = staticIntroProgress > 0;
@@ -49,18 +50,25 @@
   let routeVisualReady = false;
   let stopIntroGate = () => {};
   let stopIntroProgress = () => {};
+  let uiZoomOutTimer = 0;
   const introProgressDurationMs = 400;
   const introStableFrameDelayMs = 120;
   const introStableFrameBudgetMs = 26;
+  const introRevealDurationMs = 280;
+  const introFocusDurationMs = 180;
+  const introLayoutLeadMs = 120;
+  const introLayoutHandoffAtMs = introFocusDurationMs - introLayoutLeadMs;
+  const introUiZoomOutDurationMs = 160;
 
-  // Handshake de layout: dentro del Extension Host el fade final espera a que la
-  // extension confirme que el split ya esta colocado (mensaje `lumen.reveal`).
-  // Asi la UI se descubre ya en editor-izquierda + Lumen-derecha, sin un frame
-  // intermedio del modulo a pantalla completa. Fuera del host (Modo Libre /
-  // navegador) no hay layout que colocar y se revela directo.
-  let layoutPlaced = false;
-  let layoutPlacedResolvers: Array<() => void> = [];
-  const layoutPlacedFallbackMs = 1600;
+  // Commit de layout prearmado: los observadores se instalan durante la carga,
+  // pero sólo pasan a `enabled` dentro del tramo final del punch-in. El primer
+  // resize posterior lo aplica en el mismo ciclo de render. Por construccion,
+  // el fondo del loader no puede sobrevivir dentro del panel derecho.
+  type LayoutCommitPhase = "idle" | "armed" | "enabled" | "committed";
+  let layoutCommitPhase: LayoutCommitPhase = "idle";
+  let layoutCommitSourceWidth = 0;
+  let layoutCommitSourceHeight = 0;
+  let stopLayoutCommitObservation = () => {};
 
   performance.mark("lumen:app-mounted");
   window.setTimeout(() => ensureLumenFavicon(), 80);
@@ -76,6 +84,10 @@
         message.payload.routeId,
         message.payload.moduleId
       );
+      if (activatedExerciseId && message.payload.activeExerciseId !== activatedExerciseId) {
+        activatedExerciseId = null;
+        detailPanelOpen = false;
+      }
     }
 
     // Los completados llegan implícitos en el siguiente `route.module.data`:
@@ -85,6 +97,12 @@
     if (message.type === "route.activation.state") {
       busyExerciseId = message.payload.busy?.exerciseId ?? null;
       activationError = message.payload.error?.message ?? null;
+      if (message.payload.busy) {
+        activationTargetId = message.payload.busy.exerciseId;
+      } else if (activationTargetId) {
+        if (!message.payload.error) activatedExerciseId = activationTargetId;
+        activationTargetId = null;
+      }
     }
 
     if (message.type === "exercise.detail.data") {
@@ -92,11 +110,6 @@
       exerciseDetail = nextDetail;
       if (nextDetail === null) {
         detailPanelOpen = false;
-        lastAutoOpenedDetailId = null;
-      } else if (nextDetail.exerciseId !== lastAutoOpenedDetailId) {
-        // Activacion de un ejercicio distinto: abre el panel una sola vez.
-        detailPanelOpen = true;
-        lastAutoOpenedDetailId = nextDetail.exerciseId;
       }
     }
 
@@ -112,9 +125,14 @@
       dismissIntroNow();
     }
 
-    // El layout final ya esta colocado detras de la cortina: se libera el fade.
-    if (message.type === "lumen.reveal") {
-      resolveLayoutPlaced();
+    if (message.type === "lumen.layoutCommitRequested") {
+      armLayoutCommit();
+    }
+
+    // Fallback para el caso en que el resize ocurrio durante los awaits de los
+    // comandos de VS Code. No revela por tiempo: exige geometria distinta.
+    if (message.type === "lumen.layoutCommitted") {
+      commitLayoutIfResized();
     }
   });
 
@@ -149,8 +167,13 @@
   }
   window.addEventListener("keydown", handleEscapeKey);
 
+  $: detailActionAvailable = Boolean(
+    exerciseDetail && activatedExerciseId === exerciseDetail.exerciseId
+  );
+
   function openDetailPanel() {
-    if (exerciseDetail) detailPanelOpen = true;
+    if (!exerciseDetail || !detailActionAvailable) return;
+    detailPanelOpen = true;
   }
 
   function closeDetailPanel() {
@@ -163,6 +186,8 @@
     stopIntroAssets();
     stopIntroGate();
     stopIntroProgress();
+    stopLayoutCommitObservation();
+    resetUiZoomOut();
     window.removeEventListener("keydown", handleEscapeKey);
   });
 
@@ -189,29 +214,37 @@
 
     stopIntroGate();
     stopIntroProgress();
+    resetLayoutCommit();
     document.documentElement.classList.remove("lumen-ui-revealing");
 
     introCycle += 1;
     introVisible = true;
+    introCovering = false;
     introExiting = false;
     introProgressVisible = false;
     introProgress = 0;
     revealedPosted = false;
-    // Nueva entrada: el layout se vuelve a colocar, asi que el fade debe volver
-    // a esperar la confirmacion de la extension.
-    layoutPlaced = false;
-    layoutPlacedResolvers = [];
 
     stopIntroGate = setupIntroGate();
     stopIntroProgress = setupIntroProgress();
   }
 
   function dismissIntroNow() {
-    resolveLayoutPlaced();
+    // `active` llega inmediatamente después de los comandos del host. Si el
+    // commit geométrico ya ocurrió, el zoom-out sigue siendo dueño de sus
+    // 160 ms; reiniciarlo aquí cancelaba la animación de aterrizaje.
+    if (layoutCommitPhase === "committed") {
+      postRevealedOnce();
+      return;
+    }
+
+    stopLayoutCommitObservation();
+    resetUiZoomOut();
     stopIntroGate();
     stopIntroProgress();
     document.documentElement.classList.remove("lumen-ui-revealing");
     introVisible = false;
+    introCovering = false;
     introExiting = false;
     introProgressVisible = false;
     introProgress = 100;
@@ -225,37 +258,120 @@
     return Math.min(92, Math.max(0, progress));
   }
 
-  // El Extension Host espera esta señal para pasar del layout de carga (panel
-  // a pantalla completa detras de la cortina) al layout final (split derecho).
-  // Se emite cuando el intro termino de ocultarse: en ese punto la ruta ya
-  // rindio (webgl incluido) y no quedan modulos cargando que una mutacion de
-  // layout pueda interrumpir.
+  // El Extension Host usa esta señal como confirmación final, después de haber
+  // colocado el split en `frontend.layoutHandoffReady`. Se emite cuando el
+  // intro terminó de ocultarse y la ruta ya es visible e interactiva.
   function postRevealedOnce() {
     if (revealedPosted) return;
     revealedPosted = true;
     bridge.post({ type: "frontend.revealed", payload: {} });
   }
 
-  function resolveLayoutPlaced() {
-    if (layoutPlaced) return;
-    layoutPlaced = true;
-    const resolvers = layoutPlacedResolvers;
-    layoutPlacedResolvers = [];
-    resolvers.forEach((resolve) => resolve());
+  function resetLayoutCommit() {
+    stopLayoutCommitObservation();
+    resetUiZoomOut();
+    stopLayoutCommitObservation = () => {};
+    layoutCommitPhase = "idle";
+    layoutCommitSourceWidth = 0;
+    layoutCommitSourceHeight = 0;
+    document.documentElement.classList.remove("lumen-layout-committed");
   }
 
-  // Se resuelve cuando la extension confirma el layout (`lumen.reveal`) o, como
-  // red de seguridad, tras un fallback para no colgar el revelado si la señal
-  // nunca llega (host lento, build vieja de la extension, etc.).
-  function waitForLayoutPlaced() {
-    return new Promise<void>((resolve) => {
-      if (layoutPlaced) {
-        resolve();
-        return;
-      }
-      layoutPlacedResolvers.push(resolve);
-      window.setTimeout(resolve, layoutPlacedFallbackMs);
-    });
+  function resetUiZoomOut() {
+    window.clearTimeout(uiZoomOutTimer);
+    uiZoomOutTimer = 0;
+    document.documentElement.classList.remove("lumen-ui-entering");
+  }
+
+  function beginUiZoomOut() {
+    resetUiZoomOut();
+    performance.mark("lumen:ui-zoom-out-start");
+    document.documentElement.classList.add("lumen-ui-entering");
+    uiZoomOutTimer = window.setTimeout(() => {
+      uiZoomOutTimer = 0;
+      document.documentElement.classList.remove("lumen-ui-entering");
+      performance.mark("lumen:ui-zoom-out-end");
+      performance.measure(
+        "lumen:ui-zoom-out",
+        "lumen:ui-zoom-out-start",
+        "lumen:ui-zoom-out-end"
+      );
+      window.dispatchEvent(new Event("lumen:entry-transition-settled"));
+    }, introUiZoomOutDurationMs);
+  }
+
+  function armLayoutCommit() {
+    if (!runningInExtensionHost || !introVisible || layoutCommitPhase === "committed") return;
+    if (layoutCommitPhase === "armed" || layoutCommitPhase === "enabled") {
+      bridge.post({ type: "frontend.layoutCommitArmed", payload: {} });
+      return;
+    }
+
+    layoutCommitPhase = "armed";
+    layoutCommitSourceWidth = window.innerWidth;
+    layoutCommitSourceHeight = window.innerHeight;
+    performance.mark("lumen:layout-commit-armed");
+
+    const observe = () => commitLayoutIfResized();
+    window.addEventListener("resize", observe);
+    window.visualViewport?.addEventListener("resize", observe);
+    const resizeObserver = new ResizeObserver(observe);
+    resizeObserver.observe(document.documentElement);
+    stopLayoutCommitObservation = () => {
+      window.removeEventListener("resize", observe);
+      window.visualViewport?.removeEventListener("resize", observe);
+      resizeObserver.disconnect();
+    };
+
+    bridge.post({ type: "frontend.layoutCommitArmed", payload: {} });
+  }
+
+  function enableLayoutCommit() {
+    if (layoutCommitPhase !== "armed") return layoutCommitPhase === "enabled";
+
+    // Recaptura justo antes del movimiento real. El observador puede llevar
+    // cientos de ms instalado, pero ningun resize previo autoriza el reveal.
+    layoutCommitSourceWidth = window.innerWidth;
+    layoutCommitSourceHeight = window.innerHeight;
+    layoutCommitPhase = "enabled";
+    performance.mark("lumen:layout-commit-enabled");
+    return true;
+  }
+
+  function commitLayoutIfResized() {
+    if (layoutCommitPhase !== "enabled") return;
+    const geometryChanged = hasLayoutCommitGeometryChanged(
+      { width: layoutCommitSourceWidth, height: layoutCommitSourceHeight },
+      { width: window.innerWidth, height: window.innerHeight }
+    );
+    if (!geometryChanged) return;
+
+    // Esta clase se aplica dentro del callback de geometria, antes del paint.
+    // Svelte desmonta el DOM despues; no hay fade ni fondo opaco que Chromium
+    // pueda confinar al panel derecho.
+    layoutCommitPhase = "committed";
+    document.documentElement.classList.add("lumen-layout-committed");
+    beginUiZoomOut();
+    stopLayoutCommitObservation();
+    stopLayoutCommitObservation = () => {};
+    introVisible = false;
+    introCovering = false;
+    introExiting = false;
+    introProgressVisible = false;
+    performance.mark("lumen:intro-hidden");
+    performance.mark("lumen:layout-commit-applied");
+    performance.measure(
+      "lumen:intro-focus-to-layout-commit",
+      "lumen:intro-loading-complete",
+      "lumen:layout-commit-applied"
+    );
+    window.dispatchEvent(new Event("lumen:entry-transition-committed"));
+    postRevealedOnce();
+  }
+
+  function handleIntroMarkAnimationEnd(event: AnimationEvent) {
+    if (event.animationName !== "lumenIntroMarkFocus") return;
+    window.dispatchEvent(new Event("lumen:intro-focus-complete"));
   }
 
   function setupPerfReporting() {
@@ -285,6 +401,12 @@
       schedule("route-advance-response", 0);
       schedule("route-advance-frame-sample", 120);
     };
+    const handleEntryTransitionCommitted = () => {
+      schedule("entry-transition-committed", 0);
+    };
+    const handleEntryTransitionSettled = () => {
+      schedule("entry-transition-settled", 0);
+    };
 
     if (document.readyState === "complete") {
       schedule("window-load", 0);
@@ -298,10 +420,14 @@
     window.addEventListener("pointerdown", handleInteractionFocus);
     window.addEventListener("focusin", handleInteractionFocus);
     window.addEventListener("lumen:route-advance-started", handleRouteAdvance);
+    window.addEventListener("lumen:entry-transition-committed", handleEntryTransitionCommitted);
+    window.addEventListener("lumen:entry-transition-settled", handleEntryTransitionSettled);
     disposers.push(() => {
       window.removeEventListener("pointerdown", handleInteractionFocus);
       window.removeEventListener("focusin", handleInteractionFocus);
       window.removeEventListener("lumen:route-advance-started", handleRouteAdvance);
+      window.removeEventListener("lumen:entry-transition-committed", handleEntryTransitionCommitted);
+      window.removeEventListener("lumen:entry-transition-settled", handleEntryTransitionSettled);
     });
     schedule("post-mount", 0);
     schedule("steady-frame-sample", 1200);
@@ -480,39 +606,59 @@
     let readyToReveal = routeVisualReady;
     let progressComplete = false;
     let completed = false;
+    let handoffReady = false;
     let cancelled = false;
 
     const beginReveal = () => {
       if (cancelled) return;
-      const exitTimer = window.setTimeout(() => {
-        performance.mark("lumen:intro-exit-start");
-        document.documentElement.classList.add("lumen-ui-revealing");
-        introExiting = true;
-        const hiddenTimer = window.setTimeout(() => {
-          introVisible = false;
-          performance.mark("lumen:intro-hidden");
-          document.documentElement.classList.remove("lumen-ui-revealing");
-          postRevealedOnce();
-        }, 860);
-        timers.push(hiddenTimer);
-      }, 120);
-      timers.push(exitTimer);
+      performance.mark("lumen:intro-exit-start");
+      document.documentElement.classList.add("lumen-ui-revealing");
+      introCovering = false;
+      introExiting = true;
+      const hiddenTimer = window.setTimeout(() => {
+        introVisible = false;
+        introExiting = false;
+        performance.mark("lumen:intro-hidden");
+        document.documentElement.classList.remove("lumen-ui-revealing");
+        postRevealedOnce();
+      }, introRevealDurationMs);
+      timers.push(hiddenTimer);
+    };
+
+    const scheduleHandoff = () => {
+      if (cancelled || handoffReady) return;
+      if (runningInExtensionHost && !enableLayoutCommit()) return;
+      handoffReady = true;
+      performance.mark("lumen:intro-handoff-scheduled");
+      if (!runningInExtensionHost) {
+        beginReveal();
+        return;
+      }
+      bridge.post({
+        type: "frontend.layoutHandoffReady",
+        payload: { delayMs: introLayoutHandoffAtMs }
+      });
+    };
+
+    const beginFocusZoom = () => {
+      if (cancelled) return;
+      introCovering = true;
+      // La marca mantiene cubierta la pantalla mientras el host prepara el
+      // split. Sólo el commit geométrico desmonta la cortina completa: nunca
+      // existe un estado de espera con el fondo de carga desnudo.
+      // Se agenda sincrónicamente al arrancar el zoom. El delay de 60 ms lo
+      // ejecuta el Extension Host, fuera del iframe: los timers throttled de
+      // Chromium ya no pueden introducir una pausa terminal de ~1 segundo.
+      scheduleHandoff();
     };
 
     const finishIntro = () => {
       if (completed) return;
       completed = true;
       performance.mark("lumen:intro-loading-complete");
-      // La carga termino con la cortina todavia a pantalla completa. Dentro del
-      // host se avisa a la extension para que coloque el split ANTES de revelar
-      // (el fade aterriza entonces en la vista dividida, no en un frame del
-      // modulo fullscreen). Fuera del host no hay layout que colocar: directo.
-      if (!runningInExtensionHost) {
-        beginReveal();
-        return;
-      }
-      bridge.post({ type: "frontend.loadingComplete", payload: {} });
-      waitForLayoutPlaced().then(beginReveal);
+      // La barra termina fullscreen. El zoom al wordmark oculta los controles
+      // antes de autorizar cualquier cambio de layout.
+      beginFocusZoom();
     };
 
     const markReadyToReveal = () => {
@@ -642,69 +788,64 @@
   }
 </script>
 
-<RoutePathView
-  module={routeModule}
-  {busyExerciseId}
-  {activationError}
-  onNodeSelected={handleNodeSelected}
-  onContinueRequest={handleContinueRequest}
-/>
-
-{#if exerciseDetail && !detailPanelOpen && !introVisible}
-  <!-- El FAB vive fuera del stage de la ruta: replica las variables del tema
-       del módulo para recolorearse igual que el resto del chrome. -->
-  <button
-    class="statement-fab"
-    type="button"
-    style={themeVars(routeModule.theme)}
-    on:click={openDetailPanel}
-    aria-label={`Ver enunciado de ${exerciseDetail.title}`}
-  >
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M6 4h9.5L19 7.5V20H6z" />
-      <path d="M9 9h6M9 13h6M9 17h4" />
-    </svg>
-    Enunciado
-  </button>
-{/if}
-
-{#if exerciseDetail && detailPanelOpen}
-  {#key exerciseDetail.exerciseId}
-    <ExerciseDetailPanel detail={exerciseDetail} theme={routeModule.theme} onClose={closeDetailPanel} />
-  {/key}
-{/if}
+<div class="route-scene">
+  <RoutePathView
+    module={routeModule}
+    {busyExerciseId}
+    {activationError}
+    {detailActionAvailable}
+    detail={exerciseDetail}
+    detailOpen={detailPanelOpen}
+    detailTitle={exerciseDetail?.title ?? ""}
+    onNodeSelected={handleNodeSelected}
+    onContinueRequest={handleContinueRequest}
+    onDetailRequest={openDetailPanel}
+    onDetailClose={closeDetailPanel}
+  />
+</div>
 
 {#if introVisible}
   {#key introCycle}
     <div
       class:intro-assets-ready={introAssetsReady}
+      class:intro-covering={introCovering}
       class:intro-exiting={introExiting}
       class="lumen-intro"
       aria-hidden="true"
     >
-      <div class="lumen-intro-mark">
-        <img
-          class="lumen-intro-logo"
-          src={lumenBrand.logoUrl}
-          alt=""
-          width="92"
-          height="92"
-          loading="eager"
-          decoding="sync"
-          fetchpriority="high"
-          draggable="false"
-        />
-        <img
-          class="lumen-intro-wordmark"
-          src={lumenBrand.wordmarkUrl}
-          alt={lumenBrand.name}
-          width="520"
-          height="126"
-          loading="eager"
-          decoding="sync"
-          fetchpriority="high"
-          draggable="false"
-        />
+      <div class="lumen-intro-mark" on:animationend={handleIntroMarkAnimationEnd}>
+        <span class="lumen-intro-chromatic lumen-intro-chromatic-red">
+          <img src={lumenBrand.logoUrl} alt="" width="92" height="92" draggable="false" />
+          <img src={lumenBrand.wordmarkUrl} alt="" width="520" height="126" draggable="false" />
+        </span>
+        <span class="lumen-intro-chromatic lumen-intro-chromatic-cyan">
+          <img src={lumenBrand.logoUrl} alt="" width="92" height="92" draggable="false" />
+          <img src={lumenBrand.wordmarkUrl} alt="" width="520" height="126" draggable="false" />
+        </span>
+        <span class="lumen-intro-primary">
+          <img
+            class="lumen-intro-logo"
+            src={lumenBrand.logoUrl}
+            alt=""
+            width="92"
+            height="92"
+            loading="eager"
+            decoding="sync"
+            fetchpriority="high"
+            draggable="false"
+          />
+          <img
+            class="lumen-intro-wordmark"
+            src={lumenBrand.wordmarkUrl}
+            alt={lumenBrand.name}
+            width="520"
+            height="126"
+            loading="eager"
+            decoding="sync"
+            fetchpriority="high"
+            draggable="false"
+          />
+        </span>
       </div>
       {#if introProgressVisible}
         <div class="lumen-intro-bar"><i style:transform={`scaleX(${introProgress / 100})`}></i></div>
@@ -715,62 +856,8 @@
 {/if}
 
 <style>
-  /* Misma gramática que .continue-badge / el botón del BottomCta: pill glass
-     con el glow del tema del módulo (las variables llegan por style inline). */
-  .statement-fab {
-    position: fixed;
-    right: 22px;
-    bottom: 22px;
-    z-index: 60;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    height: 36px;
-    padding: 0 18px;
-    border: 1px solid color-mix(in srgb, var(--theme-glow) 56%, transparent);
-    border-radius: 999px;
-    color: var(--theme-glow);
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--theme-glow) 8%, transparent), color-mix(in srgb, var(--theme-glow) 3%, transparent)),
-      rgba(0, 18, 25, 0.78);
-    box-shadow:
-      0 14px 32px rgba(0, 0, 0, 0.42),
-      0 0 18px color-mix(in srgb, var(--theme-glow) 19%, transparent),
-      inset 0 1px 0 rgba(244, 252, 251, 0.08),
-      inset 0 0 14px color-mix(in srgb, var(--theme-glow) 6%, transparent);
-    cursor: pointer;
-    font-family: var(--font);
-    font-size: 13px;
-    font-weight: 850;
-    letter-spacing: 0.4px;
-    line-height: 1;
-    transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
-  }
-
-  .statement-fab svg {
-    width: 15px;
-    height: 15px;
-    stroke: currentColor;
-    stroke-width: 2.2;
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--theme-glow) 40%, transparent));
-  }
-
-  .statement-fab:hover,
-  .statement-fab:focus-visible {
-    border-color: color-mix(in srgb, var(--theme-glow) 82%, transparent);
-    box-shadow:
-      0 14px 32px rgba(0, 0, 0, 0.42),
-      0 0 26px color-mix(in srgb, var(--theme-glow) 30%, transparent),
-      inset 0 1px 0 rgba(244, 252, 251, 0.1),
-      inset 0 0 18px color-mix(in srgb, var(--theme-glow) 9%, transparent);
-    outline: none;
-    transform: translateY(-1px);
-  }
-
-  .statement-fab:active {
-    transform: translateY(0);
+  .route-scene {
+    width: 100%;
+    height: 100%;
   }
 </style>

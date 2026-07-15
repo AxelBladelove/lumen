@@ -2,9 +2,9 @@ import * as vscode from "vscode";
 import type { LumenEngineClient } from "./engine/lumenEngineClient";
 import type { LumenEntryState } from "./lumenProtocol";
 import {
-  getLumenFrontendHtml,
   getLumenFrontendResourceRoots,
-  prepareLumenFrontendHtml
+  prepareLumenFrontendHtml,
+  readLumenFrontendIndexHtml
 } from "./lumenWebviewContent";
 import { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
 import { LumenWebviewHost, type LumenModePhase } from "./lumenWebviewHost";
@@ -30,10 +30,13 @@ const bootWatchdogMs = 5000;
  *    asigna el HTML en el mismo turno; la cortina estatica del propio HTML
  *    cubre el editor desde el primer frame.
  * 2. El frontend bootea a pantalla completa sin que se toque el layout.
- * 3. Cuando la carga termina detras de la cortina (`frontend.loadingComplete`),
- *    `moveAsideAndLock()` ejecuta el unico cambio de layout: mover el panel a
- *    un grupo derecho, fijar 2/3 + 1/3 y bloquear el grupo. Solo despues el
- *    frontend recibe `lumen.reveal` y corre el fade final.
+ * 3. Al recibir `frontend.ready`, el host prearma el commit mientras continua
+ *    la carga. El frontend todavía no permite retirar la cortina.
+ * 4. Al arrancar el punch-in, el frontend habilita el commit y entrega al
+ *    Extension Host el delay del handoff. Ese reloj vive fuera del iframe, así
+ *    Chromium no puede throttlear 60 ms hasta convertirlos en un segundo.
+ * 5. El primer resize real retira la cortina de forma sincrona, en el mismo
+ *    ciclo de pintura que coloca el panel a la derecha.
  */
 export class LumenPanelController {
   private readonly host: LumenWebviewHost;
@@ -41,10 +44,13 @@ export class LumenPanelController {
   private panelDisposables: vscode.Disposable[] = [];
   private disposingForExit = false;
   private watchdogTimer: ReturnType<typeof setTimeout> | undefined;
+  private layoutHandoffTimer: ReturnType<typeof setTimeout> | undefined;
   private watchdogRebooted = false;
   private readySignal = createSignal();
-  private loadingCompleteSignal = createSignal();
+  private layoutHandoffSignal = createSignal();
+  private layoutCommitArmedSignal = createSignal();
   private revealedSignal = createSignal();
+  private frontendIndexHtmlPromise: Promise<string | undefined>;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -52,6 +58,10 @@ export class LumenPanelController {
     private readonly engineClient: LumenEngineClient,
     private readonly onPanelClosed: () => void
   ) {
+    // Se inicia al activar la extension, no al clickear el icono. En la ruta
+    // normal el HTML ya esta en memoria y el siguiente cambio visible puede ser
+    // directamente la cortina, sin esperar I/O despues de abrir el launcher.
+    this.frontendIndexHtmlPromise = readLumenFrontendIndexHtml(context);
     this.host = new LumenWebviewHost({
       context,
       outputChannel,
@@ -61,7 +71,8 @@ export class LumenPanelController {
         this.clearWatchdog();
         this.readySignal.resolve();
       },
-      onFrontendLoadingComplete: () => this.loadingCompleteSignal.resolve(),
+      onFrontendLayoutHandoffReady: (delayMs) => this.scheduleLayoutHandoff(delayMs),
+      onFrontendLayoutCommitArmed: () => this.layoutCommitArmedSignal.resolve(),
       onFrontendRevealed: () => this.revealedSignal.resolve(),
       perfViewType: LumenRoutePathViewProvider.viewType
     });
@@ -77,6 +88,10 @@ export class LumenPanelController {
 
   setEntryState(entryState: LumenEntryState) {
     this.host.setEntryState(entryState);
+  }
+
+  getPreloadedFrontendHtml() {
+    return this.frontendIndexHtmlPromise;
   }
 
   /**
@@ -98,9 +113,11 @@ export class LumenPanelController {
     }
 
     this.readySignal = createSignal();
-    this.loadingCompleteSignal = createSignal();
+    this.layoutHandoffSignal = createSignal();
+    this.layoutCommitArmedSignal = createSignal();
     this.revealedSignal = createSignal();
     this.watchdogRebooted = false;
+    this.clearLayoutHandoffTimer();
 
     const panel = vscode.window.createWebviewPanel(
       lumenPanelViewType,
@@ -128,6 +145,7 @@ export class LumenPanelController {
     panel.onDidDispose(
       () => {
         this.clearWatchdog();
+        this.clearLayoutHandoffTimer();
         this.host.unbindWebview(webview);
         for (const disposable of this.panelDisposables) {
           try {
@@ -153,13 +171,14 @@ export class LumenPanelController {
     return this.readySignal.wait(timeoutMs);
   }
 
-  /**
-   * Espera `frontend.loadingComplete` (barra al 100%, cortina aún fullscreen);
-   * false si no llega dentro del timeout. Es el punto en el que el layout final
-   * debe colocarse, detras de la cortina, antes de revelar.
-   */
-  waitForLoadingComplete(timeoutMs: number) {
-    return this.loadingCompleteSignal.wait(timeoutMs);
+  /** Espera el punto cubierto, cronometrado por el Extension Host. */
+  waitForLayoutHandoff(timeoutMs: number) {
+    return this.layoutHandoffSignal.wait(timeoutMs);
+  }
+
+  /** Espera que el frontend observe la geometria antes del unico resize. */
+  waitForLayoutCommitArmed(timeoutMs: number) {
+    return this.layoutCommitArmedSignal.wait(timeoutMs);
   }
 
   /** Espera `frontend.revealed`; false si no llega dentro del timeout. */
@@ -167,13 +186,14 @@ export class LumenPanelController {
     return this.revealedSignal.wait(timeoutMs);
   }
 
-  /**
-   * Ordena al frontend descartar la cortina con su fade. Se llama solo despues
-   * de que el layout final quedo colocado, para que el revelado aterrice en la
-   * vista dividida y no en un frame del modulo a pantalla completa.
-   */
-  signalReveal() {
-    this.host.postReveal();
+  /** Prearma el retiro atomico; el frontend lo habilita al arrancar el punch-in. */
+  requestLayoutCommit() {
+    this.host.postLayoutCommitRequested();
+  }
+
+  /** Confirma que el host termino sus comandos de layout. */
+  confirmLayoutCommitted() {
+    this.host.postLayoutCommitted();
   }
 
   async postExerciseCompleted(exerciseId: string) {
@@ -190,8 +210,8 @@ export class LumenPanelController {
    * Unico cambio de layout de la entrada: panel al grupo derecho, proporcion
    * 2/3 editor + 1/3 Lumen y grupo bloqueado para que abrir archivos no
    * aterrice sobre la UI. Se ejecuta cuando el frontend reporta
-   * `frontend.loadingComplete`: la ruta ya rindio y no hay modulos en vuelo,
-   * pero la cortina sigue cubriendo la UI hasta `signalReveal()`.
+   * `frontend.layoutHandoffReady`: el commit ya está habilitado y el reloj del
+   * host acaba de alcanzar el tramo cubierto del punch-in.
    */
   async moveAsideAndLock() {
     const panel = this.panel;
@@ -231,7 +251,12 @@ export class LumenPanelController {
     const panel = this.panel;
     if (!panel) return false;
     try {
-      panel.webview.html = await getLumenFrontendHtml(this.context, panel.webview);
+      // Refrescar tambien renueva la copia precargada usada por la proxima
+      // entrada (importante durante desarrollo si el build aparecio despues de
+      // activar la extension).
+      this.frontendIndexHtmlPromise = readLumenFrontendIndexHtml(this.context);
+      const rawHtml = await this.frontendIndexHtmlPromise;
+      panel.webview.html = prepareLumenFrontendHtml(this.context, panel.webview, rawHtml);
       return true;
     } catch {
       return false;
@@ -244,6 +269,7 @@ export class LumenPanelController {
 
     this.disposingForExit = true;
     this.clearWatchdog();
+    this.clearLayoutHandoffTimer();
     try {
       if (revealSafely(panel)) {
         await executeCommandSafely("workbench.action.unlockEditorGroup");
@@ -284,6 +310,22 @@ export class LumenPanelController {
     if (this.watchdogTimer) {
       clearTimeout(this.watchdogTimer);
       this.watchdogTimer = undefined;
+    }
+  }
+
+  private scheduleLayoutHandoff(delayMs: number) {
+    this.clearLayoutHandoffTimer();
+    const safeDelayMs = Number.isFinite(delayMs) ? Math.min(1000, Math.max(0, delayMs)) : 0;
+    this.layoutHandoffTimer = setTimeout(() => {
+      this.layoutHandoffTimer = undefined;
+      this.layoutHandoffSignal.resolve();
+    }, safeDelayMs);
+  }
+
+  private clearLayoutHandoffTimer() {
+    if (this.layoutHandoffTimer) {
+      clearTimeout(this.layoutHandoffTimer);
+      this.layoutHandoffTimer = undefined;
     }
   }
 }

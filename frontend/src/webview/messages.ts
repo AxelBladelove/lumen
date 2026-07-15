@@ -1,6 +1,6 @@
 import type { RoutePathModuleView } from "../route-path-view/types/routePath";
 
-export const lumenWebviewProtocolVersion = 1;
+export const lumenWebviewProtocolVersion = 4;
 
 export type RouteModuleDataNodeStatus = "active" | "locked" | "completed";
 
@@ -69,7 +69,13 @@ export type WebviewToExtensionMessage =
       payload: Record<string, never>;
     }
   | {
-      type: "frontend.loadingComplete";
+      type: "frontend.layoutHandoffReady";
+      payload: {
+        delayMs: number;
+      };
+    }
+  | {
+      type: "frontend.layoutCommitArmed";
       payload: Record<string, never>;
     }
   | {
@@ -138,7 +144,11 @@ export type ExtensionToWebviewMessage =
       };
     }
   | {
-      type: "lumen.reveal";
+      type: "lumen.layoutCommitRequested";
+      payload: Record<string, never>;
+    }
+  | {
+      type: "lumen.layoutCommitted";
       payload: Record<string, never>;
     }
   | {

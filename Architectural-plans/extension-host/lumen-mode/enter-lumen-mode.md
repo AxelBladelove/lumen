@@ -12,15 +12,20 @@ sigue siendo el mock de Route Path View.
 Hoy `lumen.open` y `lumen.enterMode` llaman a `extension/src/lumenEntry.ts`.
 Esa secuencia:
 
-- Calcula `LumenEntryState` con protocolo `1`, modo `route`, phase
+- Calcula `LumenEntryState` con protocolo `3`, modo `route`, phase
   `mock-route-path-view` y estado del workspace `.lumen`.
-- Guarda un `bootIntent` en `context.globalState`.
+- Guarda un `bootIntent` en `context.globalState` solo si debe cambiar al
+  workspace oficial y retomar la entrada tras el reload.
 - Activa context keys `lumen.inMode = true` y `lumen.mode = route`.
+- Precarga el HTML compilado desde que se activa la extensión. Al recibir el
+  gesto, cierra el launcher y no necesita esperar una lectura de disco antes de
+  crear el panel de Lumen.
 - Aplica el layout enfocado (`extension/src/lumenLayout.ts`): snapshot de los
   settings a nivel workspace, escribe los defaults de Lumen Mode
   (`zenMode.*` con `centerLayout: false`).
-- Crea el panel de Lumen (`lumen.routePathPanel`, `WebviewPanel` de editor)
-  A PANTALLA COMPLETA en el grupo activo y activa Zen Mode en el mismo turno.
+- Crea `lumen.routePathPanel` A PANTALLA COMPLETA y activa Zen Mode en el mismo
+  turno visual, de modo que la primera superficie propia que se pinta es la
+  cortina fullscreen.
   La cortina de entrada (logo + wordmark + barra + porcentaje) vive DENTRO del
   HTML del panel como intro estático, así que no existe un panel de cortina
   separado y —crítico— ninguna mutación de layout ocurre mientras el webview
@@ -31,14 +36,22 @@ Esa secuencia:
   porcentaje del intro estático (`window.__LUMEN_STATIC_INTRO__`) y lo lleva a
   100 con sus señales reales de listo. Un watchdog en el panel reintenta el
   HTML una vez si `frontend.ready` no llega en 5s.
-- Cuando el frontend confirma `frontend.loadingComplete` (barra al 100 y ruta
-  ya pintada, pero cortina todavía fullscreen), se ejecuta el único cambio de
-  layout de la entrada: el panel se mueve a un grupo derecho (~1/3, bloqueado
-  si queda solo) y el archivo del usuario queda a la izquierda. Sin header
-  nativo, alto completo; el ancho se ajusta con el sash entre grupos.
-- Con el layout ya colocado, la extension envía `lumen.reveal`; recién ahí el
-  frontend corre el fade final. `frontend.revealed` solo confirma que la
-  cortina terminó de salir y permite marcar la sesión como activa.
+- Después de `frontend.ready`, el host envía `lumen.layoutCommitRequested` y
+  espera `frontend.layoutCommitArmed` mientras la carga continúa. El frontend
+  instala los observadores, pero todavía no permite retirar la cortina.
+- Al llegar a 100, la barra y el porcentaje salen mientras el isotipo hace un
+  punch-in rápido todavía A PANTALLA COMPLETA. En ese mismo turno el frontend
+  recaptura la geometría, habilita el commit y emite
+  `frontend.layoutHandoffReady` con `delayMs: 60`. El reloj se cumple en el
+  Extension Host, fuera del iframe, para que el throttling de Chromium no pueda
+  alargarlo a ~1 s. Así el layout ocurre durante la máxima velocidad del zoom.
+- Solo entonces el panel se mueve al grupo derecho (~1/3). En el primer resize
+  real, el frontend retira la cortina sin fade y antes del paint; por ello el
+  fondo de carga no puede sobrevivir dentro del panel derecho.
+- `lumen.layoutCommitted` confirma que los comandos del host terminaron, pero no
+  revela por sí solo. `frontend.revealed` confirma el commit geométrico y permite
+  marcar la sesión como activa. Si falta cualquier señal o resize, la entrada
+  falla cerrada y restaura el workspace.
 - Envía `lumen.entry.state` a la webview al crear la entrada y después de cada
   `frontend.ready`.
 

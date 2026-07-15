@@ -38,8 +38,11 @@ monta `App.svelte`.
 - muestra la pantalla de entrada de Lumen encima de la ruta;
 - precarga logo y wordmark;
 - decide cuando esconder el intro;
-- en VS Code espera `lumen.reveal` antes de correr el fade final, despues de
-  emitir `frontend.loadingComplete`;
+- prearma el commit de geometría al recibir `lumen.layoutCommitRequested`, sin
+  habilitar todavía el reveal;
+- al terminar la barra hace el punch-in al isotipo a pantalla completa, habilita
+  el commit y emite `frontend.layoutHandoffReady` con `delayMs: 60`; el reloj
+  vive en el Extension Host y la cortina sale sin fade en el primer resize real;
 - emite reportes `perf.report`.
 
 ## Pantalla de entrada
@@ -60,8 +63,48 @@ El intro se mantiene visible hasta que:
 - los assets de marca estan listos o vence un fallback corto;
 - la ruta marca `lumen:route-visual-complete`;
 - la barra visual de progreso completa su animacion;
-- si corre dentro del Extension Host, llega `lumen.reveal` confirmando que el
-  panel ya esta en el layout final.
+- un punch-in breve (180 ms) parte del lockup completo, toma como origen el
+  centro óptico del isotipo y atraviesa el logo hasta `scale(48)`; el wordmark
+  sale del viewport por geometría, no por un fade independiente, y el frame
+  final queda cubierto por el azul interior de la propia marca. El isotipo
+  pierde opacidad al ganar velocidad para que el último tramo se lea como
+  arrastre, no como una ampliación nítida. Entre 24% y 72% aparecen dos copias
+  RGB desplazadas, blur progresivo, skew alterno y un shake amortiguado de la
+  cortina; todas desaparecen antes del estado final;
+- si corre dentro del Extension Host, recibe `lumen.layoutCommitRequested`
+  durante la carga, instala los observadores y responde
+  `frontend.layoutCommitArmed`; al arrancar el punch-in recaptura la geometría,
+  cambia la barrera a `enabled` y agenda el handoff en el Extension Host;
+- el primer cambio real de ancho/alto aplica sincrónicamente
+  `.lumen-layout-committed`, que elimina la cortina con `display: none` antes
+  del paint del panel derecho. `lumen.layoutCommitted` sólo reevalúa la misma
+  condición por si el resize ocurrió durante los comandos del host.
+
+El gesto posterior al 100% debe quedar por debajo de un segundo en el camino
+normal. No es una segunda espera ni un splash adicional: es el puente visual
+entre los dos layouts.
+
+El movimiento estructural sigue siendo compositor-first (`transform` y
+`opacity`). Los efectos ópticos son capas efímeras aisladas: dos duplicados del
+lockup con separación rojo/cian y `mix-blend-mode: screen`, más blur/saturación
+del lockup y de la atmósfera. El fondo completo sólo recibe un shake de pocos
+píxeles sobre `scale(1.012)`, de modo que nunca expone los bordes del viewport.
+La curva acelera de forma exponencial y no tiene asentamiento antes del commit.
+
+La segunda mitad empieza exactamente en el commit geométrico. La cortina se
+retira con `display: none` y, ya dentro del panel final, `.lumen-route-app`
+aterriza durante 160 ms desde `scale(1.11)` hasta su escala real. Esa mitad no
+puede comenzar antes del resize: hacerlo transformaría la geometría fullscreen
+dentro del panel estrecho. El par punch-in/zoom-out forma una sola transición
+de aproximadamente 340 ms.
+
+La invariante visual del commit es estricta: mientras la geometría sea la de
+origen, la cortina fullscreen permanece cubierta por la marca —primero por el
+lockup y después por el interior ampliado del isotipo—; no existe un estado
+válido de fondo de carga desnudo. Cuando la geometría cambia, la cortina deja de
+participar en layout/pintura en ese mismo callback. Un timeout nunca autoriza el
+reveal. Si no existe resize observable, la entrada falla cerrada y el Extension
+Host restaura el workspace.
 
 Si la URL contiene `lumenPerfHoldIntro`, el intro se mantiene para capturas de
 performance visual.

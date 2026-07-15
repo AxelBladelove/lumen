@@ -1,667 +1,487 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import type { ModuleTheme } from "../route-path-view/types/routePath";
-  import { themeVars } from "../route-path-view/theme/moduleTheme";
   import type { ExerciseDetailPayload } from "../webview/messages";
-  import { renderMarkdown } from "./markdown";
+  import { extractExamples, renderMarkdownSection } from "./markdown";
+  import LiquidGlassSurface from "./LiquidGlassSurface.svelte";
 
   export let detail: ExerciseDetailPayload;
-  // Tema del módulo activo: el panel vive fuera del stage de la ruta, así que
-  // replica las variables --theme-* aquí para recolorearse por módulo igual
-  // que el snake y los nodos (strings verde hoy, matrices morado mañana).
-  export let theme: ModuleTheme;
-  export let onClose: () => void;
+  export let compact = false;
+  export let exiting = false;
 
-  let panelRef: HTMLDivElement | null = null;
-  let revealedHints = 0;
+  // La sección Ejemplos se lee como datos (pares entrada/salida) para dibujarla
+  // como composición propia. Si el enunciado no trae tabla, cae de vuelta al
+  // render Markdown normal en vez de perder el contenido.
+  $: examples = extractExamples(detail.statementMarkdown, "Ejemplos");
+  $: fallbackHtml = examples
+    ? ""
+    : renderMarkdownSection(detail.statementMarkdown, "Ejemplos");
 
-  onMount(() => {
-    // Foco al panel: los lectores de pantalla anuncian el dialog y el usuario
-    // puede pulsar Tab desde acá; Escape lo maneja App.svelte al nivel de la
-    // webview para asegurar que no se dispare `lumen.exit.requested`.
-    panelRef?.focus();
-  });
-
-  function revealNextHint() {
-    if (revealedHints < detail.hints.length) revealedHints++;
-  }
-
-  function handleScrimClick() {
-    onClose();
-  }
-
-  function stop(event: Event) {
-    event.stopPropagation();
-  }
-
-  $: statementHtml = renderMarkdown(detail.statementMarkdown);
-  $: isCompleted = detail.status === "completed";
-  $: statusLabel = isCompleted ? "COMPLETADO" : "EN CURSO";
-  $: revealedHintsList = detail.hints.slice(0, revealedHints);
-  $: totalAttempts = detail.progress.attempts.total;
-  $: passedAttempts = detail.progress.attempts.passed;
 </script>
 
-<div class="detail-layer" style={themeVars(theme)}>
-  <div class="detail-scrim" on:click={handleScrimClick} role="presentation"></div>
+<article
+  class="integrated-detail"
+  class:compact
+  class:is-exiting={exiting}
+  aria-label={`Detalles del ejercicio: ${detail.title}`}
+>
+  <div class="detail-content">
+  <header class="detail-heading">
+    <span class="eyebrow">DETALLES DEL EJERCICIO</span>
+    <h2>{detail.title}</h2>
+    <p>{detail.summary}</p>
 
-  <div
-    bind:this={panelRef}
-    class="detail-panel"
-    class:completed={isCompleted}
-    role="dialog"
-    aria-modal="true"
-    aria-label={`Enunciado: ${detail.title}`}
-    tabindex="-1"
-    on:click={stop}
-  >
-    <i class="detail-accent" aria-hidden="true"></i>
+    <p class="time-meta" aria-label={`Tiempo estimado: ${detail.difficulty.expectedMinutes} minutos`}>
+      <span>TIEMPO ESTIMADO</span>
+      <i aria-hidden="true"></i>
+      <strong>{detail.difficulty.expectedMinutes} min</strong>
+    </p>
+  </header>
 
-    <header class="detail-header">
-      <span class="status-badge" class:done={isCompleted}>{statusLabel}</span>
-      <button class="detail-close" type="button" on:click={onClose} aria-label="Volver a la ruta">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M19 12H5" />
-          <path d="m10.5 6.5-5.5 5.5 5.5 5.5" />
-        </svg>
-        Ruta
-      </button>
-    </header>
-
-    <h2 class="detail-title">{detail.title}</h2>
-    {#if detail.summary}
-      <p class="detail-summary">{detail.summary}</p>
-    {/if}
-
-    <div class="detail-meta">
-      <span class="meta-chip band">{detail.difficulty.band}</span>
-      <span class="meta-chip">≈ {detail.difficulty.expectedMinutes} min</span>
-      {#each detail.primaryTopics as topic}
-        <span class="meta-chip topic">{topic}</span>
-      {/each}
-      <span class="meta-attempts" aria-label="Intentos">
-        <strong>{passedAttempts}</strong><em>/{totalAttempts} intentos</em>
-      </span>
+  <section class="examples-block" aria-labelledby="examples-title">
+    <div class="section-title">
+      <i aria-hidden="true"></i>
+      <h3 id="examples-title">Entrada y salida</h3>
     </div>
 
-    <section class="detail-statement" aria-label="Enunciado">
-      {@html statementHtml}
-    </section>
+    {#if examples}
+      <div class="examples-glass-stack">
+        <ol class="examples-flow">
+          {#each examples.cases as example, caseIndex}
+            <li class="example-case" style={`--case-index: ${caseIndex}`}>
+              <div class="case-body">
+                {#each example.cells as cell, cellIndex}
+                  <div class="case-cell" class:is-result={example.cells.length > 1 && cellIndex === example.cells.length - 1}>
+                    {#if example.cells.length > 1 && cellIndex === example.cells.length - 1}
+                      <span class="case-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 12 20" fill="none" stroke="currentColor">
+                          <path d="M6 1v13" stroke-width="1.4" stroke-linecap="round" />
+                          <path d="M2.5 11.5 6 15l3.5-3.5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                      </span>
+                    {/if}
 
-    {#if detail.hints.length > 0}
-      <section class="detail-hints" aria-label="Pistas">
-        <h3>Pistas</h3>
-        {#each revealedHintsList as hint (hint.order)}
-          <article class="hint">
-            <span class="hint-order">Pista {hint.order}</span>
-            <p>{hint.text}</p>
-          </article>
-        {/each}
-        {#if revealedHints < detail.hints.length}
-          <button class="hint-reveal" type="button" on:click={revealNextHint}>
-            Mostrar pista {revealedHints + 1} de {detail.hints.length}
-          </button>
-        {:else}
-          <p class="hints-done">No hay más pistas.</p>
-        {/if}
-      </section>
+                    <LiquidGlassSurface
+                      className="case-glass"
+                      radius={example.cells.length > 1 && cellIndex === example.cells.length - 1 ? 18 : 21}
+                      refraction={example.cells.length > 1 && cellIndex === example.cells.length - 1 ? 0.64 : 0.78}
+                      glassThickness={example.cells.length > 1 && cellIndex === example.cells.length - 1 ? 13 : 18}
+                      blur={1.15}
+                      saturation={100}
+                    >
+                      <div class="cell-content">
+                        <span class="cell-label">{@html cell.labelHtml}</span>
+                        {#if cell.isEmpty}
+                          <span class="cell-value is-blank">
+                            <span aria-hidden="true">(vacía)</span>
+                            <span class="visually-hidden">sin valor</span>
+                          </span>
+                        {:else}
+                          <span class="cell-value">{@html cell.valueHtml}</span>
+                        {/if}
+                      </div>
+                    </LiquidGlassSurface>
+                  </div>
+                {/each}
+              </div>
+            </li>
+          {/each}
+        </ol>
+      </div>
+
+      {#if examples.extraHtml}
+        <div class="examples-prose">{@html examples.extraHtml}</div>
+      {/if}
+    {:else if fallbackHtml}
+      <div class="examples-prose">{@html fallbackHtml}</div>
+    {:else}
+      <p class="examples-empty">Este ejercicio no incluye ejemplos públicos.</p>
     {/if}
-
-    <footer class="detail-shortcuts" aria-label="Atajos">
-      <span><kbd>F9</kbd> compilar</span>
-      <span class="dot" aria-hidden="true">·</span>
-      <span><kbd>F10</kbd> probar</span>
-    </footer>
+  </section>
   </div>
-</div>
+</article>
 
 <style>
-  .detail-layer {
-    position: fixed;
-    inset: 0;
-    z-index: 90;
+  .integrated-detail {
+    position: absolute;
+    left: calc(45% - 8px - var(--detail-content-inset, 0px));
+    right: 34px;
+    top: var(--detail-content-top, 350px);
+    z-index: 8;
+    min-width: 0;
+    color: var(--text-main);
     font-family: var(--font);
+    opacity: 0;
+    transform: translate3d(56px, 0, 0);
+    animation: integratedDetailIn 560ms 130ms cubic-bezier(0.18, 0.78, 0.16, 1) forwards;
+    pointer-events: none;
   }
 
-  .detail-scrim {
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(ellipse at 50% 38%, color-mix(in srgb, var(--theme-glow) 7%, transparent), transparent 62%),
-      rgba(0, 5, 9, 0.7);
-    backdrop-filter: blur(7px);
-    -webkit-backdrop-filter: blur(7px);
+  .integrated-detail.is-exiting {
+    animation: integratedDetailOut 440ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
-  .detail-panel {
-    position: absolute;
-    top: 4vh;
-    left: 50%;
-    display: flex;
-    flex-direction: column;
-    width: min(720px, calc(100vw - 48px));
-    max-height: 92vh;
-    padding: 26px 30px 20px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    border: 1px solid var(--panel-border);
-    border-radius: 21px;
-    color: var(--text-main);
-    background: rgba(5, 20, 28, 0.92);
-    box-shadow:
-      inset 0 1px 0 rgba(244, 252, 251, 0.07),
-      inset 0 -20px 42px rgba(0, 0, 0, 0.18),
-      0 24px 74px rgba(0, 0, 0, 0.44),
-      0 0 34px color-mix(in srgb, var(--theme-glow) 6%, transparent);
-    line-height: 1.55;
-    transform: translateX(-50%);
-    outline: none;
-    animation: detailRise 220ms cubic-bezier(0.2, 0.7, 0.25, 1);
+  /* El fondo continúa siendo la zona de salida incluso dentro de la caja
+     editorial. Sólo el contenido que el usuario percibe como objeto conserva
+     hit-testing; los huecos entre cards dejan pasar el click. */
+  .eyebrow,
+  h2,
+  .detail-heading > p,
+  .section-title h3,
+  .case-cell,
+  .examples-prose,
+  .examples-empty {
+    pointer-events: auto;
   }
 
-  @keyframes detailRise {
-    from {
-      opacity: 0;
-      transform: translateX(-50%) translateY(14px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
+  .detail-heading {
+    max-width: 680px;
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .detail-panel {
-      animation: none;
-    }
+  .detail-content {
+    transform: scale(var(--detail-content-scale, 1));
+    transform-origin: top left;
+    transition: transform 480ms cubic-bezier(0.18, 0.78, 0.16, 1);
   }
 
-  /* Filo superior con el líquido del módulo: la misma firma core→glow del
-     snake, para que el panel "pertenezca" al tema igual que la ruta. */
-  .detail-accent {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--theme-core), var(--theme-glow), var(--theme-core));
-    box-shadow:
-      0 0 16px color-mix(in srgb, var(--theme-core) 30%, transparent),
-      0 0 28px color-mix(in srgb, var(--theme-glow) 11%, transparent);
-  }
-
-  .detail-panel::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  .detail-panel::-webkit-scrollbar-thumb {
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--theme-glow) 22%, rgba(9, 32, 40, 0.6));
-  }
-
-  .detail-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 16px;
-  }
-
-  /* Misma gramática que .continue-badge ("SIGUE AQUÍ") de la ruta. */
-  .status-badge {
+  .eyebrow {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    min-width: 118px;
-    height: 32px;
-    padding: 0 16px;
-    border: 1px solid color-mix(in srgb, var(--theme-glow) 56%, transparent);
-    border-radius: 999px;
+    gap: 13px;
     color: var(--theme-glow);
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--theme-glow) 8%, transparent), color-mix(in srgb, var(--theme-glow) 3%, transparent)),
-      rgba(0, 18, 25, 0.42);
-    box-shadow:
-      0 0 18px color-mix(in srgb, var(--theme-glow) 19%, transparent),
-      inset 0 1px 0 rgba(244, 252, 251, 0.08),
-      inset 0 0 14px color-mix(in srgb, var(--theme-glow) 6%, transparent);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 850;
-    letter-spacing: 0.4px;
-    line-height: 1;
+    letter-spacing: 1.6px;
   }
 
-  .status-badge.done {
-    border-color: color-mix(in srgb, var(--theme-glow) 48%, transparent);
-    color: color-mix(in srgb, var(--theme-glow) 86%, #ffffff);
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--theme-glow) 7%, transparent), color-mix(in srgb, var(--theme-core) 4%, transparent)),
-      rgba(0, 18, 25, 0.36);
-    box-shadow:
-      0 0 14px color-mix(in srgb, var(--theme-glow) 15%, transparent),
-      inset 0 1px 0 rgba(244, 252, 251, 0.08);
-  }
-
-  .detail-close {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    height: 32px;
-    padding: 0 16px;
-    border: 1px solid color-mix(in srgb, var(--theme-glow) 46%, transparent);
-    border-radius: 999px;
-    color: color-mix(in srgb, var(--theme-glow) 86%, #ffffff);
-    background: rgba(2, 24, 32, 0.58);
-    box-shadow:
-      0 0 14px color-mix(in srgb, var(--theme-glow) 12%, transparent),
-      inset 0 1px 0 rgba(244, 252, 251, 0.1);
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 800;
-    letter-spacing: 0.4px;
-    line-height: 1;
-    transition: box-shadow 140ms ease, border-color 140ms ease, background 140ms ease;
-  }
-
-  .detail-close svg {
-    width: 15px;
-    height: 15px;
-    stroke: currentColor;
-    stroke-width: 2.4;
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--theme-glow) 40%, transparent));
-  }
-
-  .detail-close:hover,
-  .detail-close:focus-visible {
-    border-color: color-mix(in srgb, var(--theme-glow) 72%, transparent);
-    background: rgba(0, 30, 42, 0.72);
-    box-shadow:
-      0 0 23px color-mix(in srgb, var(--theme-glow) 26%, transparent),
-      inset 0 1px 0 rgba(244, 252, 251, 0.11),
-      inset 0 0 18px color-mix(in srgb, var(--theme-glow) 8%, transparent);
-    outline: none;
-  }
-
-  /* Título blanco caliente + subtítulo glow: la pareja tipográfica de los
-     nodos de la ruta (.node-label h3 / p). */
-  .detail-title {
-    margin: 0;
-    color: var(--text-hot);
-    font-size: 27px;
-    line-height: 30px;
-    font-weight: 800;
-    text-shadow: 0 3px 14px rgba(0, 0, 0, 0.64);
-  }
-
-  .detail-summary {
-    margin: 8px 0 0;
-    color: var(--theme-glow);
-    font-size: 18px;
-    line-height: 24px;
-    font-weight: 520;
-    text-shadow: 0 0 10px color-mix(in srgb, var(--theme-glow) 20%, transparent);
-  }
-
-  .detail-meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    margin: 16px 0 6px;
-  }
-
-  .meta-chip {
-    display: inline-flex;
-    align-items: center;
-    height: 26px;
-    padding: 0 12px;
-    border: 1px solid var(--panel-border);
-    border-radius: 999px;
-    color: var(--text-muted);
-    background: rgba(0, 16, 23, 0.55);
-    font-size: 12.5px;
-    font-weight: 650;
-    letter-spacing: 0.2px;
-    white-space: nowrap;
-  }
-
-  .meta-chip.band {
-    border-color: color-mix(in srgb, var(--theme-glow) 42%, transparent);
-    color: color-mix(in srgb, var(--theme-glow) 84%, #ffffff);
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--theme-glow) 8%, transparent), transparent),
-      rgba(0, 18, 25, 0.5);
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    font-weight: 800;
-    font-size: 11.5px;
-  }
-
-  .meta-chip.topic {
-    color: color-mix(in srgb, var(--theme-glow) 62%, var(--text-main));
-    font-family: var(--mono);
-    font-size: 12px;
-  }
-
-  /* Métrica de intentos con la tipografía de .progress-metric. */
-  .meta-attempts {
-    display: inline-flex;
-    align-items: baseline;
-    margin-left: auto;
-    white-space: nowrap;
-  }
-
-  .meta-attempts strong {
-    color: var(--theme-glow);
-    font-size: 20px;
-    line-height: 1;
-    font-weight: 780;
-    font-variant-numeric: tabular-nums;
-    text-shadow: 0 0 14px color-mix(in srgb, var(--theme-glow) 42%, transparent);
-  }
-
-  .meta-attempts em {
-    margin-left: 5px;
-    color: var(--text-muted);
-    font-size: 14px;
-    font-style: normal;
-  }
-
-  .detail-statement {
-    margin: 14px 0 20px;
-    color: var(--text-main);
-    font-size: 15.5px;
-  }
-
-  /* El h1 del statement duplica el título del panel: fuera. */
-  .detail-statement :global(h1:first-child) {
-    display: none;
-  }
-
-  .detail-statement :global(h1) {
-    margin: 20px 0 8px;
-    color: var(--text-hot);
-    font-size: 20px;
-    font-weight: 780;
-    line-height: 1.25;
-  }
-
-  /* Secciones (Entrada / Salida / Ejemplos / Notas) como labels del chrome
-     del módulo: uppercase espaciado, glow y tick de líquido core→glow. */
-  .detail-statement :global(h2),
-  .detail-statement :global(h3) {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 22px 0 10px;
-    color: color-mix(in srgb, var(--theme-glow) 78%, #ffffff);
-    font-size: 13.5px;
-    font-weight: 850;
-    line-height: 1.3;
-    letter-spacing: 1.4px;
-    text-transform: uppercase;
-    text-shadow: 0 0 12px color-mix(in srgb, var(--theme-glow) 26%, transparent);
-  }
-
-  .detail-statement :global(h2)::before,
-  .detail-statement :global(h3)::before {
+  .eyebrow::before {
     content: "";
-    width: 18px;
+    width: 34px;
     height: 3px;
     border-radius: 999px;
     background: linear-gradient(90deg, var(--theme-core), var(--theme-glow));
-    box-shadow: 0 0 10px color-mix(in srgb, var(--theme-glow) 42%, transparent);
-    flex: none;
+    box-shadow: 0 0 12px color-mix(in srgb, var(--theme-glow) 48%, transparent);
   }
 
-  .detail-statement :global(p) {
-    margin: 8px 0;
+  h2 {
+    margin: 24px 0 0;
+    color: var(--text-hot);
+    font-size: 43px;
+    font-weight: 820;
+    letter-spacing: -0.9px;
+    line-height: 1.08;
+    text-wrap: balance;
+    text-shadow: 0 4px 18px rgba(0, 0, 0, 0.72);
   }
 
-  .detail-statement :global(ul) {
-    margin: 8px 0 8px 4px;
+  .detail-heading > p:not(.time-meta) {
+    max-width: 640px;
+    margin: 24px 0 0;
+    color: var(--text-main);
+    font-size: 21px;
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
+
+  .time-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin: 28px 0 0;
+  }
+
+  .time-meta span {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 850;
+    letter-spacing: 1.2px;
+  }
+
+  .time-meta i {
+    width: 28px;
+    height: 1px;
+    background: color-mix(in srgb, var(--theme-glow) 42%, transparent);
+    box-shadow: 0 0 7px color-mix(in srgb, var(--theme-glow) 24%, transparent);
+  }
+
+  .time-meta strong {
+    color: color-mix(in srgb, var(--theme-glow) 80%, var(--text-hot));
+    font-size: 20px;
+    font-weight: 820;
+    line-height: 1;
+  }
+
+  .examples-block {
+    margin-top: var(--detail-examples-gap, 58px);
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+
+  .section-title i {
+    width: 34px;
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--theme-core), var(--theme-glow));
+    box-shadow: 0 0 12px color-mix(in srgb, var(--theme-glow) 48%, transparent);
+  }
+
+  .section-title h3 {
+    margin: 0;
+    color: color-mix(in srgb, var(--theme-glow) 84%, #fff);
+    font-size: 17px;
+    font-weight: 850;
+    letter-spacing: 1.15px;
+    text-transform: uppercase;
+  }
+
+  /* Cada ejemplo es una relación vertical simple. El material vive dentro de
+     LiquidGlassSurface; aquí sólo se define la composición del módulo. */
+  .examples-glass-stack {
+    position: relative;
+    isolation: isolate;
+    width: min(100%, 560px);
+    padding: 2px 0;
+  }
+
+  .examples-glass-stack::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -12px -20px;
+    pointer-events: none;
+    background: radial-gradient(circle at 48% 44%, rgba(72, 142, 145, 0.065), transparent 62%);
+    filter: blur(26px);
+    opacity: 0.42;
+  }
+
+  .examples-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  .detail-statement :global(li) {
+  .example-case {
     position: relative;
-    margin: 6px 0;
-    padding-left: 20px;
+    opacity: 0;
+    animation: exampleCaseIn 460ms cubic-bezier(0.18, 0.78, 0.16, 1) forwards;
+    animation-delay: calc(320ms + var(--case-index) * 90ms);
   }
 
-  .detail-statement :global(li)::before {
-    content: "";
+  .case-body {
+    position: relative;
+    min-width: 0;
+    min-height: 146px;
+  }
+
+  .case-cell {
     position: absolute;
-    left: 2px;
-    top: 0.62em;
-    width: 7px;
-    height: 7px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--theme-glow) 78%, #ffffff);
-    box-shadow: 0 0 8px color-mix(in srgb, var(--theme-glow) 48%, transparent);
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 68px;
+    min-width: 0;
   }
 
-  .detail-statement :global(code) {
-    padding: 1px 7px;
+  .case-cell :global(.case-glass) {
+    width: 100%;
+    height: 100%;
+  }
+
+  .case-cell.is-result {
+    left: auto;
+    right: 3%;
+    top: 88px;
+    width: 42%;
+    min-width: 118px;
+    max-width: 178px;
+    height: 54px;
+  }
+
+  .cell-content {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 6px;
+    padding: 11px 18px;
+  }
+
+  .cell-label {
+    align-self: flex-start;
+    color: color-mix(in srgb, var(--theme-glow) 58%, var(--text-muted));
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: 1px;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .case-cell.is-result .cell-content {
+    align-items: flex-start;
+    gap: 4px;
+    padding: 7px 14px;
+  }
+
+  .case-cell.is-result .cell-label {
+    align-self: flex-start;
+    font-size: 8px;
+  }
+
+  .cell-value {
+    min-width: 0;
+    color: var(--text-main);
+    font-size: 16px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .cell-value.is-blank {
+    color: var(--text-muted);
+  }
+
+  .cell-value :global(code) {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    color: var(--text-hot);
+    font-family: var(--mono);
+    font-size: 0.92em;
+  }
+
+  .case-cell.is-result .cell-value :global(code) {
+    color: color-mix(in srgb, var(--theme-glow) 78%, #fff);
+    text-shadow: 0 0 10px color-mix(in srgb, var(--theme-glow) 18%, transparent);
+  }
+
+  .cell-value :global(em) {
+    color: var(--text-muted);
+  }
+
+  .case-arrow {
+    position: absolute;
+    z-index: 2;
+    display: grid;
+    left: 50%;
+    right: auto;
+    top: -19px;
+    width: 12px;
+    height: 18px;
+    align-items: center;
+    justify-content: center;
+    color: color-mix(in srgb, var(--theme-glow) 42%, var(--text-muted));
+    transform: translateX(-50%);
+  }
+
+  .case-arrow svg {
+    width: 12px;
+    height: 18px;
+    opacity: 0.86;
+  }
+
+  .examples-prose {
+    margin-top: 18px;
+    color: var(--text-main);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .examples-prose :global(p) {
+    margin: 0 0 10px;
+  }
+
+  .examples-prose :global(code) {
+    overflow-wrap: anywhere;
+    padding: 3px 8px;
+    border: 1px solid color-mix(in srgb, var(--theme-glow) 13%, transparent);
     border-radius: 7px;
-    border: 1px solid color-mix(in srgb, var(--theme-glow) 14%, transparent);
-    background: rgba(0, 14, 20, 0.72);
-    color: color-mix(in srgb, var(--theme-glow) 74%, #ffffff);
+    color: var(--text-hot);
+    background: rgba(0, 10, 16, 0.7);
     font-family: var(--mono);
     font-size: 0.9em;
   }
 
-  .detail-statement :global(pre) {
-    margin: 12px 0;
-    padding: 13px 16px;
-    border: 1px solid var(--panel-border);
-    border-radius: 14px;
-    background: rgba(0, 11, 16, 0.82);
-    box-shadow: inset 0 1px 0 rgba(244, 252, 251, 0.05);
-    overflow-x: auto;
+  .examples-prose :global(em) {
+    color: var(--text-muted);
   }
 
-  .detail-statement :global(pre code) {
-    padding: 0;
-    border: none;
-    background: transparent;
-    color: var(--text-hot);
-    font-size: 13px;
-    line-height: 1.55;
-    white-space: pre;
-  }
-
-  .detail-statement :global(table) {
-    margin: 12px 0;
-    width: 100%;
-    border: 1px solid var(--panel-border);
-    border-radius: 14px;
-    border-collapse: separate;
-    border-spacing: 0;
-    overflow: hidden;
-    background: rgba(0, 14, 21, 0.5);
-    font-size: 14.5px;
-  }
-
-  .detail-statement :global(th),
-  .detail-statement :global(td) {
-    padding: 9px 14px;
-    border-bottom: 1px solid color-mix(in srgb, var(--panel-border) 70%, transparent);
-    text-align: left;
-  }
-
-  .detail-statement :global(tr:last-child td) {
-    border-bottom: none;
-  }
-
-  .detail-statement :global(th) {
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--theme-glow) 7%, transparent), transparent),
-      rgba(0, 22, 30, 0.6);
-    color: color-mix(in srgb, var(--theme-glow) 80%, #ffffff);
-    font-size: 12px;
-    font-weight: 850;
-    letter-spacing: 0.9px;
-    text-transform: uppercase;
-  }
-
-  .detail-statement :global(td code) {
-    color: var(--text-hot);
-  }
-
-  .detail-statement :global(strong) {
-    color: var(--text-hot);
-  }
-
-  .detail-hints {
-    margin-bottom: 18px;
-    padding: 16px 18px;
-    border: 1px solid var(--panel-border);
-    border-radius: 14px;
-    background: rgba(0, 14, 22, 0.5);
-    box-shadow: inset 0 1px 0 rgba(244, 252, 251, 0.05);
-  }
-
-  .detail-hints h3 {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 0 0 12px;
-    color: color-mix(in srgb, var(--theme-glow) 78%, #ffffff);
-    font-size: 13.5px;
-    font-weight: 850;
-    letter-spacing: 1.4px;
-    text-transform: uppercase;
-    text-shadow: 0 0 12px color-mix(in srgb, var(--theme-glow) 26%, transparent);
-  }
-
-  .detail-hints h3::before {
-    content: "";
-    width: 18px;
-    height: 3px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, var(--theme-core), var(--theme-glow));
-    box-shadow: 0 0 10px color-mix(in srgb, var(--theme-glow) 42%, transparent);
-  }
-
-  .hint {
-    position: relative;
-    margin: 0 0 10px;
-    padding: 10px 14px 10px 18px;
-    border-radius: 10px;
-    background: rgba(0, 20, 29, 0.55);
-  }
-
-  .hint::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 6px;
-    bottom: 6px;
-    width: 3px;
-    border-radius: 999px;
-    background: linear-gradient(180deg, var(--theme-glow), var(--theme-core));
-    box-shadow: 0 0 9px color-mix(in srgb, var(--theme-glow) 44%, transparent);
-  }
-
-  .hint-order {
-    display: block;
-    margin-bottom: 4px;
-    color: var(--theme-glow);
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    text-shadow: 0 0 10px color-mix(in srgb, var(--theme-glow) 30%, transparent);
-  }
-
-  .hint p {
+  .examples-empty {
     margin: 0;
-    color: var(--text-main);
-    font-size: 14.5px;
-    line-height: 1.5;
-  }
-
-  .hint-reveal {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 118px;
-    height: 32px;
-    padding: 0 18px;
-    border: 1px solid color-mix(in srgb, var(--theme-glow) 56%, transparent);
-    border-radius: 999px;
-    color: var(--theme-glow);
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--theme-glow) 8%, transparent), color-mix(in srgb, var(--theme-glow) 3%, transparent)),
-      rgba(0, 18, 25, 0.42);
-    box-shadow:
-      0 0 18px color-mix(in srgb, var(--theme-glow) 19%, transparent),
-      inset 0 1px 0 rgba(244, 252, 251, 0.08),
-      inset 0 0 14px color-mix(in srgb, var(--theme-glow) 6%, transparent);
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 850;
-    letter-spacing: 0.3px;
-    line-height: 1;
-    transition: box-shadow 140ms ease, border-color 140ms ease;
-  }
-
-  .hint-reveal:hover,
-  .hint-reveal:focus-visible {
-    border-color: color-mix(in srgb, var(--theme-glow) 82%, transparent);
-    box-shadow:
-      0 0 26px color-mix(in srgb, var(--theme-glow) 30%, transparent),
-      inset 0 1px 0 rgba(244, 252, 251, 0.1),
-      inset 0 0 18px color-mix(in srgb, var(--theme-glow) 9%, transparent);
-    outline: none;
-  }
-
-  .hints-done {
-    margin: 6px 0 0;
     color: var(--text-muted);
-    font-size: 13px;
-    font-style: italic;
   }
 
-  .detail-shortcuts {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: auto;
-    padding-top: 14px;
-    border-top: 1px solid color-mix(in srgb, var(--panel-border) 60%, transparent);
-    color: var(--text-muted);
-    font-size: 12.5px;
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
-  .detail-shortcuts .dot {
-    color: color-mix(in srgb, var(--theme-glow) 50%, var(--text-muted));
+  @keyframes integratedDetailIn {
+    from {
+      opacity: 0;
+      filter: blur(6px);
+      transform: translate3d(56px, 0, 0);
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+      transform: translate3d(0, 0, 0);
+    }
   }
 
-  .detail-shortcuts kbd {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 28px;
-    height: 21px;
-    margin-right: 5px;
-    padding: 0 6px;
-    border: 1px solid color-mix(in srgb, var(--theme-glow) 28%, var(--panel-border));
-    border-radius: 6px;
-    background: rgba(0, 16, 23, 0.7);
-    box-shadow:
-      inset 0 1px 0 rgba(244, 252, 251, 0.08),
-      0 0 10px color-mix(in srgb, var(--theme-glow) 8%, transparent);
-    color: color-mix(in srgb, var(--theme-glow) 72%, #ffffff);
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.3px;
+  @keyframes integratedDetailOut {
+    from {
+      opacity: 1;
+      filter: blur(0);
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    to {
+      opacity: 0;
+      filter: blur(5px);
+      transform: translate3d(38px, 0, 0) scale(0.985);
+    }
   }
+
+  @keyframes exampleCaseIn {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 14px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .integrated-detail {
+      opacity: 1;
+      transform: none;
+      animation: none;
+    }
+
+    .integrated-detail.is-exiting {
+      opacity: 0;
+    }
+
+    .example-case {
+      opacity: 1;
+      animation: none;
+    }
+
+  }
+
 </style>

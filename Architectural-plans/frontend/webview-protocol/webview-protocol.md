@@ -18,11 +18,13 @@ los mensajes que existen hoy entre `frontend/src/webview/messages.ts`,
 El protocolo actual tiene version:
 
 ```txt
-lumenWebviewProtocolVersion = 1
+lumenWebviewProtocolVersion = 4
 ```
 
-Esta versión del wire frontend-host convive con Engine Protocol v5; son
-versiones independientes. El slice Route Loop ya transporta snapshots reales
+La versión 4 mueve el reloj del handoff visual fuera del iframe mediante
+`frontend.layoutHandoffReady.payload.delayMs`, manteniendo el commit armado de
+la versión 3. Convive con Engine Protocol v6; son versiones
+independientes. El slice Route Loop ya transporta snapshots reales
 y acciones de activación, aunque mantiene mensajes de entrada y performance
 del slice visual original.
 
@@ -49,19 +51,35 @@ dataSource
 La extension responde con `extension.ready` y reenvia `lumen.entry.state` si
 ya lo tiene.
 
-### `frontend.loadingComplete`
+### `frontend.layoutHandoffReady`
 
-Se emite una vez por ciclo de intro cuando la barra llega a 100 y la ruta ya
-rindio lo suficiente para mostrar la UI, pero la cortina de entrada sigue a
-pantalla completa.
+Se emite una vez por ciclo, sin esperar timers del iframe, cuando la barra ya
+llegó a 100, la ruta rindió y arranca el punch-in a pantalla completa. Antes de
+emitirlo, el frontend recaptura la geometría fullscreen y cambia el commit
+prearmado de `armed` a `enabled`. El Extension Host cronometra el delay y mueve
+el panel durante la máxima velocidad del zoom; el throttling de Chromium ya no
+puede introducir una pausa de ~1 segundo.
 
-Payload vacio.
+Payload actual:
+
+```txt
+delayMs = 60
+```
 
 El Extension Host la usa como punto seguro para ejecutar el unico cambio de
 layout de la entrada: mover `lumen.routePathPanel` al grupo derecho, ajustar la
 proporcion de grupos y bloquear el grupo de Lumen si quedo solo. Mutar el
-layout de editores antes de esta señal puede interrumpir la carga de modulos
-del webview.
+layout antes de esta señal puede interrumpir la carga; mutarlo al terminar la
+barra pero antes del zoom-in deja una vista hibrida de editor + carga.
+
+### `frontend.layoutCommitArmed`
+
+Confirma que la webview instaló listeners de `resize`/`ResizeObserver`. Se emite
+durante la carga, antes del punch-in, y no habilita el reveal por sí sola. El
+host debe esperarla antes de esperar `frontend.layoutHandoffReady`. Al arrancar
+el punch-in, el frontend recaptura la geometría fullscreen y habilita el commit. El
+callback inicial de `ResizeObserver` no revela nada: la geometría debe diferir
+al menos 24 px de esa recaptura.
 
 ### `frontend.revealed`
 
@@ -204,12 +222,19 @@ logo, wordmark y barra de progreso aunque la webview haya quedado retenida por
 VS Code desde una entrada anterior. Esto permite cubrir el reacomodo de Zen
 Mode y del grupo de editor derecho sin recargar toda la webview.
 
-### `lumen.reveal`
+### `lumen.layoutCommitRequested`
 
-Indica que el layout final ya quedo colocado detras de la cortina. El frontend
-usa este mensaje para liberar el fade de salida del intro; asi la UI aparece
-directamente en editor-izquierda + Lumen-derecha, sin un frame intermedio del
-modulo a pantalla completa.
+Solicita al frontend armar la barrera de geometría mientras la cortina aún está
+fullscreen. No mueve ni revela nada por sí solo. La respuesta obligatoria es
+`frontend.layoutCommitArmed`. El host lo envía inmediatamente después de
+`frontend.ready`, no después del punch-in.
+
+### `lumen.layoutCommitted`
+
+Confirma que el host terminó de solicitar el layout final. No autoriza un reveal
+incondicional: el frontend vuelve a comparar la geometría y sólo retira la
+cortina si el resize ya ocurrió. El camino normal la retira directamente desde
+el primer callback del resize, antes de este mensaje.
 
 ### `route.module.snapshot`
 
@@ -272,7 +297,7 @@ Todo mensaje importante debe tener `type`.
 
 El frontend no debe asumir que `acquireVsCodeApi` existe.
 
-El protocolo frontend-host actual es version 1 y está parcialmente integrado
+El protocolo frontend-host actual es version 4 y está parcialmente integrado
 con Engine Protocol v6.
 
 `perf.report` es instrumentacion local, no parte del producto pedagogico.

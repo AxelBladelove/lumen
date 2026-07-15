@@ -2,6 +2,7 @@
   export let label: string;
   export let targetTitle: string;
   export let disabled = false;
+  export let action: "continue" | "details" = "continue";
   export let onContinue: (() => void) | undefined = undefined;
 
   let handledPointerDown = false;
@@ -30,10 +31,25 @@
     <path d="M10 6h9M10 12h9M10 18h9" />
   </svg>
   <p><strong>{label}</strong> {targetTitle}</p>
-  <button type="button" aria-label="Continuar" {disabled} onpointerdown={handlePointerDown} onclick={handleClick}>
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 19V5" />
-      <path d="m6.5 10.5 5.5-5.5 5.5 5.5" />
-    </svg>
+  <button
+    class:details={action === "details"}
+    type="button"
+    aria-label={action === "details" ? "Ver detalles" : "Continuar"}
+    {disabled}
+    onpointerdown={handlePointerDown}
+    onclick={handleClick}
+  >
+    {#if action === "details"}
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 19V5" />
+        <path d="m6.5 10.5 5.5-5.5 5.5 5.5" />
+      </svg>
+      <span>Detalles</span>
+    {:else}
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 19V5" />
+        <path d="m6.5 10.5 5.5-5.5 5.5 5.5" />
+      </svg>
+    {/if}
   </button>
 </footer>

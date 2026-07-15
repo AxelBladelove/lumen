@@ -8,7 +8,6 @@ import {
 } from "./lumenLayout";
 import type { LumenPanelController } from "./lumenPanel";
 import type { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
-import { readLumenFrontendIndexHtml } from "./lumenWebviewContent";
 
 const bootIntentKey = "lumen.bootIntent";
 const bootIntentMaxAgeMs = 2 * 60 * 1000;
@@ -24,7 +23,8 @@ type LumenBootIntent = {
  * cubren un boot normal y un reintento completo antes de rendirse.
  */
 const frontendReadyTimeoutMs = 12_000;
-const frontendLoadingCompleteTimeoutMs = 10_000;
+const frontendLayoutHandoffTimeoutMs = 10_000;
+const frontendLayoutCommitArmedTimeoutMs = 2_000;
 const frontendRevealTimeoutMs = 10_000;
 
 type LumenModeDeps = {
@@ -82,13 +82,11 @@ export async function resumePendingLumenOpen(deps: LumenModeDeps) {
  * (Un cambio de layout a mitad del boot corrompia la carga del bundle y la
  * cortina quedaba congelada para siempre.)
  *
- * Orden critico del final (fix del salto fullscreen): el layout se coloca
- * ANTES de revelar la UI. Cuando el frontend reporta que la barra llego a 100%
- * y la ruta ya rindio (frontend.loadingComplete) —con la cortina todavia a
- * pantalla completa— se hace el unico cambio de layout: panel al grupo derecho
- * (1/3, bloqueado) con un editor a la izquierda. Recien entonces se le ordena
- * al frontend revelar (signalReveal): el fade descubre la UI ya en la vista
- * dividida, sin pasar por un frame del modulo a pantalla completa. Si el usuario
+ * Orden critico del final: tras `frontend.ready`, el host prearma el commit de
+ * geometria sin habilitarlo. La barra termina y el frontend hace el punch-in A
+ * PANTALLA COMPLETA. Al arrancar, habilita la barrera y entrega al Extension
+ * Host el delay cubierto de 60 ms; ese reloj no puede ser throttled por el
+ * iframe. El primer resize retira la cortina antes de pintar el panel estrecho. Si el usuario
  * entra sin ningun archivo abierto, el grupo izquierdo queda vacio y se mantiene
  * asi gracias a `workbench.editor.closeEmptyGroups: false` (ver lumenLayout) —
  * sin abrir ningun documento placeholder. Si Lumen Mode ya esta activo, solo se
@@ -114,9 +112,8 @@ export async function enterLumenMode(deps: LumenModeDeps) {
   panel.setPhase("entering");
 
   try {
-    // El click en el icono abre el sidebar con el launcher a medio pintar.
-    // Se cierra de inmediato: durante la preparacion invisible (settings,
-    // snapshot, contextos) el usuario no ve ningun cambio.
+    // El HTML ya se precargo al activar la extension. El launcher se cierra de
+    // inmediato y no hay una lectura de disco adicional antes de la cortina.
     await vscode.commands
       .executeCommand("workbench.action.closeSidebar")
       .then(undefined, () => undefined);
@@ -128,9 +125,7 @@ export async function enterLumenMode(deps: LumenModeDeps) {
       return;
     }
 
-    // HTML preleido: la creacion del panel y su contenido comparten turno.
-    const rawHtml = await readLumenFrontendIndexHtml(context);
-
+    const rawHtml = await panel.getPreloadedFrontendHtml();
     await vscode.commands.executeCommand("setContext", "lumen.inMode", true);
     await vscode.commands.executeCommand("setContext", "lumen.mode", "route");
 
@@ -145,9 +140,8 @@ export async function enterLumenMode(deps: LumenModeDeps) {
       .executeCommand("workbench.action.unlockEditorGroup")
       .then(undefined, () => undefined);
 
-    // Panel (con su cortina estatica) y Zen Mode en el mismo turno, sin
-    // awaits entre medio: el chrome se oculta en el mismo ciclo de render en
-    // el que aparece la cortina, sin frames de tab bar ni de editor desnudo.
+    // Panel y Zen Mode comparten el turno final: la primera superficie propia
+    // que se pinta es la cortina ya en el layout fullscreen de carga.
     panel.createFullScreen(rawHtml);
     await activateLumenModeZen();
 
@@ -159,22 +153,36 @@ export async function enterLumenMode(deps: LumenModeDeps) {
       throw new Error("Lumen frontend did not become ready in time");
     }
 
-    // La barra llego a 100% y la ruta ya rindio, pero la cortina sigue a
-    // pantalla completa (el frontend espera el OK del layout para revelar). Si
-    // la señal no llega (p. ej. WebGL degradado), se continua igual: el frontend
-    // tiene su propio fallback de revelado y aqui igual se coloca el layout.
-    await panel.waitForLoadingComplete(frontendLoadingCompleteTimeoutMs);
+    // Prearmar durante la propia carga elimina el roundtrip que antes ocurria
+    // DESPUES del punch-in. El frontend instala los observadores pero mantiene
+    // el commit deshabilitado hasta el punto de handoff, asi un resize espurio
+    // de Zen Mode no puede retirar la cortina antes de tiempo.
+    panel.requestLayoutCommit();
+    const commitArmed = await panel.waitForLayoutCommitArmed(frontendLayoutCommitArmedTimeoutMs);
+    if (!commitArmed) {
+      throw new Error("Lumen frontend did not arm the layout commit in time");
+    }
 
-    // Unico cambio de layout de toda la entrada, ya sin cargas en vuelo y
-    // TODAVIA detras de la cortina: al terminar, el split ya esta colocado.
+    // La señal se agenda al arrancar el punch-in, pero su delay se cumple en el
+    // Extension Host. Así el coste de mover el panel queda solapado con la
+    // máxima velocidad aunque Chromium aplique timer throttling al iframe.
+    const handoffReady = await panel.waitForLayoutHandoff(frontendLayoutHandoffTimeoutMs);
+    if (!handoffReady) {
+      throw new Error("Lumen frontend did not reach the covered layout handoff in time");
+    }
+
+    // Unico cambio de layout de toda la entrada, en el punto cubierto entre las
+    // dos mitades de la animacion.
     await panel.moveAsideAndLock();
 
-    // Layout listo: ahora si se revela. El fade descubre la UI ya dividida,
-    // sin frame intermedio del modulo a pantalla completa.
-    panel.signalReveal();
+    // Confirmacion/fallback del host. La retirada normal ya ocurre en el primer
+    // resize observado; este mensaje cubre un resize entregado durante el await.
+    panel.confirmLayoutCommitted();
 
-    // Confirmacion de que el fade termino antes de marcar la sesion activa.
-    await panel.waitForRevealed(frontendRevealTimeoutMs);
+    const revealed = await panel.waitForRevealed(frontendRevealTimeoutMs);
+    if (!revealed) {
+      throw new Error("Lumen frontend did not commit the final layout in time");
+    }
 
     session.active = true;
     launcher.setPhase("active");

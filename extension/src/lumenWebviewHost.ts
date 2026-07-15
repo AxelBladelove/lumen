@@ -49,7 +49,13 @@ export type LumenWebviewMessage =
       payload: Record<string, never>;
     }
   | {
-      type: "frontend.loadingComplete";
+      type: "frontend.layoutHandoffReady";
+      payload: {
+        delayMs: number;
+      };
+    }
+  | {
+      type: "frontend.layoutCommitArmed";
       payload: Record<string, never>;
     }
   | {
@@ -90,11 +96,13 @@ type LumenWebviewHostOptions = {
   /** El frontend evaluó su bundle y conectó el protocolo. */
   onFrontendReady?: () => void;
   /**
-   * La barra de carga llegó a 100% y la ruta ya rindió, pero la cortina sigue
-   * a pantalla completa (aún no se reveló). Es el punto seguro para colocar el
-   * layout final ANTES de que el fade descubra la UI.
+   * El punch-in acaba de arrancar y el frontend ya habilitó el commit.
+   * El Extension Host conserva el reloj del handoff para que el throttling del
+   * iframe no pueda convertir 60 ms en una pausa de un segundo.
    */
-  onFrontendLoadingComplete?: () => void;
+  onFrontendLayoutHandoffReady?: (delayMs: number) => void;
+  /** El frontend armó el observador que retira la cortina en el primer resize. */
+  onFrontendLayoutCommitArmed?: () => void;
   /** El intro terminó: la ruta está pintada y no quedan módulos en vuelo. */
   onFrontendRevealed?: () => void;
   perfViewType: string;
@@ -134,13 +142,14 @@ export class LumenWebviewHost {
     this.postEntryState();
   }
 
-  /**
-   * Le indica al frontend que el layout final ya está colocado y puede correr
-   * su fade de revelado. El frontend mantiene la cortina fullscreen hasta
-   * recibir esto, de modo que la UI se descubre ya en la vista dividida.
-   */
-  postReveal() {
-    this.postToWebview({ type: "lumen.reveal", payload: {} });
+  /** Prearma el commit visual; todavía no autoriza retirar la cortina. */
+  postLayoutCommitRequested() {
+    this.postToWebview({ type: "lumen.layoutCommitRequested", payload: {} });
+  }
+
+  /** Confirma que los comandos de layout terminaron; no autoriza un fade. */
+  postLayoutCommitted() {
+    this.postToWebview({ type: "lumen.layoutCommitted", payload: {} });
   }
 
   async postExerciseCompleted(exerciseId: string) {
@@ -382,8 +391,12 @@ export class LumenWebviewHost {
         void this.pushRouteModuleData(this.currentRouteId, this.currentModuleId);
         break;
 
-      case "frontend.loadingComplete":
-        this.options.onFrontendLoadingComplete?.();
+      case "frontend.layoutHandoffReady":
+        this.options.onFrontendLayoutHandoffReady?.(message.payload.delayMs);
+        break;
+
+      case "frontend.layoutCommitArmed":
+        this.options.onFrontendLayoutCommitArmed?.();
         break;
 
       case "frontend.revealed":

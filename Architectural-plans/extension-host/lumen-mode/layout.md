@@ -17,11 +17,14 @@ defaults de Lumen Mode (`zenMode.*` con `centerLayout: false`, más
 `workbench.action.exitZenMode` + `workbench.action.toggleZenMode` (entrada
 determinista). La UI real de Lumen se crea como `WebviewPanel` de editor
 (`lumen.routePathPanel`) a pantalla completa en el grupo activo — su propia
-cortina estática cubre el boot — y solo cuando el frontend reporta
-`frontend.loadingComplete` el panel se mueve a un grupo a la derecha. En ese
-momento la ruta ya rindió y no quedan módulos críticos en vuelo, pero la
-cortina sigue fullscreen; después la extensión envía `lumen.reveal` para que
-el fade descubra la UI ya dividida. Esa regla de orden es deliberada: mutar el
+cortina estática cubre el boot — y, al recibir `frontend.ready`, el host prearma
+el commit geométrico con `lumen.layoutCommitRequested` /
+`frontend.layoutCommitArmed`. Al arrancar el punch-in fullscreen, el frontend
+habilita la barrera y reporta `frontend.layoutHandoffReady` con un delay de 60
+ms. El Extension Host —no el iframe— cronometra ese delay y entonces mueve el
+panel mientras la cámara aún acelera dentro del isotipo. El primer resize de la webview elimina la cortina completa
+antes de pintar el panel estrecho; no existe fade de
+la superficie de carga después del split. Esa regla de orden es deliberada: mutar el
 layout de editores mientras el webview carga módulos corrompía la carga (chunk
 con SyntaxError de identificador duplicado) y dejaba la cortina congelada.
 

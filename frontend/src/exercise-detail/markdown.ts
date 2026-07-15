@@ -107,6 +107,126 @@ export function renderMarkdown(md: string): string {
   return blocks.join("\n");
 }
 
+// Extrae una sección H2 sin arrastrar el resto del enunciado. La vista de
+// detalle usa esto para enseñar únicamente los ejemplos: el statement completo
+// sigue disponible en el protocolo, pero ya no dicta la cantidad de UI.
+export function renderMarkdownSection(md: string, heading: string): string {
+  const section = sliceSection(md, heading);
+  if (section === null) return "";
+  return renderMarkdown(section);
+}
+
+// Devuelve las líneas crudas de una sección H2, o null si no existe. Separado de
+// `renderMarkdownSection` porque la extracción estructurada necesita las líneas
+// antes de que se conviertan en HTML.
+function sliceSection(md: string, heading: string): string | null {
+  const lines = md.replace(/\r\n?/g, "\n").split("\n");
+  const wanted = normalizeHeading(heading);
+  const start = lines.findIndex((line) => {
+    const match = /^##\s+(.+?)\s*$/.exec(line);
+    return match ? normalizeHeading(match[1]) === wanted : false;
+  });
+
+  if (start < 0) return null;
+
+  let end = lines.length;
+  for (let index = start + 1; index < lines.length; index++) {
+    if (/^##\s+/.test(lines[index])) {
+      end = index;
+      break;
+    }
+  }
+
+  return lines.slice(start + 1, end).join("\n").trim();
+}
+
+// Una celda ya renderizada: `labelHtml` viene de la cabecera de la tabla y
+// `valueHtml` de la fila. Ambos pasan por `renderInline`, así que conservan el
+// texto exacto del enunciado (código inline, itálicas) y siguen escapados.
+export type ExampleCell = {
+  labelHtml: string;
+  valueHtml: string;
+  isEmpty: boolean;
+};
+
+export type ExampleCase = {
+  cells: ExampleCell[];
+};
+
+export type ExamplesModel = {
+  cases: ExampleCase[];
+  // Todo lo que la sección tenía además de la tabla (párrafos, notas). Se
+  // conserva para no perder contenido del enunciado al dejar de usar <table>.
+  extraHtml: string;
+};
+
+// Lee la sección de ejemplos y devuelve la primera tabla GFM como datos, no como
+// HTML de tabla: la vista decide cómo dibujar los pares. Devuelve null si la
+// sección no existe o no contiene una tabla, y en ese caso la vista cae de vuelta
+// al render Markdown normal. No inventa columnas ni filas: si una fila trae menos
+// celdas que la cabecera, la celda faltante queda vacía y marcada como tal.
+export function extractExamples(md: string, heading: string): ExamplesModel | null {
+  const section = sliceSection(md, heading);
+  if (section === null) return null;
+
+  const lines = section.split("\n");
+
+  let tableStart = -1;
+  for (let index = 0; index + 1 < lines.length; index++) {
+    if (lines[index].includes("|") && isTableSeparator(lines[index + 1])) {
+      tableStart = index;
+      break;
+    }
+  }
+  if (tableStart < 0) return null;
+
+  const header = parseTableRow(lines[tableStart]);
+  const rows: string[][] = [];
+  let cursor = tableStart + 2;
+  while (
+    cursor < lines.length &&
+    lines[cursor].trim() !== "" &&
+    lines[cursor].includes("|")
+  ) {
+    rows.push(parseTableRow(lines[cursor]));
+    cursor++;
+  }
+
+  const columnCount = rows.reduce(
+    (max, row) => Math.max(max, row.length),
+    header.length
+  );
+
+  const cases = rows.map((row) => ({
+    cells: Array.from({ length: columnCount }, (_, column) => {
+      const label = header[column] ?? "";
+      const value = row[column] ?? "";
+      return {
+        labelHtml: renderInline(label),
+        valueHtml: renderInline(value),
+        isEmpty: value === ""
+      };
+    })
+  }));
+
+  const rest = [...lines.slice(0, tableStart), ...lines.slice(cursor)]
+    .join("\n")
+    .trim();
+
+  return {
+    cases,
+    extraHtml: rest === "" ? "" : renderMarkdown(rest)
+  };
+}
+
+function normalizeHeading(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLocaleLowerCase("es");
+}
+
 function escapeHtml(input: string): string {
   return input
     .replace(/&/g, "&amp;")

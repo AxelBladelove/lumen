@@ -34,16 +34,17 @@ un launcher liviano. No renderiza el frontend completo: cuando se hace visible
 por el gesto del usuario, cierra el sidebar y dispara `lumen.enterMode`.
 
 La superficie real de Lumen es el `WebviewPanel` de editor
-`lumen.routePathPanel`, controlado por `LumenPanelController`. Se crea a
-pantalla completa en el grupo activo (su HTML incluye la cortina estática de
-entrada), usa `retainContextWhenHidden: true` y sirve el frontend completo sin
-el header nativo del sidebar. El controlador arma un watchdog de boot
+`lumen.routePathPanel`, controlado por `LumenPanelController`. Su HTML se
+precarga al activar la extensión y el panel se crea a pantalla completa en el
+grupo activo (el HTML incluye la cortina estática de entrada), usa
+`retainContextWhenHidden: true` y sirve el frontend completo sin el header
+nativo del sidebar. El controlador arma un watchdog de boot
 (reintenta el HTML una vez si `frontend.ready` no llega en 5s) y expone
-señales `frontend.ready`, `frontend.loadingComplete` y `frontend.revealed`.
-`lumenEntry.ts` espera `frontend.loadingComplete` para mover el panel al grupo
-derecho mientras la cortina sigue tapando la UI, envía `lumen.reveal` cuando el
-layout ya quedó colocado y usa `frontend.revealed` solo como confirmación de
-que el fade final terminó.
+señales `frontend.ready`, `frontend.layoutHandoffReady`,
+`frontend.layoutCommitArmed` y `frontend.revealed`. `lumenEntry.ts` espera el
+handoff cubierto, arma la barrera de geometría y sólo entonces mueve el panel.
+El primer resize retira la cortina de forma atómica; `frontend.revealed` confirma
+ese commit antes de activar la sesión.
 
 Detalle de robustez: dentro de `onDidDispose` no debe leerse `panel.webview`
 (el getter lanza "Webview is disposed"); el controlador captura la referencia
@@ -120,8 +121,12 @@ El handshake de entrada actual es:
 
 ```txt
 frontend.ready -> extension.ready + estado/fase
-frontend.loadingComplete -> mover panel al grupo derecho y bloquearlo
-lumen.reveal -> frontend corre el fade de la cortina
+lumen.layoutCommitRequested -> frontend.layoutCommitArmed (prearm durante carga)
+barra 100 -> zoom-in fullscreen al wordmark
+frontend.layoutHandoffReady { delayMs: 60 } -> reloj del Extension Host
+delay cumplido -> mover panel al grupo derecho y bloquearlo
+primer resize -> retirar cortina sin fade
+lumen.layoutCommitted -> confirmar/reintentar la comprobación de geometría
 frontend.revealed -> la extension marca la sesion activa
 ```
 

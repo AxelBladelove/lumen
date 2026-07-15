@@ -21,6 +21,7 @@ body,
   width: 100%;
   height: 100%;
   margin: 0;
+  padding: 0;
 }
 
 body {
@@ -34,7 +35,16 @@ button {
   font: inherit;
 }
 
+/* Se aplica sincronicamente desde el primer callback de geometria del commit.
+   `display:none` es deliberado: un fade aqui volveria a pintar el fondo de la
+   carga dentro del grupo derecho durante varios frames. */
+.lumen-layout-committed .lumen-intro {
+  display: none !important;
+}
+
 .lumen-intro {
+  --lumen-intro-focus-duration: 180ms;
+
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -47,7 +57,7 @@ button {
     radial-gradient(ellipse at 50% 58%, rgba(2, 10, 20, 0.88), rgba(1, 4, 9, 0.98) 70%),
     #010508;
   transform-origin: 50% 50%;
-  will-change: opacity, transform, filter;
+  will-change: opacity, transform;
 }
 
 .lumen-intro::before,
@@ -72,16 +82,42 @@ button {
 .lumen-intro-mark {
   position: relative;
   z-index: 1;
+  isolation: isolate;
   display: grid;
   justify-items: center;
   gap: 20px;
   opacity: 0;
-  transform: translateY(2px) scale(0.985);
-  will-change: opacity, transform, filter;
+  transform: translate3d(0, 2px, 0) scale(0.985);
+  /* El isotipo ocupa los primeros 92px de un bloque de 152px. Este origen
+     coincide con su centro, no con el centro conjunto logo + wordmark. */
+  transform-origin: 50% 30.25%;
+  backface-visibility: hidden;
+  will-change: opacity, transform;
+}
+
+.lumen-intro-mark::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: 42%;
+  width: 248px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.56;
+  background: radial-gradient(
+    circle,
+    rgba(95, 200, 255, 0.24) 0%,
+    rgba(0, 146, 252, 0.11) 38%,
+    transparent 72%
+  );
+  transform: translate3d(-50%, -50%, 0) scale(0.86);
+  will-change: opacity, transform;
 }
 
 .lumen-intro.intro-assets-ready .lumen-intro-mark {
-  animation: lumenIntroMark 1.4s cubic-bezier(0.18, 0.88, 0.22, 1) both;
+  animation: lumenIntroMark 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .lumen-intro-mark img.lumen-intro-logo {
@@ -91,6 +127,8 @@ button {
   filter:
     drop-shadow(0 0 18px rgba(0, 146, 252, 0.46))
     drop-shadow(0 18px 38px rgba(0, 0, 0, 0.62));
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .lumen-intro-mark img.lumen-intro-wordmark {
@@ -100,6 +138,44 @@ button {
   filter:
     drop-shadow(0 0 16px rgba(0, 146, 252, 0.34))
     drop-shadow(0 8px 24px rgba(0, 0, 0, 0.65));
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.lumen-intro-primary {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  will-change: opacity, filter;
+}
+
+/* Doble exposición RGB efímera. Vive dentro del lockup para heredar exactamente
+   el mismo full zoom; sólo diverge unos píxeles en el pico de velocidad. */
+.lumen-intro-chromatic {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+  will-change: opacity, transform, filter;
+}
+
+.lumen-intro-chromatic img:first-child {
+  width: 92px;
+  height: 92px;
+  object-fit: contain;
+}
+
+.lumen-intro-chromatic img:last-child {
+  width: auto;
+  height: 40px;
+  object-fit: contain;
 }
 
 .lumen-intro-bar {
@@ -147,90 +223,342 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+.lumen-intro.intro-covering {
+  pointer-events: none;
+  animation: lumenIntroImpactShake var(--lumen-intro-focus-duration) linear both;
+}
+
+.lumen-intro.intro-covering .lumen-intro-mark {
+  animation: lumenIntroMarkFocus var(--lumen-intro-focus-duration) linear both;
+}
+
+.lumen-intro.intro-covering .lumen-intro-mark::before {
+  animation: lumenIntroHaloFocus var(--lumen-intro-focus-duration) linear both;
+}
+
+.lumen-intro.intro-covering .lumen-intro-primary {
+  animation: lumenIntroOpticalSmear var(--lumen-intro-focus-duration) linear both;
+}
+
+.lumen-intro.intro-covering .lumen-intro-chromatic-red {
+  animation: lumenIntroChromaticRed var(--lumen-intro-focus-duration) linear both;
+}
+
+.lumen-intro.intro-covering .lumen-intro-chromatic-cyan {
+  animation: lumenIntroChromaticCyan var(--lumen-intro-focus-duration) linear both;
+}
+
+.lumen-intro.intro-covering::before {
+  animation: lumenIntroAtmosphereFocus var(--lumen-intro-focus-duration) linear both;
+}
+
+.lumen-intro.intro-covering::after {
+  animation: lumenIntroVignetteFocus var(--lumen-intro-focus-duration) linear both;
+}
+
+.lumen-intro.intro-covering .lumen-intro-bar,
+.lumen-intro.intro-covering .lumen-intro-percent {
+  animation: lumenIntroControlsOut 64ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
+}
+
 .lumen-intro.intro-exiting {
   pointer-events: none;
-  animation: lumenIntroCurtainOut 860ms cubic-bezier(0.18, 0.78, 0.16, 1) both;
+  animation: lumenIntroCurtainOut 280ms cubic-bezier(0.2, 0.88, 0.24, 1) both;
 }
 
 .lumen-intro.intro-exiting .lumen-intro-mark {
-  animation: lumenIntroMarkDive 860ms cubic-bezier(0.18, 0.78, 0.16, 1) both;
+  opacity: 0;
+  animation: none;
 }
 
 .lumen-intro.intro-exiting .lumen-intro-bar,
 .lumen-intro.intro-exiting .lumen-intro-percent {
-  animation: lumenIntroControlsOut 360ms cubic-bezier(0.22, 0.72, 0.2, 1) both;
+  opacity: 0;
 }
 
 @keyframes lumenIntroMark {
   from {
     opacity: 0;
-    transform: translateY(2px) scale(0.985);
+    transform: translate3d(0, 4px, 0) scale(0.97);
   }
   to {
     opacity: 1;
-    transform: translateY(-12px) scale(1);
+    transform: translate3d(0, -12px, 0) scale(1);
   }
 }
 
-@keyframes lumenIntroMarkDive {
+@keyframes lumenIntroMarkFocus {
   0% {
     opacity: 1;
-    filter:
-      drop-shadow(0 0 16px rgba(0, 146, 252, 0.34))
-      drop-shadow(0 8px 24px rgba(0, 0, 0, 0.65));
-    transform: translateY(-12px) scale(1);
+    transform: translate3d(0, -12px, 0) scale(1);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   }
+
+  8% {
+    opacity: 1;
+    transform: translate3d(0, -10px, 0) scale(1.018);
+    animation-timing-function: cubic-bezier(0.54, 0.04, 0.78, 0.28);
+  }
+
+  34% {
+    opacity: 1;
+    transform: translate3d(1.2px, -7px, 0) skewX(-0.7deg) scale(2.6);
+  }
+
+  44% {
+    opacity: 1;
+    transform: translate3d(-1.8px, -1px, 0) skewX(1.45deg) scale(8.8);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translate3d(1.1px, 10px, 0) skewX(-1deg) scale(22);
+  }
+
+  56% {
+    opacity: 1;
+    transform: translate3d(-0.6px, 27px, 0) skewX(0.35deg) scale(48);
+    animation-timing-function: cubic-bezier(0.2, 0.72, 0.28, 1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 30px, 0) scale(56);
+  }
+}
+
+@keyframes lumenIntroHaloFocus {
+  0% {
+    opacity: 0.56;
+    transform: translate3d(-50%, -50%, 0) scale(0.86);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  8% {
+    opacity: 0.64;
+    transform: translate3d(-50%, -50%, 0) scale(0.9);
+    animation-timing-function: cubic-bezier(0.54, 0.04, 0.78, 0.28);
+  }
+
+  68% {
+    opacity: 0.96;
+    transform: translate3d(-50%, -50%, 0) scale(1.1);
+  }
+
+  100% {
+    opacity: 0.98;
+    transform: translate3d(-50%, -50%, 0) scale(1.12);
+  }
+}
+
+@keyframes lumenIntroOpticalSmear {
+  0%,
+  26% {
+    opacity: 1;
+    filter: blur(0) saturate(1);
+  }
+
+  44% {
+    opacity: 0.82;
+    filter: blur(0.45px) saturate(1.18);
+  }
+
+  56% {
+    opacity: 0.36;
+    filter: blur(1.8px) saturate(1.42);
+  }
+
+  100% {
+    opacity: 0.12;
+    filter: blur(4.8px) saturate(1.7);
+  }
+}
+
+@keyframes lumenIntroChromaticRed {
+  0%,
+  24% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) skewX(0);
+    filter: sepia(1) saturate(14) hue-rotate(302deg) blur(0);
+  }
+
+  40% {
+    opacity: 0.34;
+    transform: translate3d(-2.2px, 0.7px, 0) skewX(-0.8deg);
+    filter: sepia(1) saturate(14) hue-rotate(302deg) blur(0.45px);
+  }
+
+  54% {
+    opacity: 0.56;
+    transform: translate3d(-5.5px, 1.2px, 0) skewX(-1.7deg);
+    filter: sepia(1) saturate(16) hue-rotate(302deg) blur(1.1px);
+  }
+
+  72% {
+    opacity: 0.16;
+    transform: translate3d(-2px, 0, 0) skewX(-0.3deg);
+    filter: sepia(1) saturate(13) hue-rotate(302deg) blur(2px);
+  }
+
   100% {
     opacity: 0;
-    filter:
-      blur(8px)
-      drop-shadow(0 0 52px rgba(95, 200, 255, 0.46));
-    transform: translateY(-12px) scale(3.08);
+    transform: translate3d(0, 0, 0) skewX(0);
+    filter: sepia(1) saturate(12) hue-rotate(302deg) blur(3px);
+  }
+}
+
+@keyframes lumenIntroChromaticCyan {
+  0%,
+  24% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) skewX(0);
+    filter: sepia(1) saturate(13) hue-rotate(128deg) blur(0);
+  }
+
+  40% {
+    opacity: 0.3;
+    transform: translate3d(2.4px, -0.8px, 0) skewX(0.9deg);
+    filter: sepia(1) saturate(13) hue-rotate(128deg) blur(0.45px);
+  }
+
+  54% {
+    opacity: 0.52;
+    transform: translate3d(5.8px, -1.1px, 0) skewX(1.8deg);
+    filter: sepia(1) saturate(15) hue-rotate(128deg) blur(1.1px);
+  }
+
+  72% {
+    opacity: 0.14;
+    transform: translate3d(2px, 0, 0) skewX(0.3deg);
+    filter: sepia(1) saturate(12) hue-rotate(128deg) blur(2px);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) skewX(0);
+    filter: sepia(1) saturate(11) hue-rotate(128deg) blur(3px);
+  }
+}
+
+@keyframes lumenIntroImpactShake {
+  0%,
+  30% {
+    transform: translate3d(0, 0, 0) scale(1.012);
+  }
+
+  38% {
+    transform: translate3d(2.2px, -1.2px, 0) scale(1.014);
+  }
+
+  46% {
+    transform: translate3d(-3px, 1.5px, 0) scale(1.014);
+  }
+
+  54% {
+    transform: translate3d(1.8px, -1px, 0) scale(1.013);
+  }
+
+  62% {
+    transform: translate3d(-0.8px, 0.5px, 0) scale(1.012);
+  }
+
+  76%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.012);
+  }
+}
+
+@keyframes lumenIntroAtmosphereFocus {
+  0% {
+    opacity: 0.34;
+    transform: scale(1.02) skewX(0);
+    filter: blur(0) saturate(1);
+  }
+
+  38% {
+    opacity: 0.48;
+    transform: scale(1.045) skewX(-0.35deg);
+    filter: blur(0.6px) saturate(1.12);
+  }
+
+  56% {
+    opacity: 0.36;
+    transform: scale(1.09) skewX(0.8deg);
+    filter: blur(2.2px) saturate(1.38);
+  }
+
+  100% {
+    opacity: 0.12;
+    transform: scale(1.14) skewX(0);
+    filter: blur(4px) saturate(1.55);
+  }
+}
+
+@keyframes lumenIntroVignetteFocus {
+  0% {
+    opacity: 1;
+  }
+
+  38% {
+    opacity: 0.82;
+  }
+
+  100% {
+    opacity: 0.94;
   }
 }
 
 @keyframes lumenIntroControlsOut {
   from {
     opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
+    transform: translate3d(-50%, 0, 0) scale(1);
   }
   to {
     opacity: 0;
-    transform: translateX(-50%) translateY(18px) scale(0.92);
+    transform: translate3d(-50%, 8px, 0) scale(0.985);
   }
 }
 
 @keyframes lumenIntroCurtainOut {
-  0% {
+  from {
     opacity: 1;
-    filter: blur(0);
-    transform: scale(1);
   }
-  100% {
+  to {
     opacity: 0;
-    filter: blur(13px);
-    transform: scale(1.18);
   }
 }
 
 .lumen-ui-revealing .lumen-route-app {
-  transform-origin: 50% 46%;
-  animation: lumenUiZoomReveal 860ms cubic-bezier(0.18, 0.78, 0.16, 1) both;
-  will-change: transform, filter, opacity, clip-path;
+  animation: lumenUiReveal 280ms cubic-bezier(0.2, 0.88, 0.24, 1) both;
+  will-change: opacity;
 }
 
-@keyframes lumenUiZoomReveal {
-  0% {
-    opacity: 0.64;
-    clip-path: inset(42% 46% 42% 46% round 18px);
-    filter: blur(16px) saturate(1.16) brightness(0.82);
-    transform: scale(1.34);
+/* Segunda mitad del zoom transition: se activa en el mismo callback que
+   retira la cortina. La UI ya está en el panel final y aterriza desde una
+   escala ligeramente sobredimensionada, sin exponer geometría fullscreen. */
+.lumen-ui-entering .lumen-route-app {
+  animation: lumenUiZoomOut 160ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
+  transform-origin: 50% 50%;
+  will-change: opacity, transform;
+}
+
+@keyframes lumenUiReveal {
+  from {
+    opacity: 0.16;
   }
-  100% {
+  to {
     opacity: 1;
-    clip-path: inset(0 0 0 0 round 0);
-    filter: blur(0) saturate(1) brightness(1);
-    transform: scale(1);
+  }
+}
+
+@keyframes lumenUiZoomOut {
+  from {
+    opacity: 0.86;
+    transform: translateZ(0) scale(1.11);
+  }
+  to {
+    opacity: 1;
+    transform: translateZ(0) scale(1);
   }
 }
 
@@ -239,10 +567,8 @@ button {
   width: 100vw;
   height: 100vh;
   overflow-x: hidden;
-  overflow-y: auto;
-  background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.34), transparent 25% 74%, rgba(0, 0, 0, 0.3)),
-    linear-gradient(135deg, #010608 0%, #001117 46%, #001019 100%);
+  overflow-y: hidden;
+  background: linear-gradient(135deg, #010608 0%, #001117 46%, #001019 100%);
 }
 
 .lumen-route-app::before,
@@ -256,7 +582,6 @@ button {
 .lumen-route-app::before {
   z-index: 0;
   background:
-    radial-gradient(ellipse at center, transparent 0 51%, rgba(0, 0, 0, 0.58) 100%),
     repeating-linear-gradient(90deg, rgba(125, 217, 205, 0.008) 0 1px, transparent 1px 82px),
     repeating-linear-gradient(0deg, rgba(125, 217, 205, 0.006) 0 1px, transparent 1px 82px);
 }
@@ -270,26 +595,6 @@ button {
     linear-gradient(72deg, transparent 0 48%, rgba(0, 201, 145, 0.027) 58%, transparent 72%);
 }
 
-/* Scroll vertical discreto cuando la ruta no cabe a lo alto (escala con piso
-   en paneles chicos): los nodos se alcanzan bajando, no encogiendolos. */
-.lumen-route-app::-webkit-scrollbar {
-  width: 10px;
-}
-
-.lumen-route-app::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.lumen-route-app::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  border: 3px solid transparent;
-  background: rgba(125, 178, 217, 0.18) padding-box;
-}
-
-.lumen-route-app::-webkit-scrollbar-thumb:hover {
-  background: rgba(125, 178, 217, 0.32) padding-box;
-}
-
 .stage-viewport {
   position: absolute;
   z-index: 1;
@@ -298,6 +603,8 @@ button {
   transform: translateX(-50%);
 }
 
+/* En el panel lateral la viñeta izquierda se leía como un falso gutter junto
+   al sash de VS Code. El fondo compacto llega al borde con su color real. */
 .route-stage {
   position: absolute;
   left: 0;
@@ -318,6 +625,21 @@ button {
   inset: 0;
   z-index: 0;
   background: transparent;
+}
+
+.detail-dismiss-zone {
+  z-index: 6;
+  inset: 0;
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.detail-dismiss-zone:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--theme-accent) 74%, transparent);
+  outline-offset: -12px;
 }
 
 .route-header {
@@ -360,108 +682,77 @@ button {
   stroke: none;
 }
 
-.glass-pill span {
+.glass-pill .pill-content {
   position: absolute;
-  color: var(--text-hot);
+  left: 50%;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(10px * var(--header-label-reveal, 1));
   white-space: nowrap;
+  transform: translate(-50%, -50%);
+  transition: gap 80ms linear;
+}
+
+.glass-pill .pill-label {
+  position: static;
+  display: block;
+  max-width: calc(96px * var(--header-label-reveal, 1));
+  overflow: hidden;
+  color: var(--text-hot);
+  opacity: var(--header-label-reveal, 1);
+  transform: none;
+  transition:
+    max-width 80ms linear,
+    opacity 80ms linear;
 }
 
 .back-pill {
-  left: 36px;
-  top: 49px;
-  width: 174px;
+  left: var(--back-left, 36px);
+  top: var(--back-top, 49px);
+  width: var(--back-width, 174px);
 }
 
-.back-pill svg {
-  left: 28px;
-  top: 19px;
+.back-pill .pill-content > svg {
+  position: static;
+  flex: 0 0 auto;
   width: 30px;
   height: 30px;
+  transform: translateX(-2px);
 }
 
-.back-pill span {
-  left: 68px;
-  top: 22px;
+.back-pill .pill-label {
   font-size: 22px;
   line-height: 24px;
 }
 
 .modules-pill {
   left: auto;
-  right: 36px;
-  top: 55px;
-  width: 172px;
-  height: 65px;
+  right: var(--modules-right, 36px);
+  top: var(--modules-top, 55px);
+  width: var(--modules-width, 172px);
+  height: var(--modules-height, 65px);
 }
 
-.modules-pill svg {
-  left: 28px;
-  top: 17px;
+.modules-pill .pill-content > svg {
+  position: static;
+  flex: 0 0 auto;
   width: 31px;
   height: 31px;
+  transform: translateX(1px);
 }
 
-.modules-pill span {
-  left: 69px;
-  top: 21px;
+.modules-pill .pill-label {
   font-size: 22px;
   line-height: 23px;
 }
 
-/* Layout compacto (panel angosto): pills solo-icono para no chocar con el
-   titulo centrado. */
-.route-stage.compact .back-pill,
-.route-stage.compact .modules-pill {
-  width: 86px;
-}
-
-.route-stage.compact .back-pill span,
-.route-stage.compact .modules-pill span {
-  display: none;
-}
-
-.route-stage.compact .back-pill {
-  left: 32px;
-  top: 44px;
-}
-
-.route-stage.compact .modules-pill {
-  right: 32px;
-  top: 44px;
-}
-
-/* En compacto el bloque de titulo se ancla entre las pills y sus fuentes
-   escalan con el ancho del layout, asi el titulo nunca choca con las pills
-   aunque el layout baje hasta su minimo (540px). */
-.route-stage.compact .title-block {
-  left: 126px;
-  right: 126px;
-  top: 36px;
-  width: auto;
-}
-
-.route-stage.compact .title-block p {
-  font-size: 18px;
-  line-height: 18px;
-}
-
-.route-stage.compact .title-block h1 {
-  top: 34px;
-  font-size: clamp(24px, calc((var(--layout-width, 700px) - 252px) * 0.094), 36px);
-  line-height: 38px;
-}
-
-.route-stage.compact .title-block span {
-  top: 82px;
-  font-size: clamp(17px, calc((var(--layout-width, 700px) - 252px) * 0.07), 23px);
-  line-height: 24px;
-}
-
 .title-block {
   position: absolute;
-  left: calc(50% - 270px);
-  top: 38px;
-  width: 540px;
+  left: var(--title-left, calc(50% - 270px));
+  top: var(--title-top, 38px);
+  width: var(--title-width, 540px);
   height: 112px;
 }
 
@@ -469,49 +760,47 @@ button {
 .title-block h1,
 .title-block span {
   position: absolute;
+  left: 0;
   margin: 0;
   white-space: nowrap;
 }
 
 .title-block p {
-  left: 0;
   top: 0;
   color: var(--theme-glow);
-  font-size: 19px;
-  line-height: 19px;
+  font-size: var(--title-kicker-size, 19px);
+  line-height: var(--title-kicker-size, 19px);
   font-weight: 850;
   text-transform: uppercase;
   text-shadow: 0 0 18px color-mix(in srgb, var(--theme-glow) 42%, transparent);
 }
 
 .title-block h1 {
-  left: 0;
-  top: 37px;
+  top: var(--title-heading-top, 37px);
   color: var(--text-hot);
-  font-size: 42px;
-  line-height: 42px;
+  font-size: var(--title-heading-size, 42px);
+  line-height: var(--title-heading-size, 42px);
   font-weight: 820;
   text-shadow: 0 4px 18px rgba(0, 0, 0, 0.78);
 }
 
 .title-block span {
-  left: 0;
-  top: 88px;
+  top: var(--title-subtitle-top, 88px);
   color: var(--text-muted);
-  font-size: 26px;
-  line-height: 26px;
+  font-size: var(--title-subtitle-size, 26px);
+  line-height: var(--title-subtitle-size, 26px);
 }
 
 .progress-card {
   position: absolute;
-  left: 59px;
-  right: 59px;
-  top: 189px;
+  left: var(--progress-inset, 59px);
+  right: var(--progress-inset, 59px);
+  top: var(--progress-top, 189px);
   z-index: 8;
-  height: 126px;
+  height: var(--progress-height, 126px);
   overflow: hidden;
   border: 1px solid var(--panel-border);
-  border-radius: 21px;
+  border-radius: var(--progress-radius, 21px);
   background: var(--panel-bg);
   box-shadow:
     inset 0 1px 0 rgba(244, 252, 251, 0.07),
@@ -522,46 +811,46 @@ button {
 
 .progress-metric {
   position: absolute;
-  top: 30px;
+  top: var(--progress-metric-top, 30px);
   white-space: nowrap;
 }
 
 .progress-metric.left {
-  left: 28px;
+  left: var(--progress-metric-left, 28px);
 }
 
 .progress-metric.right {
-  right: 29px;
+  right: var(--progress-metric-right, 29px);
 }
 
 .progress-metric strong {
   color: var(--theme-glow);
-  font-size: 28px;
-  line-height: 31px;
+  font-size: var(--progress-strong-size, 28px);
+  line-height: var(--progress-strong-line, 31px);
   text-shadow: 0 0 14px color-mix(in srgb, var(--theme-glow) 42%, transparent);
 }
 
 .progress-metric span {
   color: var(--text-muted);
-  font-size: 22px;
-  line-height: 25px;
+  font-size: var(--progress-span-size, 22px);
+  line-height: var(--progress-span-line, 25px);
   margin-left: 5px;
 }
 
 .progress-segments {
   position: absolute;
-  left: 29px;
-  right: 29px;
-  top: 81px;
+  left: var(--segments-inset, 29px);
+  right: var(--segments-inset, 29px);
+  top: var(--segments-top, 81px);
   display: flex;
-  gap: 8px;
+  gap: var(--segments-gap, 8px);
 }
 
 .progress-segments span {
   position: relative;
   flex: 1 1 0;
-  min-width: 34px;
-  height: 12px;
+  min-width: var(--segment-min, 34px);
+  height: var(--segment-height, 12px);
   overflow: hidden;
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(55, 78, 89, 0.72), rgba(24, 39, 48, 0.72));
@@ -639,48 +928,6 @@ button {
   min-width: 15px;
 }
 
-.route-stage.compact .progress-card {
-  left: 38px;
-  right: 38px;
-  top: 172px;
-  height: 104px;
-  border-radius: 18px;
-}
-
-.route-stage.compact .progress-metric {
-  top: 24px;
-}
-
-.route-stage.compact .progress-metric.left {
-  left: 24px;
-}
-
-.route-stage.compact .progress-metric.right {
-  right: 24px;
-}
-
-.route-stage.compact .progress-metric strong {
-  font-size: 25px;
-  line-height: 27px;
-}
-
-.route-stage.compact .progress-metric span {
-  font-size: 19px;
-  line-height: 22px;
-}
-
-.route-stage.compact .progress-segments {
-  left: 24px;
-  right: 24px;
-  top: 67px;
-  gap: 6px;
-}
-
-.route-stage.compact .progress-segments span {
-  min-width: 0;
-  height: 10px;
-}
-
 .code-ghost {
   left: calc(var(--content-offset, 0px) + 30px);
   top: 525px;
@@ -707,13 +954,8 @@ button {
   height: 1448px;
   contain: layout paint style;
   pointer-events: none;
-  transform: translateZ(0);
-}
-
-.route-stage.compact .snake-layer,
-.route-stage.compact .node-overlay {
-  transform: translateY(-18px) scale(var(--route-art-scale, 0.9));
-  transform-origin: 50% 55%;
+  transform: translateY(var(--route-base-shift-y, 0)) scale(var(--route-art-scale, 1));
+  transform-origin: 50% var(--route-base-origin-y, 50%);
 }
 
 .snake-layer .webgl-host {
@@ -739,6 +981,8 @@ button {
   height: 1448px;
   z-index: 5;
   pointer-events: none;
+  transform: translateY(var(--route-base-shift-y, 0)) scale(var(--route-art-scale, 1));
+  transform-origin: 50% var(--route-base-origin-y, 50%);
 }
 
 .route-node,
@@ -1280,22 +1524,200 @@ button {
 }
 
 .hero-text-input {
-  left: calc(var(--content-offset, 0px) + 670px);
-  top: 374px;
+  left: calc(var(--content-offset, 0px) + 670px + var(--hero-left-nudge, 0px));
+  top: var(--hero-top, 374px);
   z-index: 4;
-  width: 372px;
-  height: 372px;
-  animation: heroTextDownloadedBounce 6s linear infinite;
+  width: var(--hero-size, 372px);
+  height: var(--hero-size, 372px);
   transform-origin: 50% 70%;
   pointer-events: none;
   will-change: transform;
 }
 
-.route-stage.compact .hero-text-input {
-  left: calc(var(--content-offset, 0px) + 686px);
-  top: 350px;
-  width: 340px;
-  height: 340px;
+@keyframes detailRouteZoomIn {
+  from {
+    transform-origin: 50% var(--route-base-origin-y, 50%);
+    transform: translateY(var(--route-base-shift-y, 0)) scale(var(--route-art-scale, 1));
+  }
+  to {
+    transform-origin: 39% 30%;
+    transform: translate3d(var(--detail-snake-shift, -48px), 68px, 0) scale(1.12);
+  }
+}
+
+@keyframes detailRouteZoomOut {
+  from {
+    transform-origin: 39% 30%;
+    transform: translate3d(var(--detail-snake-shift, -48px), 68px, 0) scale(1.12);
+  }
+  to {
+    transform-origin: 50% var(--route-base-origin-y, 50%);
+    transform: translateY(var(--route-base-shift-y, 0)) scale(var(--route-art-scale, 1));
+  }
+}
+
+@keyframes detailHeroRecede {
+  from {
+    opacity: 1;
+    filter: blur(0) saturate(1) brightness(1);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0.075;
+    filter: blur(3px) saturate(0.72) brightness(0.68);
+    transform: translate3d(var(--detail-hero-shift, 0), var(--detail-hero-shift-y, -33px), 0) scale(var(--detail-hero-scale, 1.55));
+  }
+}
+
+@keyframes detailHeroReturn {
+  from {
+    opacity: 0.075;
+    filter: blur(3px) saturate(0.72) brightness(0.68);
+    transform: translate3d(var(--detail-hero-shift, 0), var(--detail-hero-shift-y, -33px), 0) scale(var(--detail-hero-scale, 1.55));
+  }
+  to {
+    opacity: 1;
+    filter: blur(0) saturate(1) brightness(1);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes detailCodeZoomIn {
+  from {
+    transform-origin: 39% 30%;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform-origin: 39% 30%;
+    transform: translate3d(var(--detail-snake-shift, -48px), 68px, 0) scale(1.12);
+  }
+}
+
+@keyframes detailCodeZoomOut {
+  from {
+    transform-origin: 39% 30%;
+    transform: translate3d(var(--detail-snake-shift, -48px), 68px, 0) scale(1.12);
+  }
+  to {
+    transform-origin: 39% 30%;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.snake-layer,
+.node-overlay,
+.hero-text-input,
+.code-ghost {
+  transition:
+    transform 780ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 780ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 780ms cubic-bezier(0.16, 1, 0.3, 1),
+    clip-path 780ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Detalles no reemplaza la ruta: reorganiza sus mismos actores. El zoom toma
+   el nodo activo como centro visual, reserva la mitad derecha para el texto y
+   deja el hero como una presencia atmosférica detrás del contenido. */
+.route-stage.detail-mode .snake-layer,
+.route-stage.detail-mode .node-overlay {
+  transform: translate3d(var(--detail-snake-shift, -48px), 68px, 0) scale(1.12);
+  transform-origin: 39% 30%;
+}
+
+.route-stage.detail-mode .code-ghost {
+  opacity: 0.42;
+  transform: translate3d(var(--detail-snake-shift, -48px), 68px, 0) scale(1.12);
+  transform-origin: 39% 30%;
+}
+
+.route-stage.detail-entering .code-ghost {
+  animation: detailCodeZoomIn 780ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.route-stage.detail-exiting .code-ghost {
+  animation: detailCodeZoomOut 780ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.route-stage.detail-entering .snake-layer,
+.route-stage.detail-entering .node-overlay {
+  animation: detailRouteZoomIn 780ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.route-stage.detail-exiting .snake-layer,
+.route-stage.detail-exiting .node-overlay {
+  transform-origin: 39% 30%;
+  animation: detailRouteZoomOut 780ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.route-stage.detail-mode .node-overlay {
+  clip-path: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 42%, transparent 53%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 42%, transparent 53%);
+  pointer-events: none;
+}
+
+.route-stage.detail-mode .snake-layer {
+  opacity: 1;
+  filter: saturate(0.28) brightness(0.3);
+}
+
+.route-stage.detail-mode .hero-text-input,
+.route-stage.detail-entering .hero-text-input {
+  opacity: 0.075;
+  filter: blur(3px) saturate(0.72) brightness(0.68);
+  transform: translate3d(var(--detail-hero-shift, 0), var(--detail-hero-shift-y, -33px), 0) scale(var(--detail-hero-scale, 1.55));
+}
+
+.route-stage.detail-entering .hero-text-input {
+  animation: detailHeroRecede 780ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.route-stage.detail-exiting .hero-text-input {
+  animation: detailHeroReturn 780ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.route-stage.detail-exiting .route-node {
+  transition:
+    opacity 780ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 780ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.route-stage.detail-exiting .node-label {
+  opacity: 1;
+  filter: blur(0);
+  transition:
+    opacity 560ms 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 560ms 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.route-stage.detail-mode .route-node,
+.route-stage.detail-mode .node-label {
+  transition:
+    opacity 780ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 780ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.route-stage.detail-mode .node-label {
+  opacity: 0;
+  filter: blur(4px);
+}
+
+.route-stage.detail-mode .route-node:not(.active) {
+  opacity: 1;
+  filter: saturate(0.28) brightness(0.3);
+}
+
+.route-stage.detail-mode .node-shadow:not(.active) {
+  opacity: 0.1;
+}
+
+.route-stage.detail-mode .node-contact:not(.active),
+.route-stage.detail-mode .node-contact-rim:not(.active) {
+  opacity: 0.08;
+}
+
+.route-stage.detail-mode .continue-badge {
+  opacity: 0;
 }
 
 .hero-sticker-shell {
@@ -1303,6 +1725,15 @@ button {
   width: 100%;
   height: 100%;
   transform: translateZ(0);
+  animation: heroTextDownloadedBounce 6s linear infinite;
+}
+
+.route-stage.detail-mode .hero-sticker-shell {
+  animation-play-state: paused;
+}
+
+.route-stage.detail-exiting .hero-sticker-shell {
+  animation-play-state: paused;
 }
 
 .hero-sticker-shell::before {
@@ -2115,14 +2546,14 @@ button {
 }
 
 .bottom-cta {
-  left: 72px;
-  right: 72px;
-  top: 1300px;
+  left: var(--cta-inset, 72px);
+  right: var(--cta-inset, 72px);
+  top: var(--cta-top, 1300px);
   z-index: 9;
-  height: 100px;
+  height: var(--cta-height, 100px);
   overflow: hidden;
   border: 1px solid rgba(93, 147, 161, 0.24);
-  border-radius: 21px;
+  border-radius: var(--cta-radius, 21px);
   background: rgba(5, 20, 28, 0.86);
   box-shadow:
     inset 0 1px 0 rgba(244, 252, 251, 0.055),
@@ -2131,50 +2562,12 @@ button {
     0 0 34px color-mix(in srgb, var(--theme-glow) 4%, transparent);
 }
 
-.route-stage.compact .bottom-cta {
-  left: 48px;
-  right: 48px;
-  top: 1188px;
-  height: 86px;
-  border-radius: 18px;
-}
-
-.route-stage.compact .bottom-cta .menu-icon {
-  left: 28px;
-  top: 27px;
-  width: 32px;
-  height: 32px;
-}
-
-.route-stage.compact .bottom-cta p {
-  left: 84px;
-  right: 96px;
-  top: 29px;
-  font-size: 19px;
-  line-height: 24px;
-}
-
-.route-stage.compact .bottom-cta button {
-  right: 18px;
-  top: 16px;
-  width: 54px;
-  height: 54px;
-  border-radius: 16px;
-}
-
-.route-stage.compact .bottom-cta button svg {
-  left: 11px;
-  top: 11px;
-  width: 32px;
-  height: 32px;
-}
-
 .bottom-cta .menu-icon {
   position: absolute;
-  left: 36px;
-  top: 33px;
-  width: 39px;
-  height: 39px;
+  left: var(--cta-icon-left, 36px);
+  top: var(--cta-icon-top, 33px);
+  width: var(--cta-icon-size, 39px);
+  height: var(--cta-icon-size, 39px);
   color: var(--theme-glow);
   stroke: currentColor;
   fill: none;
@@ -2188,15 +2581,15 @@ button {
 
 .bottom-cta p {
   position: absolute;
-  left: 112px;
-  right: 112px;
-  top: 34px;
+  left: var(--cta-text-left, 112px);
+  right: var(--cta-text-right, 112px);
+  top: var(--cta-text-top, 34px);
   overflow: hidden;
   text-overflow: ellipsis;
   margin: 0;
   color: var(--text-main);
-  font-size: 21px;
-  line-height: 26px;
+  font-size: var(--cta-text-size, 21px);
+  line-height: var(--cta-text-line, 26px);
   white-space: nowrap;
 }
 
@@ -2208,12 +2601,12 @@ button {
 .bottom-cta button {
   position: absolute;
   left: auto;
-  right: 24px;
-  top: 18px;
-  width: 63px;
-  height: 63px;
+  right: var(--cta-button-right, 24px);
+  top: var(--cta-button-top, 18px);
+  width: var(--cta-button-size, 63px);
+  height: var(--cta-button-size, 63px);
   border: 1px solid color-mix(in srgb, var(--theme-glow) 66%, transparent);
-  border-radius: 18px;
+  border-radius: var(--cta-button-radius, 18px);
   color: var(--theme-glow);
   background: rgba(2, 24, 32, 0.58);
   box-shadow:
@@ -2231,17 +2624,85 @@ button {
     inset 0 0 14px color-mix(in srgb, var(--theme-glow) 4%, transparent);
 }
 
-.bottom-cta button svg {
+.bottom-cta button:not(.details) svg {
   position: absolute;
-  left: 14px;
-  top: 14px;
+  left: 50%;
+  top: 50%;
   width: 35px;
   height: 35px;
+  transform: translate(-50%, -50%);
+}
+
+.bottom-cta button svg {
   stroke: currentColor;
   fill: none;
   stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.bottom-cta button.details {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: var(--cta-button-size, 63px);
+  padding: 0 var(--cta-detail-padding, 14px);
+  border-radius: 17px;
+  font-size: 13px;
+  font-weight: 820;
+  letter-spacing: 0.3px;
+  overflow: hidden;
+  transition:
+    width 220ms cubic-bezier(0.2, 0.72, 0.2, 1),
+    border-color 150ms ease,
+    background 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.bottom-cta:has(button.details) p {
+  right: var(--cta-text-right, 112px);
+}
+
+.bottom-cta button.details svg {
+  position: static;
+  flex: 0 0 auto;
+  width: var(--cta-detail-icon-size, 31px);
+  height: var(--cta-detail-icon-size, 31px);
+}
+
+.bottom-cta button.details span {
+  overflow: hidden;
+  max-width: 0;
+  opacity: 0;
+  white-space: nowrap;
+  transform: translateX(5px);
+  transition: max-width 220ms ease, opacity 140ms ease, transform 220ms ease;
+}
+
+.bottom-cta button.details:hover,
+.bottom-cta button.details:focus-visible {
+  gap: 7px;
+  width: var(--cta-detail-hover-width, 126px);
+  border-color: color-mix(in srgb, var(--theme-glow) 82%, transparent);
+  background: color-mix(in srgb, var(--theme-glow) 9%, rgba(2, 24, 32, 0.76));
+  box-shadow:
+    0 0 29px color-mix(in srgb, var(--theme-glow) 45%, transparent),
+    inset 0 1px 0 rgba(244, 252, 251, 0.14),
+    inset 0 0 20px color-mix(in srgb, var(--theme-glow) 10%, transparent);
+  outline: none;
+}
+
+.bottom-cta button.details:hover span,
+.bottom-cta button.details:focus-visible span {
+  max-width: 100px;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.bottom-cta:has(button.details:hover) p,
+.bottom-cta:has(button.details:focus-visible) p {
+  right: var(--cta-hover-text-right, 174px);
 }
 
 /* Estado autoritativo del engine mientras corre `exercise.activate`: la UI se

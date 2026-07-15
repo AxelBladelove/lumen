@@ -181,6 +181,22 @@ En la referencia aparece algo como `Fundamentos C`, pero para Lumen debe ajustar
 
 El header debe sentirse como parte de una experiencia premium, con glass, borde sutil y glow controlado.
 
+En ancho expandido, el icono y el texto de cada pill forman una única unidad
+óptica y esa unidad completa queda centrada dentro del cristal. Por debajo del
+breakpoint compacto las etiquetas de ambas pills colapsan, sus iconos se
+centran ópticamente y el bloque editorial del título conserva la misma
+colocación centrada que en ancho expandido. Dentro del bloque, kicker, título y
+subtítulo permanecen alineados a la izquierda: `MÓDULO N` siempre arranca sobre
+el inicio del título, no centrado como una línea independiente. El resize
+interpola tamaños y offsets; no debe dejar el bloque pegado al control izquierdo
+ni saltar el icono al cambiar de modo.
+
+Al entrar en Detalles, el zoom espacial afecta como una sola composición al
+snake, los nodos y el código decorativo de fondo. Ninguna de esas capas debe
+quedar estática mientras las otras se acercan. Los conectores entre los
+cristales de entrada y salida reservan su propio hueco vertical, apuntan hacia
+abajo y se centran respecto al cristal de salida sin superponerse a ninguno.
+
 ## Card de progreso
 
 La card de progreso debe mostrar:

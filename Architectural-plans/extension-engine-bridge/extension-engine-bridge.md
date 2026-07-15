@@ -21,7 +21,8 @@ directorio). Operaciones disponibles: `engine.healthCheck`,
 
 Además existe el protocolo mínimo entre Extension Host y webview:
 
-- Versión compartida `lumenWebviewProtocolVersion = 1`.
+- Versión compartida `lumenWebviewProtocolVersion = 2`; el contrato detallado
+  y autoritativo vive en `frontend/webview-protocol/webview-protocol.md`.
 - Mensajes webview -> extensión:
   - `frontend.ready`
   - `route.node.selected`
