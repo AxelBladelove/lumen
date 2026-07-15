@@ -25,6 +25,8 @@ perf/
 # Temporary workspaces
 .tmp/
 tmp/
+.aloop/out/
+.worktrees/
 
 # Environment files
 .env
