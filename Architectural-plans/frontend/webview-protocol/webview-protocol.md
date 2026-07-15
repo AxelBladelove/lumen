@@ -99,11 +99,10 @@ token coincide con el ciclo activo.
 
 ### `frontend.revealed`
 
-Se emite una sola vez por ciclo de intro, cuando la cortina de entrada termino
-de ocultarse: la ruta ya esta visible en el layout final y no quedan modulos
-cargando.
-
-Payload vacio.
+Se emite una sola vez por ciclo de intro, cuando la cortina de entrada terminó
+de ocultarse: la ruta ya está visible en el layout final y no quedan módulos
+cargando. Incluye el token activo (o `null` fuera del Extension Host); el panel
+sólo acepta la señal si coincide con un handoff preparado.
 
 El Extension Host la usa como confirmacion de que el fade final termino antes
 de marcar la sesion como activa.

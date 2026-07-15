@@ -46,7 +46,9 @@ export type LumenWebviewMessage =
     }
   | {
       type: "frontend.revealed";
-      payload: Record<string, never>;
+      payload: {
+        token: string | null;
+      };
     }
   | {
       type: "frontend.layoutHandoffReady";
@@ -115,7 +117,7 @@ type LumenWebviewHostOptions = {
   /** La UI sin intro atravesó una pintura y ya es segura para mover el panel. */
   onFrontendLayoutHandoffPrepared?: (token: string) => void;
   /** El intro terminó: la ruta está pintada y no quedan módulos en vuelo. */
-  onFrontendRevealed?: () => void;
+  onFrontendRevealed?: (token: string | null) => void;
   perfViewType: string;
 };
 
@@ -420,7 +422,7 @@ export class LumenWebviewHost {
         break;
 
       case "frontend.revealed":
-        this.options.onFrontendRevealed?.();
+        this.options.onFrontendRevealed?.(message.payload.token);
         break;
 
       case "route.node.selected":

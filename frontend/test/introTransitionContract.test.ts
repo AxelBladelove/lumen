@@ -193,5 +193,11 @@ describe("intro transition visual contract", () => {
     expect(extensionPanel).toMatch(
       /if \(!this\.activeLayoutToken \|\| !this\.layoutPreparationCompleted\) return false;/
     );
+    expect(appSvelte).toMatch(
+      /type: "frontend\.revealed", payload: \{ token: layoutCommitToken \}/
+    );
+    expect(extensionPanel).toMatch(
+      /onFrontendRevealed: \(token\) => \{\s*if \(token !== this\.activeLayoutToken \|\| !this\.layoutPreparationCompleted\) return;/
+    );
   });
 });

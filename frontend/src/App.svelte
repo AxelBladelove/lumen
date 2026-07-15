@@ -305,7 +305,7 @@
   function postRevealedOnce() {
     if (revealedPosted) return;
     revealedPosted = true;
-    bridge.post({ type: "frontend.revealed", payload: {} });
+    bridge.post({ type: "frontend.revealed", payload: { token: layoutCommitToken } });
   }
 
   function resetLayoutCommit() {

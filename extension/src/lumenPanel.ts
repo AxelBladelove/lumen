@@ -88,7 +88,10 @@ export class LumenPanelController {
         this.layoutPreparationCompleted = true;
         this.layoutHandoffPreparedSignal.resolve();
       },
-      onFrontendRevealed: () => this.revealedSignal.resolve(),
+      onFrontendRevealed: (token) => {
+        if (token !== this.activeLayoutToken || !this.layoutPreparationCompleted) return;
+        this.revealedSignal.resolve();
+      },
       perfViewType: LumenRoutePathViewProvider.viewType
     });
   }

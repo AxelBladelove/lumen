@@ -66,7 +66,9 @@ export type WebviewToExtensionMessage =
     }
   | {
       type: "frontend.revealed";
-      payload: Record<string, never>;
+      payload: {
+        token: string | null;
+      };
     }
   | {
       type: "frontend.layoutHandoffReady";
