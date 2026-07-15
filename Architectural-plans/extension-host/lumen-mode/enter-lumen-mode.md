@@ -60,8 +60,11 @@ Esa secuencia:
 - `lumen.layoutCommitted { token }` autoriza el zoom-out de 160 ms. El lock del
   grupo, que no cambia la composición visual, se completa en paralelo.
   `frontend.revealed` llega al asentarse el landing y permite marcar la sesión
-  como activa. Si falta cualquier
-  señal o no coincide el token, la entrada falla cerrada y restaura el workspace.
+  como activa. Si falta cualquier señal o no coincide el token, la entrada
+  falla cerrada y restaura el workspace.
+- El resultado de `moveEditorToRightGroup` se verifica por columna: debe avanzar
+  a la derecha o ya encontrarse en el borde derecho con otro grupo a la
+  izquierda. Un comando resuelto como no-op no confirma por sí solo el layout.
 - Envía `lumen.entry.state` a la webview al crear la entrada y después de cada
   `frontend.ready`.
 

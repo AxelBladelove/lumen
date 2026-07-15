@@ -2,6 +2,7 @@
   import { onDestroy, tick } from "svelte";
   import RoutePathView from "./route-path-view/RoutePathView.svelte";
   import { lumenBrand, ensureLumenFavicon } from "./brand/lumenBrand";
+  import { scheduleAfterPaintOpportunities } from "./entry/frameBarrier";
   import { hasLayoutCommitGeometryChanged } from "./entry/layoutCommit";
   import {
     buildRouteModuleFromEngine,
@@ -78,10 +79,8 @@
   let layoutCommitToken: string | null = null;
   let layoutCommitSourceWidth = 0;
   let layoutCommitSourceHeight = 0;
-  let safeHandoffFrame = 0;
-  let safeHandoffPaintFrame = 0;
-  let safeHandoffSubmitFrame = 0;
-  let landingStartFrame = 0;
+  let stopSafeHandoffBarrier = () => {};
+  let stopLandingStartFrame = () => {};
   let uiZoomOutStarted = false;
 
   performance.mark("lumen:app-mounted");
@@ -316,14 +315,10 @@
 
   function resetLayoutCommit() {
     resetUiZoomOut();
-    cancelAnimationFrame(safeHandoffFrame);
-    cancelAnimationFrame(safeHandoffPaintFrame);
-    cancelAnimationFrame(safeHandoffSubmitFrame);
-    cancelAnimationFrame(landingStartFrame);
-    safeHandoffFrame = 0;
-    safeHandoffPaintFrame = 0;
-    safeHandoffSubmitFrame = 0;
-    landingStartFrame = 0;
+    stopSafeHandoffBarrier();
+    stopLandingStartFrame();
+    stopSafeHandoffBarrier = () => {};
+    stopLandingStartFrame = () => {};
     layoutCommitPhase = "idle";
     layoutCommitToken = null;
     layoutCommitSourceWidth = 0;
@@ -441,20 +436,16 @@
     await tick();
 
     if (token !== layoutCommitToken || layoutCommitPhase !== "preparing") return;
-    safeHandoffFrame = requestAnimationFrame(() => {
-      safeHandoffFrame = 0;
-      if (token !== layoutCommitToken || layoutCommitPhase !== "preparing") return;
-      safeHandoffPaintFrame = requestAnimationFrame(() => {
-        safeHandoffPaintFrame = 0;
+    stopSafeHandoffBarrier = scheduleAfterPaintOpportunities({
+      paintOpportunities: 2,
+      requestFrame: (callback) => requestAnimationFrame(callback),
+      cancelFrame: (handle) => cancelAnimationFrame(handle),
+      onReady: () => {
         if (token !== layoutCommitToken || layoutCommitPhase !== "preparing") return;
-        safeHandoffSubmitFrame = requestAnimationFrame(() => {
-          safeHandoffSubmitFrame = 0;
-          if (token !== layoutCommitToken || layoutCommitPhase !== "preparing") return;
-          layoutCommitPhase = "safe";
-          performance.mark("lumen:layout-handoff-safe-frame-painted");
-          bridge.post({ type: "frontend.layoutHandoffPrepared", payload: { token } });
-        });
-      });
+        layoutCommitPhase = "safe";
+        performance.mark("lumen:layout-handoff-safe-frame-painted");
+        bridge.post({ type: "frontend.layoutHandoffPrepared", payload: { token } });
+      }
     });
   }
 
@@ -472,10 +463,14 @@
     // sólo ahí se arma el landing, evitando iniciarlo durante el mismo task del
     // mensaje de commit.
     layoutCommitPhase = "committing";
-    landingStartFrame = requestAnimationFrame(() => {
-      landingStartFrame = 0;
-      if (token !== layoutCommitToken || layoutCommitPhase !== "committing") return;
-      beginCommittedLayout(token);
+    stopLandingStartFrame = scheduleAfterPaintOpportunities({
+      paintOpportunities: 0,
+      requestFrame: (callback) => requestAnimationFrame(callback),
+      cancelFrame: (handle) => cancelAnimationFrame(handle),
+      onReady: () => {
+        if (token !== layoutCommitToken || layoutCommitPhase !== "committing") return;
+        beginCommittedLayout(token);
+      }
     });
   }
 

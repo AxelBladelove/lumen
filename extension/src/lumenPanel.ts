@@ -8,6 +8,7 @@ import {
 } from "./lumenWebviewContent";
 import { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
 import { LumenWebviewHost, type LumenModePhase } from "./lumenWebviewHost";
+import { isRightGroupMoveConfirmed } from "./lumenPanelLayout";
 
 const lumenPanelViewType = "lumen.routePathPanel";
 let layoutTransitionSequence = 0;
@@ -276,6 +277,9 @@ export class LumenPanelController {
   async moveAsideAndLock() {
     const panel = this.panel;
     if (!panel || !revealSafely(panel)) return false;
+    const sourceGroup = findLumenPanelGroup();
+    if (!sourceGroup) return false;
+    const sourceViewColumn = sourceGroup.viewColumn;
 
     // El movimiento y la proporción son visualmente autoritativos: si fallan,
     // la entrada debe restaurarse en vez de confirmar una UI fullscreen.
@@ -292,10 +296,16 @@ export class LumenPanelController {
 
     // Bloquear solo si el panel esta solo en su grupo: si comparte grupo con
     // editores del usuario (layouts multi-grupo), bloquear los afectaria.
-    const panelGroup = vscode.window.tabGroups.all.find((group) =>
-      group.tabs.some((tab) => tab.input instanceof vscode.TabInputWebview && tab.input.viewType.includes(lumenPanelViewType))
+    const panelGroup = findLumenPanelGroup();
+    const moveConfirmed = Boolean(
+      panelGroup &&
+        isRightGroupMoveConfirmed(
+          sourceViewColumn,
+          panelGroup.viewColumn,
+          vscode.window.tabGroups.all.map((group) => group.viewColumn)
+        )
     );
-    if (!panelGroup || !revealSafely(panel)) return false;
+    if (!panelGroup || !moveConfirmed || !revealSafely(panel)) return false;
     if (panelGroup.tabs.length === 1) {
       this.layoutLockPromise = executeCommandSafely("workbench.action.lockEditorGroup");
     }
@@ -435,6 +445,16 @@ function revealSafely(panel: vscode.WebviewPanel) {
   } catch {
     return false;
   }
+}
+
+function findLumenPanelGroup() {
+  return vscode.window.tabGroups.all.find((group) =>
+    group.tabs.some(
+      (tab) =>
+        tab.input instanceof vscode.TabInputWebview &&
+        tab.input.viewType.includes(lumenPanelViewType)
+    )
+  );
 }
 
 async function executeCommandSafely(command: string) {

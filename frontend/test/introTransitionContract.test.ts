@@ -177,7 +177,10 @@ describe("intro transition visual contract", () => {
       /classList\.add\("lumen-ui-handoff-frozen"\);\s*removeStaticIntro\(\);\s*introVisible = false;[\s\S]*await tick\(\);/
     );
     expect(appSvelte).toMatch(
-      /safeHandoffFrame = requestAnimationFrame\(\(\) => \{[\s\S]*safeHandoffPaintFrame = requestAnimationFrame\(\(\) => \{[\s\S]*safeHandoffSubmitFrame = requestAnimationFrame\(\(\) => \{[\s\S]*type: "frontend\.layoutHandoffPrepared"/
+      /scheduleAfterPaintOpportunities\(\{\s*paintOpportunities: 2,[\s\S]*type: "frontend\.layoutHandoffPrepared"/
+    );
+    expect(appSvelte).toMatch(
+      /scheduleAfterPaintOpportunities\(\{\s*paintOpportunities: 0,[\s\S]*beginCommittedLayout\(token\)/
     );
     expect(appSvelte).toMatch(
       /if \(!reduceMotion\) document\.documentElement\.classList\.add\("lumen-ui-entering"\);\s*document\.documentElement\.classList\.remove\("lumen-ui-handoff-frozen"\);/

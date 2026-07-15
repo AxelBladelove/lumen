@@ -133,6 +133,12 @@ committed -> settled`; mensajes atrasados, resizes o movimientos entre grupos
 de igual tamaño no alteran la secuencia. Si falta cualquier ack, la entrada
 falla cerrada y restaura el workspace.
 
+La API de VS Code no expone un fence de presentación del compositor externo.
+Por tanto, el protocolo garantiza que las superficies producidas por Chromium
+durante dos ciclos completos previos al movimiento son intro-free, pero la
+elección final de textura del workbench debe comprobarse empíricamente con
+captura frame a frame en VS Code real. La PR no sale de draft sin esa prueba.
+
 Si la URL contiene `lumenPerfHoldIntro`, el intro se mantiene para capturas de
 performance visual.
 

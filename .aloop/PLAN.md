@@ -9,7 +9,7 @@
 
 - [x] `T3` Implement, then hostile-review, the geometry latch. Size M, effort medium, deps T1/T2, parallel-ok false. Review proved that CSS cannot prevent VS Code from recomposing an already-submitted stale webview surface.
 - [x] `T4` Replace geometry authority with a token-correlated prepaint protocol: frozen intro-free route -> two safe paint opportunities -> host move -> next-render-frame landing -> settled ack. Size M, effort high, deps T3, parallel-ok false. Perf: 38 frontend contracts pass; frontend and extension compile.
-- [x] `T5` Extend transition contracts, accessibility cancellation, telemetry assertions, and architecture docs for protocol v5. Size S, effort low, deps T4, parallel-ok false.
+- [x] `T5` Extend transition contracts, executable frame-scheduler and group-move tests, accessibility cancellation, telemetry assertions, and architecture docs for protocol v5. Size S, effort low, deps T4, parallel-ok false. Perf: 45 frontend tests pass; no polling or per-frame steady-state work added.
 
 ## Milestone M3 — Proof and publication
 
