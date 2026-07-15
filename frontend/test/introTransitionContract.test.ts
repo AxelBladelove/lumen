@@ -168,5 +168,11 @@ describe("intro transition visual contract", () => {
     expect(appSvelte).toMatch(
       /document\.head\.append\(style\);[\s\S]*classList\.add\("lumen-layout-commit-enabled"\)/
     );
+    expect(appSvelte).toMatch(
+      /classList\.add\("lumen-layout-committed"\);\s*removeStaticIntro\(\);\s*beginUiZoomOutTelemetry\(\)/
+    );
+    expect(appSvelte).toMatch(
+      /removeStaticIntro\(\);\s*removeLayoutCommitVisualLatch\(\);\s*document\.documentElement\.classList\.remove\("lumen-layout-committed"\)/
+    );
   });
 });

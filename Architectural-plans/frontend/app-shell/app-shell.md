@@ -95,8 +95,10 @@ El intro se mantiene visible hasta que:
   Svelte con `display: none` y arranque `lumenUiZoomOut`; no espera un callback
   JavaScript. Después, el observer aplica
   `.lumen-layout-committed`, desmonta el DOM y conserva la regla hasta terminar
-  la animación. `lumen.layoutCommitted` sólo reevalúa la misma condición por si
-  el resize ocurrió durante los comandos del host.
+  la animación. Antes de retirar esa regla elimina también el nodo HTML estático
+  de forma idempotente, aunque su `requestAnimationFrame` original se hubiera
+  retrasado. `lumen.layoutCommitted` sólo reevalúa la misma condición por si el
+  resize ocurrió durante los comandos del host.
 
 El gesto posterior al 100% debe quedar por debajo de un segundo en el camino
 normal. No es una segunda espera ni un splash adicional: es el puente visual

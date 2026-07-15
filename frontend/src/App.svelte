@@ -326,6 +326,9 @@
     window.clearTimeout(uiZoomOutTimer);
     uiZoomOutTimer = 0;
     uiZoomOutStarted = false;
+    // El rAF que retiraba la cortina HTML puede haber sido throttled. El nodo
+    // debe desaparecer antes de soltar la regla que lo mantiene oculto.
+    removeStaticIntro();
     removeLayoutCommitVisualLatch();
     document.documentElement.classList.remove("lumen-layout-committed");
     performance.mark("lumen:ui-zoom-out-end");
@@ -426,6 +429,7 @@
     // estilo de esta geometría. Este callback sólo confirma y limpia el DOM.
     layoutCommitPhase = "committed";
     document.documentElement.classList.add("lumen-layout-committed");
+    removeStaticIntro();
     beginUiZoomOutTelemetry();
     stopLayoutCommitObservation();
     stopLayoutCommitObservation = () => {};
