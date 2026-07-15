@@ -158,7 +158,7 @@ export async function enterLumenMode(deps: LumenModeDeps) {
     // Prearmar durante la carga elimina un roundtrip posterior al punch-in. El
     // token liga todas las fases a esta entrada; un resize o mensaje atrasado
     // no puede consumir la transición de otra sesión.
-    panel.requestLayoutCommit();
+    const layoutTransitionToken = panel.requestLayoutCommit();
     const commitArmed = await panel.waitForLayoutCommitArmed(frontendLayoutCommitArmedTimeoutMs);
     if (!commitArmed) {
       throw new Error("Lumen frontend did not arm the layout commit in time");
@@ -197,11 +197,8 @@ export async function enterLumenMode(deps: LumenModeDeps) {
       throw new Error("Lumen layout commit lost its active transition token");
     }
 
-    const [revealed] = await Promise.all([
-      panel.waitForRevealed(frontendRevealTimeoutMs),
-      panel.waitForLayoutLock()
-    ]);
-    if (!revealed) {
+    const revealed = await panel.waitForRevealed(frontendRevealTimeoutMs);
+    if (!revealed || !panel.canActivateLayoutTransition(layoutTransitionToken)) {
       throw new Error("Lumen frontend did not commit the final layout in time");
     }
 

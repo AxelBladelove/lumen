@@ -16,3 +16,24 @@ export function isRightGroupMoveConfirmed(
   const isRightEdge = allColumns.every((column) => column <= targetColumn);
   return hasGroupToLeft && isRightEdge;
 }
+
+/**
+ * Ultima barrera sincrona antes de declarar activa una entrada. Las promesas
+ * del protocolo son single-assignment: un disposal posterior a `revealed`
+ * no puede cambiar su resultado, pero si invalida el token y el panel.
+ */
+export function isLayoutTransitionActivatable(
+  expectedToken: string,
+  activeToken: string | undefined,
+  panelExists: boolean,
+  preparationCompleted: boolean,
+  revealCompleted: boolean
+) {
+  return Boolean(
+    expectedToken &&
+      expectedToken === activeToken &&
+      panelExists &&
+      preparationCompleted &&
+      revealCompleted
+  );
+}

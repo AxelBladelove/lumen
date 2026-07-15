@@ -8,7 +8,10 @@ import {
 } from "./lumenWebviewContent";
 import { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
 import { LumenWebviewHost, type LumenModePhase } from "./lumenWebviewHost";
-import { isRightGroupMoveConfirmed } from "./lumenPanelLayout";
+import {
+  isLayoutTransitionActivatable,
+  isRightGroupMoveConfirmed
+} from "./lumenPanelLayout";
 
 const lumenPanelViewType = "lumen.routePathPanel";
 let layoutTransitionSequence = 0;
@@ -58,7 +61,7 @@ export class LumenPanelController {
   private layoutHandoffReached = false;
   private layoutPreparationRequested = false;
   private layoutPreparationCompleted = false;
-  private layoutLockPromise: Promise<void> = Promise.resolve();
+  private layoutRevealCompleted = false;
   private frontendIndexHtmlPromise: Promise<string | undefined>;
 
   constructor(
@@ -91,6 +94,7 @@ export class LumenPanelController {
       },
       onFrontendRevealed: (token) => {
         if (token !== this.activeLayoutToken || !this.layoutPreparationCompleted) return;
+        this.layoutRevealCompleted = true;
         this.revealedSignal.resolve();
       },
       perfViewType: LumenRoutePathViewProvider.viewType
@@ -140,7 +144,7 @@ export class LumenPanelController {
     this.layoutHandoffReached = false;
     this.layoutPreparationRequested = false;
     this.layoutPreparationCompleted = false;
-    this.layoutLockPromise = Promise.resolve();
+    this.layoutRevealCompleted = false;
     this.watchdogRebooted = false;
     this.clearLayoutHandoffTimer();
 
@@ -186,6 +190,7 @@ export class LumenPanelController {
           this.layoutHandoffReached = false;
           this.layoutPreparationRequested = false;
           this.layoutPreparationCompleted = false;
+          this.layoutRevealCompleted = false;
           this.readySignal.cancel();
           this.layoutHandoffSignal.cancel();
           this.layoutCommitArmedSignal.cancel();
@@ -227,11 +232,6 @@ export class LumenPanelController {
     return this.revealedSignal.wait(timeoutMs);
   }
 
-  /** El lock no es visual: puede completarse en paralelo con el zoom-out. */
-  waitForLayoutLock() {
-    return this.layoutLockPromise;
-  }
-
   /** Prearma el protocolo y asigna un token exclusivo a esta entrada. */
   requestLayoutCommit() {
     const token = `${Date.now().toString(36)}-${(++layoutTransitionSequence).toString(36)}`;
@@ -239,7 +239,20 @@ export class LumenPanelController {
     this.layoutHandoffReached = false;
     this.layoutPreparationRequested = false;
     this.layoutPreparationCompleted = false;
+    this.layoutRevealCompleted = false;
     this.host.postLayoutCommitRequested(token);
+    return token;
+  }
+
+  /** Revalida panel y generacion despues del ultimo await de la entrada. */
+  canActivateLayoutTransition(token: string) {
+    return isLayoutTransitionActivatable(
+      token,
+      this.activeLayoutToken,
+      Boolean(this.panel),
+      this.layoutPreparationCompleted,
+      this.layoutRevealCompleted
+    );
   }
 
   /** Ordena sustituir el intro por el frame seguro antes de mover el panel. */
@@ -307,7 +320,10 @@ export class LumenPanelController {
     );
     if (!panelGroup || !moveConfirmed || !revealSafely(panel)) return false;
     if (panelGroup.tabs.length === 1) {
-      this.layoutLockPromise = executeCommandSafely("workbench.action.lockEditorGroup");
+      // El lock no cambia ningun pixel del handoff y es best-effort. Mantenerlo
+      // fuera de la ruta de activacion evita que un comando de VS Code colgado
+      // congele una entrada visualmente ya terminada.
+      void executeCommandSafely("workbench.action.lockEditorGroup");
     }
     return true;
   }

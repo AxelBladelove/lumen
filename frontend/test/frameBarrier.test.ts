@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { scheduleAfterPaintOpportunities } from "../src/entry/frameBarrier";
-import { isRightGroupMoveConfirmed } from "../../extension/src/lumenPanelLayout";
+import {
+  isLayoutTransitionActivatable,
+  isRightGroupMoveConfirmed
+} from "../../extension/src/lumenPanelLayout";
 
 function createFrameScheduler() {
   let nextHandle = 1;
@@ -101,5 +104,20 @@ describe("right-group move verification", () => {
 
   test("rejects movement to a lower view column", () => {
     expect(isRightGroupMoveConfirmed(2, 1, [1, 2])).toBe(false);
+  });
+});
+
+describe("layout-transition activation barrier", () => {
+  test("accepts only the live revealed generation", () => {
+    expect(isLayoutTransitionActivatable("entry-2", "entry-2", true, true, true)).toBe(true);
+  });
+
+  test("rejects disposal after the reveal promise already resolved", () => {
+    expect(isLayoutTransitionActivatable("entry-2", undefined, false, false, false)).toBe(false);
+  });
+
+  test("rejects a replaced token and an unsettled reveal", () => {
+    expect(isLayoutTransitionActivatable("entry-1", "entry-2", true, true, true)).toBe(false);
+    expect(isLayoutTransitionActivatable("entry-2", "entry-2", true, true, false)).toBe(false);
   });
 });

@@ -208,6 +208,13 @@ describe("intro transition visual contract", () => {
     expect(extensionPanel).toMatch(
       /await vscode\.commands\.executeCommand\("workbench\.action\.moveEditorToRightGroup"\);/
     );
+    expect(extensionEntry).toMatch(
+      /const revealed = await panel\.waitForRevealed\(frontendRevealTimeoutMs\);\s*if \(!revealed \|\| !panel\.canActivateLayoutTransition\(layoutTransitionToken\)\)/
+    );
+    expect(extensionEntry).not.toContain("panel.waitForLayoutLock()");
+    expect(extensionPanel).toMatch(
+      /void executeCommandSafely\("workbench\.action\.lockEditorGroup"\);/
+    );
     expect(extensionPanel).toMatch(/this\.layoutHandoffPreparedSignal\.cancel\(\);/);
   });
 });

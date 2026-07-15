@@ -121,8 +121,10 @@ La segunda mitad se prepara antes del movimiento como una superficie congelada.
 recibe el ack post-paint; después del movimiento, el token de commit arma en el
 siguiente frame un landing de 160 ms hasta la escala real. El estado inicial de
 la preparación y el keyframe inicial son idénticos, por lo que no existe salto
-óptico. El lock
-del grupo se completa en paralelo con el landing y no añade una espera visual.
+óptico. El lock del grupo se lanza como trabajo best-effort en paralelo con el
+landing: no forma parte de la barrera de activación ni puede añadir una espera
+visual. Tras `frontend.revealed`, el host vuelve a comprobar el token y la vida
+del panel en el mismo turno en que activa la sesión.
 
 La invariante visual del commit es estricta: antes de mover el panel existe una
 superficie webview confirmada que no contiene ningún nodo del intro. Por ello el

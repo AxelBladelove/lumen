@@ -58,10 +58,14 @@ Esa secuencia:
   `frontend.layoutHandoffPrepared { token }` confirma esa preparación. Sólo
   después el host mueve el panel al grupo derecho (~1/3).
 - `lumen.layoutCommitted { token }` autoriza el zoom-out de 160 ms. El lock del
-  grupo, que no cambia la composición visual, se completa en paralelo.
-  `frontend.revealed` llega al asentarse el landing y permite marcar la sesión
-  como activa. Si falta cualquier señal o no coincide el token, la entrada
-  falla cerrada y restaura el workspace.
+  grupo, que no cambia la composición visual, se lanza en paralelo como
+  best-effort y nunca bloquea la activación.
+  `frontend.revealed` llega al asentarse el landing. Después del último `await`,
+  el host revalida sincrónicamente que siguen vivos el panel y la misma
+  generación preparada y revelada antes de marcar la sesión como activa. Un
+  disposal invalida esa generación incluso si la promesa de reveal ya se había
+  resuelto. Si falta cualquier señal o no coincide el token, la entrada falla
+  cerrada y restaura el workspace.
 - El resultado de `moveEditorToRightGroup` se verifica por columna: debe avanzar
   a la derecha o ya encontrarse en el borde derecho con otro grupo a la
   izquierda. Un comando resuelto como no-op no confirma por sí solo el layout.
