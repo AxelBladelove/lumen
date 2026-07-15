@@ -53,12 +53,14 @@ Esa secuencia:
   alargarlo a ~1 s. Así el layout ocurre durante la máxima velocidad del zoom.
 - Al cumplirse el delay, el host todavía NO mueve el panel: envía
   `lumen.layoutHandoffPrepare { token }`. El frontend reemplaza intro estático y
-  Svelte por la UI de ruta congelada en el inicio del landing y espera dos rAF.
-  `frontend.layoutHandoffPrepared { token }` confirma que esa superficie ya fue
-  pintada. Sólo después el host mueve el panel al grupo derecho (~1/3).
+  Svelte por la UI de ruta congelada en el inicio del landing y espera dos
+  oportunidades completas de pintura (tres callbacks rAF).
+  `frontend.layoutHandoffPrepared { token }` confirma esa preparación. Sólo
+  después el host mueve el panel al grupo derecho (~1/3).
 - `lumen.layoutCommitted { token }` autoriza el zoom-out de 160 ms. El lock del
   grupo, que no cambia la composición visual, se completa en paralelo.
-  `frontend.revealed` permite marcar la sesión como activa. Si falta cualquier
+  `frontend.revealed` llega al asentarse el landing y permite marcar la sesión
+  como activa. Si falta cualquier
   señal o no coincide el token, la entrada falla cerrada y restaura el workspace.
 - Envía `lumen.entry.state` a la webview al crear la entrada y después de cada
   `frontend.ready`.

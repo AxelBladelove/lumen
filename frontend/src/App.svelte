@@ -57,8 +57,8 @@
   const introRevealDurationMs = 280;
   const introFocusDurationMs = 180;
   // A 88 ms el punch-in ya cubre el lockup casi por completo. El host pide en
-  // ese punto el frame seguro y el doble rAF lo confirma alrededor del pico
-  // óptico, sin añadir un hold terminal a la transición.
+  // ese punto el frame seguro; dos oportunidades completas de presentación lo
+  // confirman alrededor del pico óptico, sin añadir un hold terminal.
   const introLayoutHandoffAtMs = 88;
   const introUiZoomOutDurationMs = 160;
 
@@ -71,6 +71,7 @@
     | "scheduled"
     | "preparing"
     | "safe"
+    | "committing"
     | "committed"
     | "settled";
   let layoutCommitPhase: LayoutCommitPhase = "idle";
@@ -79,6 +80,8 @@
   let layoutCommitSourceHeight = 0;
   let safeHandoffFrame = 0;
   let safeHandoffPaintFrame = 0;
+  let safeHandoffSubmitFrame = 0;
+  let landingStartFrame = 0;
   let uiZoomOutStarted = false;
 
   performance.mark("lumen:app-mounted");
@@ -253,9 +256,12 @@
   }
 
   function dismissIntroNow() {
-    // `active` llega después de `frontend.revealed`. Si el landing ya empezó,
-    // sus 160 ms siguen siendo dueños del estado visual.
-    if (layoutCommitPhase === "committed" || layoutCommitPhase === "settled") {
+    // `active` llega después de `frontend.revealed`, normalmente con el landing
+    // ya asentado. Estas ramas defensivas nunca reinician una transición viva.
+    if (layoutCommitPhase === "committing" || layoutCommitPhase === "committed") {
+      return;
+    }
+    if (layoutCommitPhase === "settled") {
       postRevealedOnce();
       return;
     }
@@ -300,8 +306,8 @@
   }
 
   // El Extension Host usa esta señal como confirmación final, después de haber
-  // colocado el split en `frontend.layoutHandoffReady`. Se emite cuando el
-  // intro terminó de ocultarse y la ruta ya es visible e interactiva.
+  // El Extension Host usa esta señal como confirmación terminal. En la ruta de
+  // extensión se emite al asentarse el landing, no al retirar la cortina.
   function postRevealedOnce() {
     if (revealedPosted) return;
     revealedPosted = true;
@@ -312,8 +318,12 @@
     resetUiZoomOut();
     cancelAnimationFrame(safeHandoffFrame);
     cancelAnimationFrame(safeHandoffPaintFrame);
+    cancelAnimationFrame(safeHandoffSubmitFrame);
+    cancelAnimationFrame(landingStartFrame);
     safeHandoffFrame = 0;
     safeHandoffPaintFrame = 0;
+    safeHandoffSubmitFrame = 0;
+    landingStartFrame = 0;
     layoutCommitPhase = "idle";
     layoutCommitToken = null;
     layoutCommitSourceWidth = 0;
@@ -352,6 +362,7 @@
       // La telemetría nunca puede bloquear el asentamiento visual.
     }
     window.dispatchEvent(new Event("lumen:entry-transition-settled"));
+    postRevealedOnce();
   }
 
   function beginUiZoomOutTelemetry() {
@@ -436,21 +447,40 @@
       safeHandoffPaintFrame = requestAnimationFrame(() => {
         safeHandoffPaintFrame = 0;
         if (token !== layoutCommitToken || layoutCommitPhase !== "preparing") return;
-        layoutCommitPhase = "safe";
-        performance.mark("lumen:layout-handoff-safe-frame-painted");
-        bridge.post({ type: "frontend.layoutHandoffPrepared", payload: { token } });
+        safeHandoffSubmitFrame = requestAnimationFrame(() => {
+          safeHandoffSubmitFrame = 0;
+          if (token !== layoutCommitToken || layoutCommitPhase !== "preparing") return;
+          layoutCommitPhase = "safe";
+          performance.mark("lumen:layout-handoff-safe-frame-painted");
+          bridge.post({ type: "frontend.layoutHandoffPrepared", payload: { token } });
+        });
       });
     });
   }
 
   function commitPreparedLayout(token: string) {
     if (token !== layoutCommitToken) return;
-    if (layoutCommitPhase === "committed" || layoutCommitPhase === "settled") {
+    if (layoutCommitPhase === "settled") {
       postRevealedOnce();
       return;
     }
+    if (layoutCommitPhase === "committing" || layoutCommitPhase === "committed") return;
     if (layoutCommitPhase !== "safe") return;
 
+    // La promesa del comando de VS Code no es un evento de presentación. La
+    // ruta permanece congelada hasta el siguiente frame propio del renderer;
+    // sólo ahí se arma el landing, evitando iniciarlo durante el mismo task del
+    // mensaje de commit.
+    layoutCommitPhase = "committing";
+    landingStartFrame = requestAnimationFrame(() => {
+      landingStartFrame = 0;
+      if (token !== layoutCommitToken || layoutCommitPhase !== "committing") return;
+      beginCommittedLayout(token);
+    });
+  }
+
+  function beginCommittedLayout(token: string) {
+    if (token !== layoutCommitToken || layoutCommitPhase !== "committing") return;
     const geometryChanged = hasLayoutCommitGeometryChanged(
       { width: layoutCommitSourceWidth, height: layoutCommitSourceHeight },
       { width: window.innerWidth, height: window.innerHeight }
@@ -481,7 +511,6 @@
       // Métricas best-effort; el contrato visual ya está confirmado por token.
     }
     window.dispatchEvent(new Event("lumen:entry-transition-committed"));
-    postRevealedOnce();
     if (reduceMotion) settleUiZoomOut();
   }
 

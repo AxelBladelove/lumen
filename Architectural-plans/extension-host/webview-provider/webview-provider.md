@@ -125,10 +125,10 @@ lumen.layoutCommitRequested { token } -> frontend.layoutCommitArmed { token }
 barra 100 -> zoom-in fullscreen al wordmark
 frontend.layoutHandoffReady { delayMs: 88, token } -> reloj del Extension Host
 delay cumplido -> lumen.layoutHandoffPrepare { token }
-doble rAF intro-free -> frontend.layoutHandoffPrepared { token }
+dos pinturas intro-free -> frontend.layoutHandoffPrepared { token }
 mover panel al grupo derecho; iniciar lock no visual
 lumen.layoutCommitted { token } -> zoom-out de la UI final
-frontend.revealed -> la extension marca la sesion activa
+landing asentado -> frontend.revealed -> la extension marca la sesion activa
 ```
 
 ## Perf Report

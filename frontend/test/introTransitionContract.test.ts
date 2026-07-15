@@ -168,7 +168,7 @@ describe("intro transition visual contract", () => {
       /schedule\("entry-transition-settled", 0\)/
     );
     expect(appSvelte).toMatch(
-      /if \(layoutCommitPhase === "committed" \|\| layoutCommitPhase === "settled"\) \{\s*postRevealedOnce\(\);\s*return;/
+      /window\.dispatchEvent\(new Event\("lumen:entry-transition-settled"\)\);\s*postRevealedOnce\(\);/
     );
   });
 
@@ -177,7 +177,7 @@ describe("intro transition visual contract", () => {
       /classList\.add\("lumen-ui-handoff-frozen"\);\s*removeStaticIntro\(\);\s*introVisible = false;[\s\S]*await tick\(\);/
     );
     expect(appSvelte).toMatch(
-      /safeHandoffFrame = requestAnimationFrame\(\(\) => \{[\s\S]*safeHandoffPaintFrame = requestAnimationFrame\(\(\) => \{[\s\S]*type: "frontend\.layoutHandoffPrepared"/
+      /safeHandoffFrame = requestAnimationFrame\(\(\) => \{[\s\S]*safeHandoffPaintFrame = requestAnimationFrame\(\(\) => \{[\s\S]*safeHandoffSubmitFrame = requestAnimationFrame\(\(\) => \{[\s\S]*type: "frontend\.layoutHandoffPrepared"/
     );
     expect(appSvelte).toMatch(
       /if \(!reduceMotion\) document\.documentElement\.classList\.add\("lumen-ui-entering"\);\s*document\.documentElement\.classList\.remove\("lumen-ui-handoff-frozen"\);/
@@ -199,5 +199,12 @@ describe("intro transition visual contract", () => {
     expect(extensionPanel).toMatch(
       /onFrontendRevealed: \(token\) => \{\s*if \(token !== this\.activeLayoutToken \|\| !this\.layoutPreparationCompleted\) return;/
     );
+    expect(extensionEntry).toMatch(
+      /const layoutMoved = await panel\.moveAsideAndLock\(\);\s*if \(!layoutMoved\) \{\s*throw new Error/
+    );
+    expect(extensionPanel).toMatch(
+      /await vscode\.commands\.executeCommand\("workbench\.action\.moveEditorToRightGroup"\);/
+    );
+    expect(extensionPanel).toMatch(/this\.layoutHandoffPreparedSignal\.cancel\(\);/);
   });
 });

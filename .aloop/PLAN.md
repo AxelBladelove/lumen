@@ -8,7 +8,7 @@
 ## Milestone M2 — Deterministic handoff
 
 - [x] `T3` Implement, then hostile-review, the geometry latch. Size M, effort medium, deps T1/T2, parallel-ok false. Review proved that CSS cannot prevent VS Code from recomposing an already-submitted stale webview surface.
-- [x] `T4` Replace geometry authority with a token-correlated prepaint protocol: frozen intro-free route -> double-rAF ack -> host move -> explicit landing commit. Size M, effort high, deps T3, parallel-ok false. Perf: 38 frontend contracts pass; frontend and extension compile.
+- [x] `T4` Replace geometry authority with a token-correlated prepaint protocol: frozen intro-free route -> two safe paint opportunities -> host move -> next-render-frame landing -> settled ack. Size M, effort high, deps T3, parallel-ok false. Perf: 38 frontend contracts pass; frontend and extension compile.
 - [x] `T5` Extend transition contracts, accessibility cancellation, telemetry assertions, and architecture docs for protocol v5. Size S, effort low, deps T4, parallel-ok false.
 
 ## Milestone M3 — Proof and publication

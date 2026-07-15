@@ -173,8 +173,9 @@ export async function enterLumenMode(deps: LumenModeDeps) {
     }
 
     // Antes del único cambio de layout, sustituir la cortina por el primer frame
-    // congelado del landing y exigir dos rAF. Si el workbench reutiliza una
-    // textura vieja al recomponer, esa textura ya es intro-free.
+    // congelado del landing y exigir dos oportunidades completas de pintura.
+    // Si el workbench reutiliza una textura vieja al recomponer, esa textura ya
+    // es intro-free.
     if (!panel.requestLayoutHandoffPreparation()) {
       throw new Error("Lumen layout handoff has no active transition token");
     }
@@ -186,7 +187,10 @@ export async function enterLumenMode(deps: LumenModeDeps) {
     }
 
     // Único cambio de layout de toda la entrada.
-    await panel.moveAsideAndLock();
+    const layoutMoved = await panel.moveAsideAndLock();
+    if (!layoutMoved) {
+      throw new Error("Lumen could not confirm the final editor layout");
+    }
 
     // El token de commit es la única autorización para arrancar el zoom-out.
     if (!panel.confirmLayoutCommitted()) {

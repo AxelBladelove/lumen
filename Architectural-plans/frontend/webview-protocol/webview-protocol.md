@@ -248,16 +248,18 @@ inmediatamente después de `frontend.ready`, no después del punch-in.
 
 Ordena al frontend preparar la superficie segura asociada al token. En el mismo
 task se aplica `.lumen-ui-handoff-frozen`, se retiran intro estático y Svelte y
-se espera una barrera de doble rAF. La respuesta obligatoria es
+se esperan dos oportunidades completas de pintura mediante tres callbacks rAF.
+La respuesta obligatoria es
 `frontend.layoutHandoffPrepared { token }`. Este mensaje no mueve el panel ni
 arranca todavía el zoom-out.
 
 ### `lumen.layoutCommitted`
 
 Confirma que el host terminó el layout final. Sólo se acepta desde el estado
-`safe` y con el token activo. El frontend cambia en un mismo task de
-`.lumen-ui-handoff-frozen` a `.lumen-ui-entering`, inicia el zoom-out de 160 ms
-y emite `frontend.revealed`. La geometría no es una precondición: esto cubre
+`safe` y con el token activo. El frontend conserva
+`.lumen-ui-handoff-frozen` hasta el siguiente frame del renderer, lo cambia por
+`.lumen-ui-entering` e inicia el zoom-out de 160 ms. `frontend.revealed` se
+emite al asentarse el landing. La geometría no es una precondición: esto cubre
 movimientos entre grupos del mismo tamaño.
 
 ### `route.module.snapshot`

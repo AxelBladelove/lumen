@@ -94,15 +94,16 @@ El intro se mantiene visible hasta que:
   handoff en el reloj del Extension Host;
 - al cumplirse el delay, el host envía `lumen.layoutHandoffPrepare { token }`.
   El frontend aplica `.lumen-ui-handoff-frozen`, retira de forma síncrona tanto
-  el intro HTML como el de Svelte y espera dos `requestAnimationFrame`. El
-  segundo callback prueba que la superficie intro-free ya atravesó un paint;
-  entonces emite `frontend.layoutHandoffPrepared { token }`;
+  el intro HTML como el de Svelte y encadena tres `requestAnimationFrame`. El
+  ack sale en el tercero, después de dos oportunidades completas de pintura
+  intro-free; entonces emite `frontend.layoutHandoffPrepared { token }`;
 - el host mueve el panel únicamente después de esa confirmación. Cualquier
   textura atrasada que el compositor reutilice ya contiene la ruta válida en el
-  primer frame del landing. `lumen.layoutCommitted { token }` intercambia la
-  clase frozen por `.lumen-ui-entering` en el mismo task y arranca el zoom-out.
-  La geometría se mide sólo para telemetría: ni un resize arbitrario ni la falta
-  de resize gobiernan el estado visual.
+  primer frame del landing. `lumen.layoutCommitted { token }` conserva frozen
+  hasta el siguiente frame del renderer y sólo allí lo intercambia por
+  `.lumen-ui-entering`. `frontend.revealed` se emite al asentarse los 160 ms. La
+  geometría se mide sólo para telemetría: ni un resize arbitrario ni la falta de
+  resize gobiernan el estado visual.
 
 El gesto posterior al 100% debe quedar por debajo de un segundo en el camino
 normal. No es una segunda espera ni un splash adicional: es el puente visual
@@ -117,19 +118,20 @@ La curva acelera de forma exponencial y no tiene asentamiento antes del commit.
 
 La segunda mitad se prepara antes del movimiento como una superficie congelada.
 `.lumen-route-app` ya está en `opacity: 0.86` y `scale(1.11)` cuando el host
-recibe el ack post-paint; después del movimiento, el token de commit inicia un
-landing de 160 ms hasta la escala real. El estado inicial de la preparación y
-el keyframe inicial son idénticos, por lo que no existe salto óptico. El lock
+recibe el ack post-paint; después del movimiento, el token de commit arma en el
+siguiente frame un landing de 160 ms hasta la escala real. El estado inicial de
+la preparación y el keyframe inicial son idénticos, por lo que no existe salto
+óptico. El lock
 del grupo se completa en paralelo con el landing y no añade una espera visual.
 
 La invariante visual del commit es estricta: antes de mover el panel existe una
 superficie webview confirmada que no contiene ningún nodo del intro. Por ello el
 split final nunca puede coincidir con el lockup ampliado, aunque el workbench
 recomponga una textura anterior a la confirmación del host. Sólo el mismo token
-puede avanzar `armed -> scheduled -> preparing -> safe -> committed`; mensajes
-atrasados, resizes o movimientos entre grupos de igual tamaño no alteran la
-secuencia. Si falta cualquier ack, la entrada falla cerrada y restaura el
-workspace.
+puede avanzar `armed -> scheduled -> preparing -> safe -> committing ->
+committed -> settled`; mensajes atrasados, resizes o movimientos entre grupos
+de igual tamaño no alteran la secuencia. Si falta cualquier ack, la entrada
+falla cerrada y restaura el workspace.
 
 Si la URL contiene `lumenPerfHoldIntro`, el intro se mantiene para capturas de
 performance visual.

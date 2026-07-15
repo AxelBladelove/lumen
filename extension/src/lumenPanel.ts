@@ -179,7 +179,18 @@ export class LumenPanelController {
           }
         }
         this.panelDisposables = [];
-        if (this.panel === panel) this.panel = undefined;
+        if (this.panel === panel) {
+          this.panel = undefined;
+          this.activeLayoutToken = undefined;
+          this.layoutHandoffReached = false;
+          this.layoutPreparationRequested = false;
+          this.layoutPreparationCompleted = false;
+          this.readySignal.cancel();
+          this.layoutHandoffSignal.cancel();
+          this.layoutCommitArmedSignal.cancel();
+          this.layoutHandoffPreparedSignal.cancel();
+          this.revealedSignal.cancel();
+        }
         if (!this.disposingForExit) this.onPanelClosed();
       },
       undefined,
@@ -264,19 +275,19 @@ export class LumenPanelController {
    */
   async moveAsideAndLock() {
     const panel = this.panel;
-    if (!panel || !revealSafely(panel)) return;
+    if (!panel || !revealSafely(panel)) return false;
 
-    await executeCommandSafely("workbench.action.moveEditorToRightGroup");
+    // El movimiento y la proporción son visualmente autoritativos: si fallan,
+    // la entrada debe restaurarse en vez de confirmar una UI fullscreen.
+    await vscode.commands.executeCommand("workbench.action.moveEditorToRightGroup");
 
     // Con mas de dos grupos (el usuario ya tenia splits) se respeta su layout
     // y solo se omite la proporcion fija; el sash sigue siendo ajustable.
     if (vscode.window.tabGroups.all.length === 2) {
-      await vscode.commands
-        .executeCommand("vscode.setEditorLayout", {
-          orientation: 0,
-          groups: [{ size: 0.67 }, { size: 0.33 }]
-        })
-        .then(undefined, () => undefined);
+      await vscode.commands.executeCommand("vscode.setEditorLayout", {
+        orientation: 0,
+        groups: [{ size: 0.67 }, { size: 0.33 }]
+      });
     }
 
     // Bloquear solo si el panel esta solo en su grupo: si comparte grupo con
@@ -284,10 +295,11 @@ export class LumenPanelController {
     const panelGroup = vscode.window.tabGroups.all.find((group) =>
       group.tabs.some((tab) => tab.input instanceof vscode.TabInputWebview && tab.input.viewType.includes(lumenPanelViewType))
     );
-    if (panelGroup && panelGroup.tabs.length === 1) {
-      if (!revealSafely(panel)) return;
+    if (!panelGroup || !revealSafely(panel)) return false;
+    if (panelGroup.tabs.length === 1) {
       this.layoutLockPromise = executeCommandSafely("workbench.action.lockEditorGroup");
     }
+    return true;
   }
 
   /** Revelar el panel existente sin tocar proporciones del layout. */
@@ -383,30 +395,34 @@ export class LumenPanelController {
 }
 
 function createSignal() {
-  let resolved = false;
-  let resolveFn: (() => void) | undefined;
-  const promise = new Promise<void>((resolve) => {
-    resolveFn = () => {
-      resolved = true;
-      resolve();
+  let settledResult: boolean | undefined;
+  let settleFn: ((value: boolean) => void) | undefined;
+  const promise = new Promise<boolean>((resolve) => {
+    settleFn = (value) => {
+      if (settledResult !== undefined) return;
+      settledResult = value;
+      resolve(value);
     };
   });
 
   return {
     resolve() {
-      resolveFn?.();
+      settleFn?.(true);
+    },
+    cancel() {
+      settleFn?.(false);
     },
     async wait(timeoutMs: number) {
-      if (resolved) return true;
+      if (settledResult !== undefined) return settledResult;
       let timer: ReturnType<typeof setTimeout> | undefined;
-      const result = await Promise.race([
-        promise.then(() => true),
+      const waitResult = await Promise.race([
+        promise,
         new Promise<boolean>((resolve) => {
           timer = setTimeout(() => resolve(false), timeoutMs);
         })
       ]);
       if (timer) clearTimeout(timer);
-      return result;
+      return waitResult;
     }
   };
 }
