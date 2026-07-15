@@ -9,9 +9,9 @@
 
 - [x] `T3` Implement, then hostile-review, the geometry latch. Size M, effort medium, deps T1/T2, parallel-ok false. Review proved that CSS cannot prevent VS Code from recomposing an already-submitted stale webview surface.
 - [x] `T4` Replace geometry authority with a token-correlated prepaint protocol: frozen intro-free route -> two safe paint opportunities -> host move -> next-render-frame landing -> settled ack. Size M, effort high, deps T3, parallel-ok false. Perf: 38 frontend contracts pass; frontend and extension compile.
-- [x] `T5` Extend transition contracts, executable frame-scheduler and group-move tests, accessibility cancellation, telemetry assertions, and architecture docs for protocol v5. Size S, effort low, deps T4, parallel-ok false. Perf: 45 frontend tests pass; no polling or per-frame steady-state work added.
+- [x] `T5` Extend transition contracts, executable frame-scheduler and group-move tests, accessibility cancellation, telemetry assertions, and architecture docs for protocol v5. Size S, effort low, deps T4, parallel-ok false. Perf: 48 frontend tests and 160 expectations pass; no polling or per-frame steady-state work added.
 
 ## Milestone M3 — Proof and publication
 
-- [ ] `T6` Build, package, install, and validate repeated cold/warm entries in real VS Code. Size M, effort medium, deps T4/T5, parallel-ok false. Perf: record animation and timing evidence. Blocked only while the Windows session remains locked.
-- [ ] `T7` Update the existing draft PR, re-run independent review, inspect thread-aware GitHub feedback, and address every actionable finding. Size S, effort low, deps T6, parallel-ok false.
+- [x] `T6` Build, package, install, and validate repeated cold/warm entries in real VS Code. Size M, effort medium, deps T4/T5, parallel-ok false. Perf: 18 dense warm-entry captures plus 20 dense cold-entry captures sampled the critical split handoff; every recomposed surface contained the intro-free route and none contained the maximally zoomed logo or wordmark. A clean Extension Host reload was required after the in-place local install to discard preloaded HTML referencing obsolete asset hashes.
+- [x] `T7` Update PR #2, re-run independent hostile review, inspect thread-aware GitHub feedback, and address every actionable finding. Size S, effort low, deps T6, parallel-ok false. Review verdict: ACCEPT at code HEAD `71ee904`; no P0-P3 findings and no review threads or actionable comments. The only failing remote check is the documented preexisting CI dependency-install issue also reproducible on `master`.
