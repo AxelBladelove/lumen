@@ -43,7 +43,7 @@ ya estabilizado.
 - prearma el ciclo al recibir `lumen.layoutCommitRequested { token }`, sin
   habilitar todavía el reveal;
 - al terminar la barra hace el punch-in al isotipo a pantalla completa y emite
-  `frontend.layoutHandoffReady { delayMs: 88, token }`; el reloj vive en el
+  `frontend.layoutHandoffReady { delayMs: 58, token }`; el reloj vive en el
   Extension Host;
 - al recibir `lumen.layoutHandoffPrepare { token }`, sustituye ambas cortinas
   por la ruta congelada en `scale(1.11)`, espera dos frames y responde
@@ -80,17 +80,17 @@ El intro se mantiene visible hasta que:
 - los assets de marca estan listos o vence un fallback corto;
 - la ruta marca `lumen:route-visual-complete`;
 - la barra visual de progreso completa su animacion;
-- un punch-in breve (180 ms) parte del lockup completo, toma como origen el
-  centro óptico del isotipo y atraviesa el logo hasta `scale(48)`; el wordmark
+- un punch-in breve (120 ms) parte del lockup completo, toma como origen el
+  centro óptico del isotipo y atraviesa el logo hasta `scale(50)`; el wordmark
   sale del viewport por geometría, no por un fade independiente, y el frame
   final queda cubierto por el azul interior de la propia marca. El isotipo
   pierde opacidad al ganar velocidad para que el último tramo se lea como
   arrastre, no como una ampliación nítida. El impacto óptico se concentra antes
-  del handoff: entre 32% y 48% las copias RGB se separan hasta 13.5/14 px, el
-  lockup se comprime y estira horizontalmente con skew alterno, el blur alcanza
-  3.4 px y un destello espectral cruza el centro del isotipo. Un shake
-  amortiguado de hasta 5.2 px acompaña ese pico; todos los efectos desaparecen
-  antes del estado final;
+  del handoff: entre 30% y 46% las copias RGB se separan mediante transforms que
+  heredan el zoom del lockup, éste se comprime y estira horizontalmente con skew
+  alterno, el blur local alcanza 1.4 px y un destello espectral cruza el centro
+  del isotipo. Un shake amortiguado de hasta 3.4 px acompaña ese pico; todos los
+  efectos desaparecen antes del estado final;
 - si corre dentro del Extension Host, recibe `lumen.layoutCommitRequested`
   durante la carga, conserva su token y responde
   `frontend.layoutCommitArmed { token }`; al arrancar el punch-in agenda el
@@ -104,7 +104,7 @@ El intro se mantiene visible hasta que:
   textura atrasada que el compositor reutilice ya contiene la ruta válida en el
   primer frame del landing. `lumen.layoutCommitted { token }` conserva frozen
   hasta el siguiente frame del renderer y sólo allí lo intercambia por
-  `.lumen-ui-entering`. `frontend.revealed` se emite al asentarse los 160 ms. La
+  `.lumen-ui-entering`. `frontend.revealed` se emite al asentarse los 120 ms. La
   geometría se mide sólo para telemetría: ni un resize arbitrario ni la falta de
   resize gobiernan el estado visual.
 
@@ -115,16 +115,17 @@ entre los dos layouts.
 El movimiento estructural sigue siendo compositor-first (`transform` y
 `opacity`). Los efectos ópticos son capas efímeras aisladas: dos duplicados del
 lockup con separación rojo/cian y `mix-blend-mode: screen`, un destello
-espectral de dos píxeles, más blur/saturación/deformación del lockup y de la
-atmósfera. El fondo completo sólo recibe un shake de pocos píxeles sobre
-`scale(1.018)`, de modo que nunca expone los bordes del viewport. El pico ocurre
-antes del 49% porque a los 88 ms el protocolo puede retirar el intro para pintar
-la superficie segura. La curva acelera sin asentamiento antes del commit.
+espectral de un píxel y blur/deformación únicamente sobre la marca. La atmósfera
+y el fondo se limitan a `transform` y `opacity`; el fondo completo recibe un
+shake de pocos píxeles sobre `scale(1.012)`, de modo que nunca expone los bordes
+del viewport. El pico ocurre antes del 49% porque a los 58 ms el protocolo puede
+retirar el intro para pintar la superficie segura. La curva acelera sin
+asentamiento antes del commit.
 
 La segunda mitad se prepara antes del movimiento como una superficie congelada.
 `.lumen-route-app` ya está en `opacity: 0.86` y `scale(1.11)` cuando el host
 recibe el ack post-paint; después del movimiento, el token de commit arma en el
-siguiente frame un landing de 160 ms hasta la escala real. El estado inicial de
+siguiente frame un landing de 120 ms hasta la escala real. El estado inicial de
 la preparación y el keyframe inicial son idénticos, por lo que no existe salto
 óptico. El lock del grupo se lanza como trabajo best-effort en paralelo con el
 landing: no forma parte de la barrera de activación ni puede añadir una espera

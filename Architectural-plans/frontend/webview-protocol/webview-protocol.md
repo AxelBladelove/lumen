@@ -62,7 +62,7 @@ cumplirse todavía no mueve el panel: primero solicita la superficie segura.
 Payload actual:
 
 ```txt
-delayMs = 88
+delayMs = 58
 token: string
 ```
 
@@ -258,7 +258,7 @@ arranca todavía el zoom-out.
 Confirma que el host terminó el layout final. Sólo se acepta desde el estado
 `safe` y con el token activo. El frontend conserva
 `.lumen-ui-handoff-frozen` hasta el siguiente frame del renderer, lo cambia por
-`.lumen-ui-entering` e inicia el zoom-out de 160 ms. `frontend.revealed` se
+`.lumen-ui-entering` e inicia el zoom-out de 120 ms. `frontend.revealed` se
 emite al asentarse el landing. La geometría no es una precondición: esto cubre
 movimientos entre grupos del mismo tamaño.
 

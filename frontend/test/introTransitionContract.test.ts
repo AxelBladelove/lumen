@@ -68,22 +68,30 @@ describe("intro transition visual contract", () => {
   test("uses a fast full zoom with optical velocity effects", () => {
     const { css } = focusKeyframes();
 
-    expect(appCss).toMatch(/--lumen-intro-focus-duration:\s*180ms/);
+    expect(appCss).toMatch(/--lumen-intro-focus-duration:\s*120ms/);
     expect(appCss).toMatch(
       /lumenIntroMarkFocus var\(--lumen-intro-focus-duration\) linear both/
     );
-    expect(css).toMatch(/47%[\s\S]*skewX\(-2\.8deg\)/);
+    expect(css).toMatch(/46%[\s\S]*skewX\(-2\.8deg\)[\s\S]*scale\(30\)/);
     expect(appCss).toMatch(/transform-origin:\s*50% 30\.25%/);
-    expect(css).toMatch(/8%[\s\S]*scale\(1\.018\)/);
-    expect(css).toMatch(/56%[\s\S]*scale\(48\)/);
+    expect(css).toMatch(/10%[\s\S]*scale\(1\.018\)/);
+    expect(css).toMatch(/58%[\s\S]*scale\(50\)/);
     expect(css).toMatch(/100%[\s\S]*scale\(56\)/);
-    expect(appCss).toMatch(/@keyframes lumenIntroOpticalSmear[\s\S]*48%[\s\S]*blur\(3\.4px\)/);
-    expect(appCss).toMatch(/@keyframes lumenIntroChromaticRed[\s\S]*hue-rotate\(302deg\)/);
-    expect(appCss).toMatch(/@keyframes lumenIntroChromaticCyan[\s\S]*hue-rotate\(128deg\)/);
-    expect(appCss).toMatch(/@keyframes lumenIntroChromaticRed[\s\S]*46%[\s\S]*translate3d\(-13\.5px, 2px, 0\)/);
-    expect(appCss).toMatch(/@keyframes lumenIntroChromaticCyan[\s\S]*46%[\s\S]*translate3d\(14px, -2\.1px, 0\)/);
-    expect(appCss).toMatch(/@keyframes lumenIntroImpactShake[\s\S]*47%[\s\S]*translate3d\(-5\.2px, 2\.4px, 0\)/);
-    expect(appCss).toMatch(/@keyframes lumenIntroSpectralStreak[\s\S]*45%[\s\S]*opacity:\s*0\.42/);
+    expect(appCss).toMatch(/@keyframes lumenIntroOpticalSmear[\s\S]*46%[\s\S]*blur\(1\.4px\)/);
+    expect(appCss).toMatch(/\.lumen-intro-chromatic-red\s*\{[\s\S]*hue-rotate\(302deg\)/);
+    expect(appCss).toMatch(/\.lumen-intro-chromatic-cyan\s*\{[\s\S]*hue-rotate\(128deg\)/);
+    expect(appCss).toMatch(/@keyframes lumenIntroChromaticRed[\s\S]*45%[\s\S]*translate3d\(-1\.9px, 0\.4px, 0\)/);
+    expect(appCss).toMatch(/@keyframes lumenIntroChromaticCyan[\s\S]*45%[\s\S]*translate3d\(2px, -0\.4px, 0\)/);
+    expect(appCss).toMatch(/@keyframes lumenIntroImpactShake[\s\S]*47%[\s\S]*translate3d\(-3\.4px, 1\.6px, 0\)/);
+    expect(appCss).toMatch(/@keyframes lumenIntroSpectralStreak[\s\S]*45%[\s\S]*opacity:\s*0\.5/);
+    const redStart = appCss.indexOf("@keyframes lumenIntroChromaticRed");
+    const cyanStart = appCss.indexOf("@keyframes lumenIntroChromaticCyan", redStart);
+    const shakeStart = appCss.indexOf("@keyframes lumenIntroImpactShake", cyanStart);
+    const atmosphereStart = appCss.indexOf("@keyframes lumenIntroAtmosphereFocus", shakeStart);
+    const vignetteStart = appCss.indexOf("@keyframes lumenIntroVignetteFocus", atmosphereStart);
+    expect(appCss.slice(redStart, cyanStart)).not.toContain("filter:");
+    expect(appCss.slice(cyanStart, shakeStart)).not.toContain("filter:");
+    expect(appCss.slice(atmosphereStart, vignetteStart)).not.toContain("filter:");
     expect(appSvelte).toMatch(/lumen-intro-chromatic-red/);
     expect(appSvelte).toMatch(/lumen-intro-chromatic-cyan/);
   });
@@ -96,7 +104,7 @@ describe("intro transition visual contract", () => {
       /\.lumen-ui-handoff-frozen \.lumen-route-app\s*\{[\s\S]*opacity:\s*0\.86;[\s\S]*scale\(1\.11\)/
     );
     expect(appCss).toMatch(
-      /\.lumen-ui-entering \.lumen-route-app\s*\{[\s\S]*animation:\s*lumenUiZoomOut 160ms/
+      /\.lumen-ui-entering \.lumen-route-app\s*\{[\s\S]*animation:\s*lumenUiZoomOut 120ms/
     );
     expect(appSvelte).toMatch(
       /on:animationstart=\{handleUiZoomOutAnimationStart\}[\s\S]*on:animationend=\{handleUiZoomOutAnimationEnd\}[\s\S]*on:animationcancel=\{handleUiZoomOutAnimationCancel\}/
@@ -104,7 +112,7 @@ describe("intro transition visual contract", () => {
   });
 
   test("prepaints a token-correlated safe frame before VS Code moves the panel", () => {
-    expect(appSvelte).toMatch(/const introLayoutHandoffAtMs = 88;/);
+    expect(appSvelte).toMatch(/const introLayoutHandoffAtMs = 58;/);
     expect(appSvelte).toMatch(
       /type LayoutCommitPhase =[\s\S]*"armed"[\s\S]*"preparing"[\s\S]*"safe"[\s\S]*"committed"[\s\S]*"settled";/
     );

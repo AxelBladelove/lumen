@@ -56,12 +56,12 @@
   const introStableFrameDelayMs = 120;
   const introStableFrameBudgetMs = 26;
   const introRevealDurationMs = 280;
-  const introFocusDurationMs = 180;
-  // A 88 ms el punch-in ya cubre el lockup casi por completo. El host pide en
+  const introFocusDurationMs = 120;
+  // A 58 ms el punch-in ya cubre el lockup casi por completo. El host pide en
   // ese punto el frame seguro; dos oportunidades completas de presentación lo
   // confirman alrededor del pico óptico, sin añadir un hold terminal.
-  const introLayoutHandoffAtMs = 88;
-  const introUiZoomOutDurationMs = 160;
+  const introLayoutHandoffAtMs = 58;
+  const introUiZoomOutDurationMs = 120;
 
   // Protocolo de superficie segura: antes del movimiento de VS Code se pinta
   // la ruta congelada en el inicio exacto del landing. El token hace que sólo

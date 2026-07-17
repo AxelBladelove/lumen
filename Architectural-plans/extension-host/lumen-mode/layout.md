@@ -20,7 +20,7 @@ determinista). La UI real de Lumen se crea como `WebviewPanel` de editor
   cortina estática cubre el boot — y, al recibir `frontend.ready`, el host prearma
   el ciclo con un token mediante `lumen.layoutCommitRequested` /
   `frontend.layoutCommitArmed`. Al arrancar el punch-in fullscreen, el frontend
-  reporta `frontend.layoutHandoffReady` con un delay de 88 ms. El Extension Host
+  reporta `frontend.layoutHandoffReady` con un delay de 58 ms. El Extension Host
   —no el iframe— cronometra ese delay y pide una superficie segura. La ruta
   reemplaza el intro, se congela en `scale(1.11)` y atraviesa una pintura antes
   de `frontend.layoutHandoffPrepared`. Sólo entonces se mueve el panel. Así,

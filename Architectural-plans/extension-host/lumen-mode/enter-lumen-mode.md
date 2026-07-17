@@ -47,7 +47,7 @@ Esa secuencia:
   `frontend.layoutCommitArmed { token }` mientras la carga continúa.
 - Al llegar a 100, la barra y el porcentaje salen mientras el isotipo hace un
   punch-in rápido todavía A PANTALLA COMPLETA. En ese mismo turno el frontend
-  agenda el ciclo y emite `frontend.layoutHandoffReady` con `delayMs: 88` y el
+  agenda el ciclo y emite `frontend.layoutHandoffReady` con `delayMs: 58` y el
   mismo token. El reloj se cumple en el
   Extension Host, fuera del iframe, para que el throttling de Chromium no pueda
   alargarlo a ~1 s. Así el layout ocurre durante la máxima velocidad del zoom.
@@ -57,7 +57,7 @@ Esa secuencia:
   oportunidades completas de pintura (tres callbacks rAF).
   `frontend.layoutHandoffPrepared { token }` confirma esa preparación. Sólo
   después el host mueve el panel al grupo derecho (~1/3).
-- `lumen.layoutCommitted { token }` autoriza el zoom-out de 160 ms. El lock del
+- `lumen.layoutCommitted { token }` autoriza el zoom-out de 120 ms. El lock del
   grupo, que no cambia la composición visual, se lanza en paralelo como
   best-effort y nunca bloquea la activación.
   `frontend.revealed` llega al asentarse el landing. Después del último `await`,

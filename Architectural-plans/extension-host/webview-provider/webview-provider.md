@@ -123,7 +123,7 @@ El handshake de entrada actual es:
 frontend.ready -> extension.ready + estado/fase
 lumen.layoutCommitRequested { token } -> frontend.layoutCommitArmed { token }
 barra 100 -> zoom-in fullscreen al wordmark
-frontend.layoutHandoffReady { delayMs: 88, token } -> reloj del Extension Host
+frontend.layoutHandoffReady { delayMs: 58, token } -> reloj del Extension Host
 delay cumplido -> lumen.layoutHandoffPrepare { token }
 dos pinturas intro-free -> frontend.layoutHandoffPrepared { token }
 mover panel al grupo derecho; iniciar lock no visual
