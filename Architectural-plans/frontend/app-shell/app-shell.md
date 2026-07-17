@@ -85,9 +85,12 @@ El intro se mantiene visible hasta que:
   sale del viewport por geometría, no por un fade independiente, y el frame
   final queda cubierto por el azul interior de la propia marca. El isotipo
   pierde opacidad al ganar velocidad para que el último tramo se lea como
-  arrastre, no como una ampliación nítida. Entre 24% y 72% aparecen dos copias
-  RGB desplazadas, blur progresivo, skew alterno y un shake amortiguado de la
-  cortina; todas desaparecen antes del estado final;
+  arrastre, no como una ampliación nítida. El impacto óptico se concentra antes
+  del handoff: entre 32% y 48% las copias RGB se separan hasta 13.5/14 px, el
+  lockup se comprime y estira horizontalmente con skew alterno, el blur alcanza
+  3.4 px y un destello espectral cruza el centro del isotipo. Un shake
+  amortiguado de hasta 5.2 px acompaña ese pico; todos los efectos desaparecen
+  antes del estado final;
 - si corre dentro del Extension Host, recibe `lumen.layoutCommitRequested`
   durante la carga, conserva su token y responde
   `frontend.layoutCommitArmed { token }`; al arrancar el punch-in agenda el
@@ -111,10 +114,12 @@ entre los dos layouts.
 
 El movimiento estructural sigue siendo compositor-first (`transform` y
 `opacity`). Los efectos ópticos son capas efímeras aisladas: dos duplicados del
-lockup con separación rojo/cian y `mix-blend-mode: screen`, más blur/saturación
-del lockup y de la atmósfera. El fondo completo sólo recibe un shake de pocos
-píxeles sobre `scale(1.012)`, de modo que nunca expone los bordes del viewport.
-La curva acelera de forma exponencial y no tiene asentamiento antes del commit.
+lockup con separación rojo/cian y `mix-blend-mode: screen`, un destello
+espectral de dos píxeles, más blur/saturación/deformación del lockup y de la
+atmósfera. El fondo completo sólo recibe un shake de pocos píxeles sobre
+`scale(1.018)`, de modo que nunca expone los bordes del viewport. El pico ocurre
+antes del 49% porque a los 88 ms el protocolo puede retirar el intro para pintar
+la superficie segura. La curva acelera sin asentamiento antes del commit.
 
 La segunda mitad se prepara antes del movimiento como una superficie congelada.
 `.lumen-route-app` ya está en `opacity: 0.86` y `scale(1.11)` cuando el host

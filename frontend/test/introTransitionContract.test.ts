@@ -72,15 +72,18 @@ describe("intro transition visual contract", () => {
     expect(appCss).toMatch(
       /lumenIntroMarkFocus var\(--lumen-intro-focus-duration\) linear both/
     );
-    expect(css).toMatch(/skewX\(-0\.7deg\)/);
+    expect(css).toMatch(/47%[\s\S]*skewX\(-2\.8deg\)/);
     expect(appCss).toMatch(/transform-origin:\s*50% 30\.25%/);
     expect(css).toMatch(/8%[\s\S]*scale\(1\.018\)/);
     expect(css).toMatch(/56%[\s\S]*scale\(48\)/);
     expect(css).toMatch(/100%[\s\S]*scale\(56\)/);
-    expect(appCss).toMatch(/@keyframes lumenIntroOpticalSmear[\s\S]*blur\(4\.8px\)/);
+    expect(appCss).toMatch(/@keyframes lumenIntroOpticalSmear[\s\S]*48%[\s\S]*blur\(3\.4px\)/);
     expect(appCss).toMatch(/@keyframes lumenIntroChromaticRed[\s\S]*hue-rotate\(302deg\)/);
     expect(appCss).toMatch(/@keyframes lumenIntroChromaticCyan[\s\S]*hue-rotate\(128deg\)/);
-    expect(appCss).toMatch(/@keyframes lumenIntroImpactShake[\s\S]*translate3d\(-3px, 1\.5px, 0\)/);
+    expect(appCss).toMatch(/@keyframes lumenIntroChromaticRed[\s\S]*46%[\s\S]*translate3d\(-13\.5px, 2px, 0\)/);
+    expect(appCss).toMatch(/@keyframes lumenIntroChromaticCyan[\s\S]*46%[\s\S]*translate3d\(14px, -2\.1px, 0\)/);
+    expect(appCss).toMatch(/@keyframes lumenIntroImpactShake[\s\S]*47%[\s\S]*translate3d\(-5\.2px, 2\.4px, 0\)/);
+    expect(appCss).toMatch(/@keyframes lumenIntroSpectralStreak[\s\S]*45%[\s\S]*opacity:\s*0\.42/);
     expect(appSvelte).toMatch(/lumen-intro-chromatic-red/);
     expect(appSvelte).toMatch(/lumen-intro-chromatic-cyan/);
   });

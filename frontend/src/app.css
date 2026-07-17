@@ -109,6 +109,31 @@ button {
   will-change: opacity, transform;
 }
 
+.lumen-intro-mark::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 30.25%;
+  width: 180px;
+  height: 2px;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0 16%,
+    rgba(255, 42, 102, 0.34) 36%,
+    rgba(239, 253, 255, 0.92) 50%,
+    rgba(0, 211, 255, 0.42) 64%,
+    transparent 84% 100%
+  );
+  mix-blend-mode: screen;
+  transform: translate3d(-50%, -50%, 0) scaleX(0.08);
+  transform-origin: 50% 50%;
+  filter: blur(0);
+  will-change: opacity, transform, filter;
+}
+
 .lumen-intro-mark img.lumen-intro-logo {
   width: 92px;
   height: 92px;
@@ -137,7 +162,7 @@ button {
   display: grid;
   justify-items: center;
   gap: 20px;
-  will-change: opacity, filter;
+  will-change: opacity, transform, filter;
 }
 
 /* Doble exposición RGB efímera. Vive dentro del lockup para heredar exactamente
@@ -225,6 +250,10 @@ button {
   animation: lumenIntroHaloFocus var(--lumen-intro-focus-duration) linear both;
 }
 
+.lumen-intro.intro-covering .lumen-intro-mark::after {
+  animation: lumenIntroSpectralStreak var(--lumen-intro-focus-duration) linear both;
+}
+
 .lumen-intro.intro-covering .lumen-intro-primary {
   animation: lumenIntroOpticalSmear var(--lumen-intro-focus-duration) linear both;
 }
@@ -278,24 +307,24 @@ button {
     animation-timing-function: cubic-bezier(0.54, 0.04, 0.78, 0.28);
   }
 
-  34% {
+  32% {
     opacity: 1;
-    transform: translate3d(1.2px, -7px, 0) skewX(-0.7deg) scale(2.6);
+    transform: translate3d(1.4px, -7px, 0) skewX(-1.15deg) scale(2.35);
   }
 
-  44% {
+  40% {
     opacity: 1;
-    transform: translate3d(-1.8px, -1px, 0) skewX(1.45deg) scale(8.8);
+    transform: translate3d(-2.2px, -2px, 0) skewX(2.35deg) scale(6.8) scaleX(0.985);
   }
 
-  50% {
+  47% {
     opacity: 1;
-    transform: translate3d(1.1px, 10px, 0) skewX(-1deg) scale(22);
+    transform: translate3d(2.4px, 8px, 0) skewX(-2.8deg) scale(18) scaleX(1.025);
   }
 
   56% {
     opacity: 1;
-    transform: translate3d(-0.6px, 27px, 0) skewX(0.35deg) scale(48);
+    transform: translate3d(-0.8px, 27px, 0) skewX(0.55deg) scale(48);
     animation-timing-function: cubic-bezier(0.2, 0.72, 0.28, 1);
   }
 
@@ -331,118 +360,200 @@ button {
 
 @keyframes lumenIntroOpticalSmear {
   0%,
-  26% {
+  24% {
     opacity: 1;
+    transform: translate3d(0, 0, 0) scaleX(1) skewX(0);
     filter: blur(0) saturate(1);
   }
 
-  44% {
-    opacity: 0.82;
-    filter: blur(0.45px) saturate(1.18);
+  34% {
+    opacity: 0.96;
+    transform: translate3d(-0.6px, 0, 0) scaleX(1.008) skewX(-0.35deg);
+    filter: blur(0.2px) saturate(1.12) contrast(1.04);
+  }
+
+  41% {
+    opacity: 0.84;
+    transform: translate3d(1.5px, 0, 0) scaleX(1.032) skewX(1.2deg);
+    filter: blur(1.15px) saturate(1.42) contrast(1.1);
+  }
+
+  48% {
+    opacity: 0.5;
+    transform: translate3d(-2.1px, 0, 0) scaleX(0.96) skewX(-2.1deg);
+    filter: blur(3.4px) saturate(1.9) contrast(1.16) brightness(1.08);
   }
 
   56% {
-    opacity: 0.36;
-    filter: blur(1.8px) saturate(1.42);
+    opacity: 0.26;
+    transform: translate3d(2.4px, 0, 0) scaleX(1.075) skewX(1.35deg);
+    filter: blur(5.8px) saturate(2.08) contrast(1.12) brightness(1.12);
   }
 
   100% {
-    opacity: 0.12;
-    filter: blur(4.8px) saturate(1.7);
+    opacity: 0.08;
+    transform: translate3d(0, 0, 0) scaleX(1.1) skewX(0);
+    filter: blur(9px) saturate(2.2) contrast(1.08) brightness(1.08);
   }
 }
 
 @keyframes lumenIntroChromaticRed {
   0%,
-  24% {
+  20% {
     opacity: 0;
     transform: translate3d(0, 0, 0) skewX(0);
     filter: sepia(1) saturate(14) hue-rotate(302deg) blur(0);
   }
 
+  32% {
+    opacity: 0.22;
+    transform: translate3d(-3.2px, 0.8px, 0) skewX(-1.1deg);
+    filter: sepia(1) saturate(15) hue-rotate(302deg) blur(0.25px) contrast(1.12);
+  }
+
   40% {
-    opacity: 0.34;
-    transform: translate3d(-2.2px, 0.7px, 0) skewX(-0.8deg);
-    filter: sepia(1) saturate(14) hue-rotate(302deg) blur(0.45px);
+    opacity: 0.52;
+    transform: translate3d(-8.5px, 1.4px, 0) skewX(-2.4deg) scaleX(1.018);
+    filter: sepia(1) saturate(17) hue-rotate(302deg) blur(0.65px) contrast(1.2);
+  }
+
+  46% {
+    opacity: 0.68;
+    transform: translate3d(-13.5px, 2px, 0) skewX(-3.5deg) scaleX(1.035);
+    filter: sepia(1) saturate(18) hue-rotate(302deg) blur(1.25px) contrast(1.24);
   }
 
   54% {
-    opacity: 0.56;
-    transform: translate3d(-5.5px, 1.2px, 0) skewX(-1.7deg);
-    filter: sepia(1) saturate(16) hue-rotate(302deg) blur(1.1px);
+    opacity: 0.3;
+    transform: translate3d(-6px, 0.8px, 0) skewX(-1.2deg) scaleX(1.012);
+    filter: sepia(1) saturate(16) hue-rotate(302deg) blur(2.8px) contrast(1.14);
   }
 
   72% {
-    opacity: 0.16;
+    opacity: 0.08;
     transform: translate3d(-2px, 0, 0) skewX(-0.3deg);
-    filter: sepia(1) saturate(13) hue-rotate(302deg) blur(2px);
+    filter: sepia(1) saturate(13) hue-rotate(302deg) blur(4px);
   }
 
   100% {
     opacity: 0;
     transform: translate3d(0, 0, 0) skewX(0);
-    filter: sepia(1) saturate(12) hue-rotate(302deg) blur(3px);
+    filter: sepia(1) saturate(12) hue-rotate(302deg) blur(6px);
   }
 }
 
 @keyframes lumenIntroChromaticCyan {
   0%,
-  24% {
+  20% {
     opacity: 0;
     transform: translate3d(0, 0, 0) skewX(0);
     filter: sepia(1) saturate(13) hue-rotate(128deg) blur(0);
   }
 
+  32% {
+    opacity: 0.2;
+    transform: translate3d(3.4px, -0.9px, 0) skewX(1.2deg);
+    filter: sepia(1) saturate(14) hue-rotate(128deg) blur(0.25px) contrast(1.12);
+  }
+
   40% {
-    opacity: 0.3;
-    transform: translate3d(2.4px, -0.8px, 0) skewX(0.9deg);
-    filter: sepia(1) saturate(13) hue-rotate(128deg) blur(0.45px);
+    opacity: 0.48;
+    transform: translate3d(9px, -1.5px, 0) skewX(2.5deg) scaleX(1.02);
+    filter: sepia(1) saturate(16) hue-rotate(128deg) blur(0.65px) contrast(1.2);
+  }
+
+  46% {
+    opacity: 0.64;
+    transform: translate3d(14px, -2.1px, 0) skewX(3.6deg) scaleX(1.038);
+    filter: sepia(1) saturate(17) hue-rotate(128deg) blur(1.25px) contrast(1.24);
   }
 
   54% {
-    opacity: 0.52;
-    transform: translate3d(5.8px, -1.1px, 0) skewX(1.8deg);
-    filter: sepia(1) saturate(15) hue-rotate(128deg) blur(1.1px);
+    opacity: 0.28;
+    transform: translate3d(6.4px, -0.9px, 0) skewX(1.25deg) scaleX(1.014);
+    filter: sepia(1) saturate(15) hue-rotate(128deg) blur(2.8px) contrast(1.14);
   }
 
   72% {
-    opacity: 0.14;
+    opacity: 0.07;
     transform: translate3d(2px, 0, 0) skewX(0.3deg);
-    filter: sepia(1) saturate(12) hue-rotate(128deg) blur(2px);
+    filter: sepia(1) saturate(12) hue-rotate(128deg) blur(4px);
   }
 
   100% {
     opacity: 0;
     transform: translate3d(0, 0, 0) skewX(0);
-    filter: sepia(1) saturate(11) hue-rotate(128deg) blur(3px);
+    filter: sepia(1) saturate(11) hue-rotate(128deg) blur(6px);
   }
 }
 
 @keyframes lumenIntroImpactShake {
   0%,
-  30% {
-    transform: translate3d(0, 0, 0) scale(1.012);
+  26% {
+    transform: translate3d(0, 0, 0) scale(1.018);
+  }
+
+  32% {
+    transform: translate3d(1.8px, -0.8px, 0) scale(1.019);
+  }
+
+  37% {
+    transform: translate3d(-3.8px, 1.8px, 0) scale(1.02);
+  }
+
+  42% {
+    transform: translate3d(4.6px, -2.2px, 0) scale(1.021);
+  }
+
+  47% {
+    transform: translate3d(-5.2px, 2.4px, 0) scale(1.021);
+  }
+
+  52% {
+    transform: translate3d(3.2px, -1.5px, 0) scale(1.02);
+  }
+
+  60% {
+    transform: translate3d(-1.4px, 0.8px, 0) scale(1.019);
+  }
+
+  70%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.018);
+  }
+}
+
+@keyframes lumenIntroSpectralStreak {
+  0%,
+  28% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scaleX(0.08);
+    filter: blur(0);
   }
 
   38% {
-    transform: translate3d(2.2px, -1.2px, 0) scale(1.014);
+    opacity: 0.14;
+    transform: translate3d(-50%, -50%, 0) scaleX(0.46);
+    filter: blur(0.35px);
   }
 
-  46% {
-    transform: translate3d(-3px, 1.5px, 0) scale(1.014);
+  45% {
+    opacity: 0.42;
+    transform: translate3d(-50%, -50%, 0) scaleX(1.18);
+    filter: blur(0.9px);
   }
 
-  54% {
-    transform: translate3d(1.8px, -1px, 0) scale(1.013);
+  52% {
+    opacity: 0.14;
+    transform: translate3d(-50%, -50%, 0) scaleX(1.85);
+    filter: blur(2.6px);
   }
 
-  62% {
-    transform: translate3d(-0.8px, 0.5px, 0) scale(1.012);
-  }
-
-  76%,
+  66%,
   100% {
-    transform: translate3d(0, 0, 0) scale(1.012);
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scaleX(2.2);
+    filter: blur(4px);
   }
 }
 
@@ -453,22 +564,28 @@ button {
     filter: blur(0) saturate(1);
   }
 
-  38% {
-    opacity: 0.48;
-    transform: scale(1.045) skewX(-0.35deg);
-    filter: blur(0.6px) saturate(1.12);
+  32% {
+    opacity: 0.46;
+    transform: scale(1.04) skewX(-0.45deg);
+    filter: blur(0.35px) saturate(1.16);
   }
 
-  56% {
-    opacity: 0.36;
-    transform: scale(1.09) skewX(0.8deg);
-    filter: blur(2.2px) saturate(1.38);
+  41% {
+    opacity: 0.58;
+    transform: scale(1.075) skewX(-1.1deg);
+    filter: blur(1.45px) saturate(1.48) brightness(1.06);
+  }
+
+  48% {
+    opacity: 0.4;
+    transform: scale(1.14) skewX(1.5deg);
+    filter: blur(4.2px) saturate(1.9) brightness(1.12);
   }
 
   100% {
-    opacity: 0.12;
-    transform: scale(1.14) skewX(0);
-    filter: blur(4px) saturate(1.55);
+    opacity: 0.08;
+    transform: scale(1.22) skewX(0);
+    filter: blur(8.5px) saturate(2.1) brightness(1.08);
   }
 }
 
@@ -477,8 +594,16 @@ button {
     opacity: 1;
   }
 
-  38% {
-    opacity: 0.82;
+  34% {
+    opacity: 0.8;
+  }
+
+  45% {
+    opacity: 0.46;
+  }
+
+  54% {
+    opacity: 0.9;
   }
 
   100% {
