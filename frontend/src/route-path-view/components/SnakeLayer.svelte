@@ -9,6 +9,7 @@
   export let theme: ModuleTheme;
   export let lockedStartT = 1;
   export let renderScale = 1;
+  export let onFirstRender: (() => void) | undefined = undefined;
 
   const stageSize = { width: 1086, height: 1448 };
   const identityTransform = { x: 0, y: 0, scale: 1 };
@@ -34,6 +35,7 @@
     }
   };
   const lockedEffectFeatures = buildEffectFeatures(lockedMaterialEffects);
+  let layerHost: HTMLDivElement;
   let webglFirstRender = false;
 
   onMount(() => {
@@ -43,8 +45,10 @@
     };
 
     const handleFirstRender = () => {
+      if (webglFirstRender || !layerHost?.querySelector("canvas")) return;
       webglFirstRender = true;
       (window as any).__LUMEN_DEFERRED_STATUS__.webglSnake = "loaded";
+      onFirstRender?.();
     };
     window.addEventListener("lumen:webgl-first-rendered", handleFirstRender);
 
@@ -88,7 +92,7 @@
   ];
 </script>
 
-<div class:webgl-ready={webglFirstRender} class="snake-layer" aria-hidden="true">
+<div bind:this={layerHost} class:webgl-ready={webglFirstRender} class="snake-layer" aria-hidden="true">
   <WebGLSnake
     pathD={path.pathD}
     size={stageSize}

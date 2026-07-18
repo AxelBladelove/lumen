@@ -1,4 +1,5 @@
 import { mockRouteModule } from "./mockRouteModule";
+import { projectModuleNodes } from "../state/moduleTramos";
 import type { NodeStatus, NodeType, RoutePathModuleView, RoutePathNode } from "../types/routePath";
 import type { RouteModuleDataPayload } from "../../webview/messages";
 
@@ -20,42 +21,23 @@ export function cloneRouteModule(module: RoutePathModuleView): RoutePathModuleVi
   return JSON.parse(JSON.stringify(module)) as RoutePathModuleView;
 }
 
-// Proyecta los nodos del engine sobre el scaffolding visual del mock: se
-// conservan theme, path y los slots visuales (pathT/labelSide/offsets), que se
-// reciclan cuando alcanzan; si sobran nodos se distribuyen uniformemente sobre
-// la curva. Metadata, progreso y siguiente ejercicio siguen siendo del engine.
+// Metadata, progreso y siguiente ejercicio siguen siendo del engine. Solo la
+// ubicación visual se proyecta en slots locales deterministas por tramo.
 export function buildRouteModuleFromEngine(payload: RouteModuleDataPayload): RoutePathModuleView {
   const base = cloneRouteModule(mockRouteModule);
-  const mockNodes = base.nodes;
   const engineNodes = payload.nodes;
 
-  const projectedNodes: RoutePathNode[] = engineNodes.map((engineNode, index) => {
-    const scaffold =
-      engineNodes.length <= mockNodes.length ? mockNodes[index] : undefined;
-
-    const pathT = scaffold
-      ? scaffold.pathT
-      : engineNodes.length <= 1
-        ? 0
-        : index / (engineNodes.length - 1);
-
-    const node: RoutePathNode = {
+  const routeNodes: RoutePathNode[] = engineNodes.map((engineNode) => {
+    return {
       id: engineNode.exerciseId,
       title: engineNode.title,
       subtitle: engineNode.primaryTopics.join(" - "),
       type: mapEngineNodeType(engineNode.nodeType),
       status: mapEngineNodeStatus(engineNode.status),
-      pathT
+      pathT: 0.5
     };
-
-    if (scaffold) {
-      if (scaffold.labelSide !== undefined) node.labelSide = scaffold.labelSide;
-      if (scaffold.nodeOffset) node.nodeOffset = { ...scaffold.nodeOffset };
-      if (scaffold.labelOffset) node.labelOffset = { ...scaffold.labelOffset };
-    }
-
-    return node;
   });
+  const projectedNodes = projectModuleNodes(routeNodes);
 
   const { completed, total } = payload.progress;
 
@@ -68,6 +50,7 @@ export function buildRouteModuleFromEngine(payload: RouteModuleDataPayload): Rou
     completed,
     total,
     percent: total ? Math.round((completed / total) * 100) : 0,
+    activeExerciseId: payload.activeExerciseId,
     nodes: projectedNodes,
     nextAction: {
       label: "Siguiente:",

@@ -1548,6 +1548,75 @@ html[data-lumen-entry-style="eclipse"].lumen-ui-entering .lumen-entry-veil {
   position: absolute;
 }
 
+.tramo-composition-rail {
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.tramo-panel,
+.tramo-composition {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.tramo-panel {
+  pointer-events: none;
+}
+
+.tramo-panel.tramo-primary {
+  pointer-events: auto;
+}
+
+.tramo-composition > * {
+  position: absolute;
+}
+
+.tramo-composition.tramo-inert {
+  pointer-events: none;
+}
+
+.tramo-composition-rail.tramo-forward .tramo-incoming {
+  transform: translate3d(0, 100%, 0);
+}
+
+.tramo-composition-rail.tramo-backward .tramo-incoming {
+  transform: translate3d(0, -100%, 0);
+}
+
+.tramo-composition-rail.tramo-forward.tramo-animating {
+  animation: tramoScrollForward 1120ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+.tramo-composition-rail.tramo-backward.tramo-animating {
+  animation: tramoScrollBackward 1120ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+@keyframes tramoScrollForward {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(0, -100%, 0);
+  }
+}
+
+@keyframes tramoScrollBackward {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
 .background-layer {
   inset: 0;
   z-index: 0;
@@ -3491,6 +3560,11 @@ html[data-lumen-entry-style="eclipse"].lumen-ui-entering .lumen-entry-veil {
 
   .lumen-entry-veil {
     display: none;
+  }
+
+  .tramo-composition-rail {
+    animation: none !important;
+    transform: none !important;
   }
 
   .hero-text-input,

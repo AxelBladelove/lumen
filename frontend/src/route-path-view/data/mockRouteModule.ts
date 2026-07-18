@@ -14,6 +14,7 @@ export const mockRouteModule: RoutePathModuleView = {
   completed: 18,
   total: 64,
   percent: 28,
+  activeExerciseId: "strings-basic",
   theme: stringsGreenTheme,
   path: {
     id: "route-c-strings",

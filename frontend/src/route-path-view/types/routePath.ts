@@ -50,6 +50,7 @@ export type RoutePathModuleView = {
   completed: number;
   total: number;
   percent: number;
+  activeExerciseId?: string | null;
   theme: ModuleTheme;
   path: SnakePathConfig;
   nodes: RoutePathNode[];

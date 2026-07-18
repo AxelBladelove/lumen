@@ -51,6 +51,10 @@ La vista actual:
 - Expone marks de performance como `lumen:route-mounted`,
   `lumen:continue-pressed`, `lumen:route-advance-start` y
   `lumen:route-advance-first-frame`.
+- Parte los nodos en tramos deterministas y muestra el que contiene la actividad activa.
+- Proyecta cada tramo sobre slots locales amplios sin alterar el progreso v7 del módulo.
+- Genera una curva suave y determinista distinta por tramo sobre el pipeline WebGL existente.
+- Desplaza la composición visual completa entre tramos, con corte directo en movimiento reducido.
 
 El protocolo v7 aporta datos reales, persistencia, activación y desbloqueo
 secuencial. Todavía faltan estados completos de error/empty, gates no

@@ -75,7 +75,12 @@
     const side = node.labelSide === "left" ? -1 : 1;
     const yLift = node.status === "active" ? -22 : -19;
     const labelFineTune = contextualLabelOffset(node);
-    const labelX = anchor.x + side * labelDistance + labelOffset.x + labelFineTune.x;
+    const labelX =
+      anchor.x +
+      side * labelDistance +
+      labelOffset.x +
+      labelFineTune.x -
+      (side < 0 ? 300 : 0);
     const labelY = anchor.y + yLift + labelOffset.y + labelFineTune.y;
     const shadowWidth = size * (node.status === "active" ? 1.32 : node.status === "challenge" ? 1.18 : 1.14);
     const shadowHeight = size * (node.status === "active" ? 0.42 : 0.38);
