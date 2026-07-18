@@ -26,13 +26,24 @@ no garantiza por completo todas las propiedades declarativas de `sandbox`
 - `project`: valida múltiples archivos, escenarios o milestones;
 - `manual-assisted`: automatiza lo posible y marca revisión pendiente.
 
+## Libertad de implementación
+
+La norma es validar comportamiento observable, principalmente entrada y salida,
+sin imponer la estructura interna de la solución. Si el programa satisface el
+contrato, el estudiante puede resolverlo a su manera.
+
+Algunos ejercicios exigen deliberadamente una función, firma o `struct`
+concretos porque esa estructura es el objetivo formativo. Son una minoría y el
+enunciado debe declararlo de forma explícita; fuera de esos casos, los tests no
+pueden convertir una estrategia interna particular en requisito oculto.
+
 ## Tests de entrada/salida
 
 Cada caso define stdin, salida esperada, normalización, timeout y peso. La normalización puede ignorar diferencias irrelevantes, pero nunca debe esconder errores semánticos.
 
 ## Tests de funciones
 
-Lumen no debe obligar al estudiante a usar un nombre de función concreto cuando el objetivo pedagógico no lo exige.
+Lumen solo debe obligar al estudiante a usar un nombre o firma de función concretos cuando el objetivo pedagógico declarado lo exige.
 
 El sistema puede usar:
 

@@ -46,6 +46,12 @@ editables declarados en `content.starter`. La creación es idempotente:
 El entrypoint editable se deriva de `execution.entrypoint` dentro del árbol de
 starter y se devuelve como `entrypointPath` canónico.
 
+La working copy inicial debe presentar un archivo con el nombre del ejercicio,
+normalizado como nombre de archivo válido. Su contenido está vacío o contiene,
+como máximo, el `#include` estrictamente necesario. Un starter con parte de
+`main` resuelta contradice la filosofía formativa y no debe importarse como
+ejercicio válido.
+
 ## Compilación y tests
 
 F9 y F10 deben resolver el mismo entrypoint de la working copy activa. Para
@@ -85,6 +91,7 @@ describirse según lo que el engine aplique efectivamente.
 - El usuario edita una working copy, nunca el paquete instalado.
 - La identidad es `activityId + version + mode`.
 - La materialización es idempotente y jamás sobrescribe trabajo existente.
+- El starter inicial no adelanta la implementación del ejercicio.
 - F9 y F10 usan el source activo de la working copy.
 - El manifest y los tests siempre provienen de la instalación validada.
 - Reset y migración de trabajo requieren contratos explícitos futuros.

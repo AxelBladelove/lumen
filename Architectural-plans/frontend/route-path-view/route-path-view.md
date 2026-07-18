@@ -36,7 +36,7 @@ La vista actual:
 - Usa `pathT` y `pathMetrics.ts` para colocar nodos, labels, sombras y zonas
   de contacto sobre el SVG path.
 - Renderiza el snake path con `SnakeLayer` y `WebGLSnake`.
-- Divide el snake en dos segmentos: desbloqueado líquido y bloqueado
+- Divide el snake en dos segmentos visuales: desbloqueado líquido y bloqueado
   graphite/purple.
 - Monta nodos, progreso, hero y CTA bajo `deferredVisualsReady`, que hoy se
   activa inmediatamente y conserva el contrato de estado `routeVisuals`.
@@ -171,6 +171,10 @@ Los nodos no deben estar quemados dentro del snake.
 
 Los textos deben ser DOM/Svelte para que sean editables, legibles y dinámicos.
 
+Comportamiento objetivo (`planned`): la composición renderiza un tramo del módulo, no el módulo entero. Cada tramo muestra pocos nodos, aproximadamente entre cinco y siete, con el espaciado generoso de la referencia del módulo 2. Comprimir ocho o más nodos en un único path hasta degradar ese espaciado es un defecto.
+
+El header y la card permanecen fuera de esa paginación visual: título, conteo y porcentaje expresan el módulo completo, por ejemplo `18/64 ejercicios`, nunca solo el tramo visible.
+
 ## Header
 
 El header debe mostrar:
@@ -251,16 +255,16 @@ El snake debe conservar:
 
 ## Path procedural
 
-Cada módulo debe poder tener su propio path.
+Cada tramo de cada módulo debe poder tener su propio path.
 
-No todos los módulos deben usar exactamente la misma curva.
+No todos los módulos ni todos sus tramos deben usar exactamente la misma curva.
 
-El sistema debe permitir definir un path por módulo usando datos.
+El sistema debe permitir definir los paths ordenados de un módulo usando datos.
 
 Ejemplo conceptual:
 
 ```txt
-pathId: "route-c-strings"
+pathId: "route-c-strings-03"
 points: [...]
 width: 25
 themeColor: "cyan-green"
@@ -270,6 +274,8 @@ materialPreset: "liquid-v1"
 El path debe ser editable sin redibujar todo manualmente.
 
 La IA o programador debe poder crear nuevos paths procedurales o ajustar puntos del path.
+
+Comportamiento objetivo (`planned`): al completar el último nodo visible, la vista hace scroll hacia el tramo siguiente. La transición usa keyframes con `ease-in` y `ease-out`, es suave y no produce flashes. El tramo entrante trae los ejercicios siguientes del mismo módulo y usa una curva procedural distinta, generada por sus propios datos; no es una continuación comprimida ni una copia de la curva anterior.
 
 ## Colores por módulo
 
@@ -313,7 +319,7 @@ El renderer devuelve el snake visual.
 Route Path View coloca nodos encima.
 
 En la implementación actual, `SnakeLayer.svelte` importa `materialPresets`,
-construye presets para el tramo desbloqueado y el tramo bloqueado, y pasa un
+construye presets para el segmento desbloqueado y el segmento bloqueado, y pasa un
 arreglo `segments` a `WebGLSnake.svelte`. El renderer
 soporta rangos `rangeStart/rangeEnd`, caps líquidos o grises, themes por
 segmento, escala de render reducida para webview/mobile y estadísticas en
@@ -725,6 +731,7 @@ Route Path View debe manejar:
 - módulo sin progreso
 - nodo activo
 - nodo bloqueado
+- transición al tramo siguiente (`planned`)
 - módulo completado
 - error cargando assets
 - error WebGL
@@ -740,6 +747,10 @@ Route Path View no decide progreso.
 Route Path View no decide desbloqueos.
 
 El snake path es procedural/data-driven.
+
+La vista muestra entre cinco y siete nodos por tramo y conserva el progreso del módulo completo.
+
+Cada tramo sucesivo usa una curva distinta definida por datos.
 
 Los nodos van encima del path.
 

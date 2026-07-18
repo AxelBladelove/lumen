@@ -704,6 +704,10 @@ required
 mediaType
 ```
 
+El enunciado que alimenta el panel de detalles debe ser autosuficiente. Debe
+incluir el objetivo, todas las restricciones, el formato de entrada y salida y
+ejemplos suficientes para resolver el ejercicio sin información externa.
+
 Los hashes y tamaños reales se generan durante build, no se escriben manualmente.
 
 ## Procedencia y curación
@@ -996,7 +1000,7 @@ Este ejemplo conserva los campos del manifest original y muestra la riqueza aña
 
   "scaffolding": {
     "scaffoldingLevel": 2,
-    "starterCompleteness": 0.35,
+    "starterCompleteness": 0.0,
     "guidedSteps": false,
     "hintPolicy": {
       "maxHints": 4,
@@ -1071,7 +1075,7 @@ Este ejemplo conserva los campos del manifest original y muestra la riqueza aña
     "languageStandard": "c17",
     "compileProfile": "c17-console",
     "executionMode": "console",
-    "entrypoint": "starter/main.c",
+    "entrypoint": "starter/contar-minusculas-en-una-linea.c",
     "additionalSources": [],
     "sourceEncoding": "utf-8",
     "requiredHeaders": ["stdio.h", "ctype.h"],
@@ -1099,7 +1103,7 @@ Este ejemplo conserva los campos del manifest original y muestra la riqueza aña
   "content": {
     "statement": { "path": "statement.md", "locale": "es", "required": true },
     "starter": [
-      { "path": "starter/main.c", "role": "entrypoint", "editable": true, "required": true }
+      { "path": "starter/contar-minusculas-en-una-linea.c", "role": "entrypoint", "editable": true, "required": true }
     ],
     "tests": [
       { "path": "tests/io-cases.json", "role": "test-data", "editable": false, "required": true },
