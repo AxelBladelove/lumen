@@ -1,0 +1,77 @@
+{
+  "formatVersion": 1,
+  "cases": [
+    {
+      "id": "odd-basic",
+      "group": "palindrome",
+      "stdin": "radar\n",
+      "expectedStdout": "SI\n"
+    },
+    {
+      "id": "even-basic",
+      "group": "palindrome",
+      "stdin": "abba\n",
+      "expectedStdout": "SI\n"
+    },
+    {
+      "id": "not-palindrome-basic",
+      "group": "palindrome",
+      "stdin": "lumen\n",
+      "expectedStdout": "NO\n"
+    },
+    {
+      "id": "case-sensitive",
+      "group": "palindrome",
+      "stdin": "Radar\n",
+      "expectedStdout": "NO\n"
+    },
+    {
+      "id": "spaces-are-content",
+      "group": "palindrome",
+      "stdin": "a b a\n",
+      "expectedStdout": "SI\n"
+    },
+    {
+      "id": "single-character",
+      "group": "boundaries",
+      "stdin": "x\n",
+      "expectedStdout": "SI\n"
+    },
+    {
+      "id": "two-equal-characters",
+      "group": "boundaries",
+      "stdin": "aa\n",
+      "expectedStdout": "SI\n"
+    },
+    {
+      "id": "two-different-characters",
+      "group": "boundaries",
+      "stdin": "ab\n",
+      "expectedStdout": "NO\n"
+    },
+    {
+      "id": "near-center-mismatch",
+      "group": "boundaries",
+      "stdin": "abxca\n",
+      "expectedStdout": "NO\n"
+    },
+    {
+      "id": "no-final-newline",
+      "group": "boundaries",
+      "stdin": "reconocer",
+      "expectedStdout": "SI\n"
+    },
+    {
+      "id": "symbols-and-digits",
+      "group": "boundaries",
+      "stdin": "1!22!1\n",
+      "expectedStdout": "SI\n"
+    },
+    {
+      "id": "space-sensitive-negative",
+      "group": "boundaries",
+      "stdin": "a ba\n",
+      "expectedStdout": "NO\n"
+    }
+  ]
+}

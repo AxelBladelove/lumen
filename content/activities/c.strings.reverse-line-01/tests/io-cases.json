@@ -1,0 +1,65 @@
+{
+  "formatVersion": 1,
+  "cases": [
+    {
+      "id": "basic-word",
+      "group": "reverse",
+      "stdin": "lumen\n",
+      "expectedStdout": "nemul\n"
+    },
+    {
+      "id": "two-words",
+      "group": "reverse",
+      "stdin": "Hola Mundo\n",
+      "expectedStdout": "odnuM aloH\n"
+    },
+    {
+      "id": "digits-and-letters",
+      "group": "reverse",
+      "stdin": "abc123\n",
+      "expectedStdout": "321cba\n"
+    },
+    {
+      "id": "symbols",
+      "group": "reverse",
+      "stdin": "C! es #1\n",
+      "expectedStdout": "1# se !C\n"
+    },
+    {
+      "id": "single-character",
+      "group": "boundaries",
+      "stdin": "A\n",
+      "expectedStdout": "A\n"
+    },
+    {
+      "id": "two-characters",
+      "group": "boundaries",
+      "stdin": "xy\n",
+      "expectedStdout": "yx\n"
+    },
+    {
+      "id": "palindrome",
+      "group": "boundaries",
+      "stdin": "reconocer\n",
+      "expectedStdout": "reconocer\n"
+    },
+    {
+      "id": "trailing-spaces",
+      "group": "boundaries",
+      "stdin": "abc  \n",
+      "expectedStdout": "  cba\n"
+    },
+    {
+      "id": "no-final-newline",
+      "group": "boundaries",
+      "stdin": "sin salto",
+      "expectedStdout": "otlas nis\n"
+    },
+    {
+      "id": "max-length",
+      "group": "boundaries",
+      "stdin": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr\n",
+      "expectedStdout": "rqponmlkjihgfedcbazyxwvutsrqponmlkjihgfedcbazyxwvutsrqponmlkjihgfedcbazyxwvutsrqponmlkjihgfedcbazyxwvutsrqponmlkjihgfedcbazyxwvutsrqponmlkjihgfedcbazyxwvutsrqponmlkjihgfedcbazyxwvutsrqponmlkjihgfedcba\n"
+    }
+  ]
+}

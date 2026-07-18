@@ -41,12 +41,17 @@
     { "id": "chars.classify-character", "topic": "chars", "title": "Clasificar caracteres" },
     { "id": "loops.single-pass-iteration", "topic": "loops", "title": "Recorrer una secuencia en una sola pasada" },
     { "id": "functions.define-and-call", "topic": "functions", "title": "Definir y llamar funciones" },
-    { "id": "io.read-line-stdin", "topic": "io", "title": "Leer una línea desde la entrada estándar" }
+    { "id": "io.read-line-stdin", "topic": "io", "title": "Leer una línea desde la entrada estándar" },
+    { "id": "strings.detect-word-boundaries", "topic": "strings", "title": "Detectar límites de palabras en una cadena" },
+    { "id": "strings.compare-converging-indices", "topic": "strings", "title": "Comparar una cadena con dos índices convergentes" }
   ],
   "misconceptions": [
     { "id": "strings.iterate-capacity-instead-of-terminator", "topic": "strings", "title": "Recorrer la capacidad en vez de detenerse en el terminador null" },
     { "id": "arrays.last-valid-index-equals-length", "topic": "arrays", "title": "Creer que el último índice válido es igual a la longitud" },
-    { "id": "chars.ascii-arithmetic-assumed-universal", "topic": "chars", "title": "Asumir que la aritmética ASCII es universal" }
+    { "id": "chars.ascii-arithmetic-assumed-universal", "topic": "chars", "title": "Asumir que la aritmética ASCII es universal" },
+    { "id": "strings.reverse-null-terminator-as-content", "topic": "strings", "title": "Invertir el terminador null como si fuera contenido" },
+    { "id": "strings.count-spaces-instead-of-word-transitions", "topic": "strings", "title": "Contar espacios en vez de transiciones a palabra" },
+    { "id": "strings.compare-line-terminator-as-content", "topic": "strings", "title": "Comparar el salto de línea como si fuera contenido" }
   ],
   "commonErrors": [
     { "id": "off-by-one", "title": "Error por uno" },

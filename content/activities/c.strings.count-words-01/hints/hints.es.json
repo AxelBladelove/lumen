@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "hints": [
+    {
+      "order": 1,
+      "text": "No intentes calcular la respuesta contando espacios: con espacios repetidos, al inicio o al final, esa estrategia falla."
+    },
+    {
+      "order": 2,
+      "text": "Recorre la cadena una sola vez y detente cuando llegues a '\\n' o a '\\0'."
+    },
+    {
+      "order": 3,
+      "text": "Piensa en dos estados: fuera de una palabra y dentro de una palabra. Un espacio te deja fuera."
+    },
+    {
+      "order": 4,
+      "text": "La cuenta debe aumentar solo cuando encuentras un caracter que no es espacio y justo antes estabas fuera de una palabra."
+    }
+  ]
+}

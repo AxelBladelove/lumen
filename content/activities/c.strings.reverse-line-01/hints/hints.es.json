@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "hints": [
+    {
+      "order": 1,
+      "text": "Primero encuentra donde termina el contenido real de la linea. El final puede ser '\\n' o '\\0'."
+    },
+    {
+      "order": 2,
+      "text": "Guarda la longitud real en una variable antes de imprimir. No uses el tamano total del buffer como longitud."
+    },
+    {
+      "order": 3,
+      "text": "Para imprimir al reves, el primer indice util es longitud - 1. Una linea de un solo caracter debe seguir funcionando."
+    },
+    {
+      "order": 4,
+      "text": "Usa un bucle que vaya bajando el indice mientras todavia haya caracteres reales por imprimir; el terminador '\\0' nunca se imprime."
+    }
+  ]
+}

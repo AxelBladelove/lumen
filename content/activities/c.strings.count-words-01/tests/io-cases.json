@@ -1,0 +1,65 @@
+{
+  "formatVersion": 1,
+  "cases": [
+    {
+      "id": "two-words",
+      "group": "public",
+      "stdin": "Hola Mundo\n",
+      "expectedStdout": "2\n"
+    },
+    {
+      "id": "single-word",
+      "group": "public",
+      "stdin": "lumen\n",
+      "expectedStdout": "1\n"
+    },
+    {
+      "id": "multiple-inner-spaces",
+      "group": "public",
+      "stdin": "uno   dos    tres\n",
+      "expectedStdout": "3\n"
+    },
+    {
+      "id": "punctuation-and-digits",
+      "group": "public",
+      "stdin": "C17, practica #4!\n",
+      "expectedStdout": "3\n"
+    },
+    {
+      "id": "empty-line",
+      "group": "local-private",
+      "stdin": "\n",
+      "expectedStdout": "0\n"
+    },
+    {
+      "id": "no-input",
+      "group": "local-private",
+      "stdin": "",
+      "expectedStdout": "0\n"
+    },
+    {
+      "id": "only-spaces",
+      "group": "local-private",
+      "stdin": "        \n",
+      "expectedStdout": "0\n"
+    },
+    {
+      "id": "leading-and-trailing-spaces",
+      "group": "local-private",
+      "stdin": "   uno dos   \n",
+      "expectedStdout": "2\n"
+    },
+    {
+      "id": "single-char-word",
+      "group": "local-private",
+      "stdin": "x\n",
+      "expectedStdout": "1\n"
+    },
+    {
+      "id": "long-line-with-gaps",
+      "group": "local-private",
+      "stdin": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb    cccccccccccccccccccccccccccccccccccccccc dddddddddddddddddddddddddddddddddddddddd\n",
+      "expectedStdout": "4\n"
+    }
+  ]
+}
