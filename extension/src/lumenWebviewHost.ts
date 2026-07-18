@@ -10,9 +10,12 @@ import {
 import {
   lumenWebviewProtocolVersion,
   type ExerciseDetailPayload,
+  type ExerciseRunKind,
   type LumenEntryState,
   type LumenExerciseDetailDataMessage,
   type LumenExerciseDetailRequestedMessage,
+  type LumenExerciseRunRequestedMessage,
+  type LumenExerciseRunStateMessage,
   type LumenRouteModuleDataMessage
 } from "./lumenProtocol";
 
@@ -20,6 +23,7 @@ export type LumenModePhase = "idle" | "entering" | "active";
 
 export type LumenWebviewMessage =
   | LumenExerciseDetailRequestedMessage
+  | LumenExerciseRunRequestedMessage
   | {
       type: "frontend.ready";
       payload: {
@@ -105,6 +109,7 @@ type LumenWebviewHostOptions = {
   outputChannel: vscode.OutputChannel;
   engineClient: LumenEngineClient;
   onExitRequested: () => void;
+  onExerciseRunRequested: (kind: ExerciseRunKind) => void;
   /** El frontend evaluó su bundle y conectó el protocolo. */
   onFrontendReady?: () => void;
   /**
@@ -130,6 +135,7 @@ export class LumenWebviewHost {
   private currentModuleId = "strings";
   private activationInFlight = false;
   private exerciseDetailRequestSequence = 0;
+  private exerciseRunActive: ExerciseRunKind | null = null;
 
   constructor(private readonly options: LumenWebviewHostOptions) {}
 
@@ -140,6 +146,7 @@ export class LumenWebviewHost {
     );
     this.postEntryState();
     this.postPhase();
+    this.postExerciseRunState();
   }
 
   unbindWebview(webview: vscode.Webview) {
@@ -154,6 +161,11 @@ export class LumenWebviewHost {
   setEntryState(entryState: LumenEntryState) {
     this.entryState = entryState;
     this.postEntryState();
+  }
+
+  setExerciseRunState(active: ExerciseRunKind | null) {
+    this.exerciseRunActive = active;
+    this.postExerciseRunState();
   }
 
   /** Prearma el ciclo visual; todavía no autoriza retirar la cortina. */
@@ -290,6 +302,14 @@ export class LumenWebviewHost {
     });
   }
 
+  private postExerciseRunState() {
+    const message: LumenExerciseRunStateMessage = {
+      type: "exercise.run.state",
+      payload: { active: this.exerciseRunActive }
+    };
+    this.postToWebview(message);
+  }
+
   // Consulta el snapshot del modulo al engine y lo proyecta a la webview. Solo
   // se envia cuando hay nodos reales: con lista vacia la webview conserva el
   // mock (contrato v3, "Puente webview").
@@ -395,6 +415,7 @@ export class LumenWebviewHost {
         });
         this.postEntryState();
         this.postPhase();
+        this.postExerciseRunState();
         this.options.onFrontendReady?.();
         void this.pushRouteModuleData(this.currentRouteId, this.currentModuleId);
         break;
@@ -436,6 +457,12 @@ export class LumenWebviewHost {
 
       case "exercise.detail.requested":
         void this.pushExerciseDetail(message.payload.exerciseId);
+        break;
+
+      case "exercise.run.requested":
+        if (message.payload.kind === "compile" || message.payload.kind === "test") {
+          this.options.onExerciseRunRequested(message.payload.kind);
+        }
         break;
 
       case "lumen.exit.requested":

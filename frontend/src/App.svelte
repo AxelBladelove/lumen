@@ -16,8 +16,13 @@
     moduleDataFallbackDelayMs,
     transitionModuleDataState
   } from "./route-path-view/state/moduleDataState";
+  import {
+    createExerciseRunState,
+    isExerciseRunDisabled,
+    reduceExerciseRunState
+  } from "./exercise-detail/exerciseRunState";
   import type { RoutePathNode } from "./route-path-view/types/routePath";
-  import type { ExerciseDetailPayload } from "./webview/messages";
+  import type { ExerciseDetailPayload, ExerciseRunKind } from "./webview/messages";
   import { lumenWebviewProtocolVersion } from "./webview/messages";
   import { createVscodeBridge } from "./webview/vscodeBridge";
 
@@ -42,6 +47,7 @@
   // Tener datos no abre la vista: el CTA cambia a Detalles únicamente después
   // de que el ejercicio haya sido activado desde la ruta en esta sesión.
   let exerciseDetail: ExerciseDetailPayload | null = null;
+  let exerciseRunState = createExerciseRunState();
   let detailPanelOpen = false;
   let activatedExerciseId: string | null = null;
   let activationTargetId: string | null = null;
@@ -167,6 +173,10 @@
       }
     }
 
+    if (message.type === "exercise.run.state") {
+      exerciseRunState = reduceExerciseRunState(exerciseRunState, message.payload);
+    }
+
     if (message.type === "lumen.entry.transition" && message.payload.phase === "entering") {
       // Idempotente: si el intro del boot inicial sigue corriendo no se
       // reinicia (perderia el porcentaje heredado de la cortina estatica).
@@ -235,6 +245,7 @@
   $: detailActionAvailable = Boolean(
     exerciseDetail && activatedExerciseId === exerciseDetail.exerciseId
   );
+  $: exerciseRunDisabled = isExerciseRunDisabled(exerciseRunState);
   $: {
     const tailProgress = Math.min(1, Math.max(0, (introProgress - 88) / 12));
     introCompletionTail = tailProgress * tailProgress * (3 - 2 * tailProgress);
@@ -247,6 +258,14 @@
 
   function closeDetailPanel() {
     detailPanelOpen = false;
+  }
+
+  function handleExerciseRunRequest(kind: ExerciseRunKind) {
+    if (exerciseRunDisabled) return;
+    bridge.post({
+      type: "exercise.run.requested",
+      payload: { kind }
+    });
   }
 
   onDestroy(() => {
@@ -1055,10 +1074,12 @@
     detail={exerciseDetail}
     detailOpen={detailPanelOpen}
     detailTitle={exerciseDetail?.title ?? ""}
+    exerciseRunActive={exerciseRunState.active}
     onNodeSelected={handleNodeSelected}
     onContinueRequest={handleContinueRequest}
     onDetailRequest={openDetailPanel}
     onDetailClose={closeDetailPanel}
+    onExerciseRunRequest={handleExerciseRunRequest}
   />
 </div>
 

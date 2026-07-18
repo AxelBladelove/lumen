@@ -41,7 +41,8 @@ export class LumenTestController implements vscode.Disposable {
   dispose(): void {}
 
   async testCurrentExercise(
-    onNewlyCompleted?: (exerciseId: string) => Promise<void>
+    onNewlyCompleted?: (exerciseId: string) => Promise<void>,
+    onRunStarted?: () => void
   ): Promise<LumenExerciseRunTestsResult | undefined> {
     if (!isLumenModeActive()) {
       void vscode.window.showInformationMessage(
@@ -75,6 +76,7 @@ export class LumenTestController implements vscode.Disposable {
     }
 
     this.testInFlight = true;
+    onRunStarted?.();
     let handedOff = false;
     try {
       let result: LumenExerciseRunTestsResult;

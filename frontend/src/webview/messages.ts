@@ -51,6 +51,12 @@ export type ExerciseDetailPayload = {
   };
 };
 
+export type ExerciseRunKind = "compile" | "test";
+
+export type ExerciseRunStatePayload = {
+  active: ExerciseRunKind | null;
+};
+
 export type WebviewToExtensionMessage =
   | {
       type: "frontend.ready";
@@ -109,6 +115,10 @@ export type WebviewToExtensionMessage =
   | {
       type: "exercise.detail.requested";
       payload: { exerciseId: string };
+    }
+  | {
+      type: "exercise.run.requested";
+      payload: { kind: ExerciseRunKind };
     }
   | {
       type: "perf.report";
@@ -215,4 +225,8 @@ export type ExtensionToWebviewMessage =
         source: "engine";
         detail: ExerciseDetailPayload | null;
       };
+    }
+  | {
+      type: "exercise.run.state";
+      payload: ExerciseRunStatePayload;
     };

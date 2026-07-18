@@ -83,3 +83,17 @@ export type LumenExerciseDetailRequestedMessage = {
   type: "exercise.detail.requested";
   payload: { exerciseId: string };
 };
+
+export type ExerciseRunKind = "compile" | "test";
+
+// webview -> Extension Host (intención; el host decide)
+export type LumenExerciseRunRequestedMessage = {
+  type: "exercise.run.requested";
+  payload: { kind: ExerciseRunKind };
+};
+
+// Extension Host -> webview
+export type LumenExerciseRunStateMessage = {
+  type: "exercise.run.state";
+  payload: { active: ExerciseRunKind | null };
+};

@@ -122,6 +122,10 @@ type ExerciseDetailPayload = {
 };
 ```
 
+El mismo puente acepta `exercise.run.requested` con intención `compile` o
+`test`, y publica `exercise.run.state` con esa acción o `null`. Este estado
+refleja el lock de la consola externa; no añade métodos ni versión al engine.
+
 Reglas del host:
 
 - Tras una activación exitosa (`exercise.activate`), el host publica el

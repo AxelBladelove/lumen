@@ -55,7 +55,7 @@ export class LumenCompileController implements vscode.Disposable {
     this.pty = undefined;
   }
 
-  async compileCurrentExercise(): Promise<void> {
+  async compileCurrentExercise(onRunStarted?: () => void): Promise<void> {
     if (!isLumenModeActive()) {
       void vscode.window.showInformationMessage(
         "Lumen: F9 solo compila dentro de Lumen Mode. Abre Lumen y selecciona un ejercicio."
@@ -79,6 +79,7 @@ export class LumenCompileController implements vscode.Disposable {
     }
 
     this.compileInFlight = true;
+    onRunStarted?.();
     let handedOff = false;
     try {
       let result: LumenCompileResult;

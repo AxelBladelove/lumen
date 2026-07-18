@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import ExerciseDetailPanel from "../exercise-detail/ExerciseDetailPanel.svelte";
-  import type { ExerciseDetailPayload } from "../webview/messages";
+  import type { ExerciseDetailPayload, ExerciseRunKind } from "../webview/messages";
   import BottomCta from "./components/BottomCta.svelte";
   import HeroTextSticker from "./components/HeroTextSticker.svelte";
   import NodeOverlay from "./components/NodeOverlay.svelte";
@@ -29,6 +29,8 @@
   export let detailTitle = "";
   export let onDetailRequest: (() => void) | undefined = undefined;
   export let onDetailClose: (() => void) | undefined = undefined;
+  export let exerciseRunActive: ExerciseRunKind | null = null;
+  export let onExerciseRunRequest: ((kind: ExerciseRunKind) => void) | undefined = undefined;
 
   const stage = { width: 1086, height: 1448 };
   let scale = 1;
@@ -472,7 +474,13 @@
 
       {#if detail && detailRendered}
         {#key detail.exerciseId}
-          <ExerciseDetailPanel {detail} compact={compactLayout} exiting={detailExiting} />
+          <ExerciseDetailPanel
+            {detail}
+            compact={compactLayout}
+            exiting={detailExiting}
+            runActive={exerciseRunActive}
+            onRunRequested={onExerciseRunRequest}
+          />
         {/key}
       {/if}
 

@@ -5,9 +5,13 @@ import { LumenEngineClient } from "./engine/lumenEngineClient";
 import { LumenEngineError } from "./engine/lumenEngineProtocol";
 import { LumenCompileController } from "./lumenCompile";
 import { enterLumenMode, exitLumenMode, resumePendingLumenOpen } from "./lumenEntry";
-import { resolveConsoleRunnerPath } from "./lumenExternalConsole";
+import {
+  resolveConsoleRunnerPath,
+  waitForExternalRunToFinish
+} from "./lumenExternalConsole";
 import { cleanupStaleLumenLayout } from "./lumenLayout";
 import { LumenPanelController } from "./lumenPanel";
+import type { ExerciseRunKind } from "./lumenProtocol";
 import { LumenRoutePathViewProvider } from "./lumenRoutePathViewProvider";
 import { LumenTestController } from "./lumenTest";
 
@@ -31,9 +35,40 @@ export function activate(context: vscode.ExtensionContext) {
   const launcher = new LumenRoutePathViewProvider(() => {
     void vscode.commands.executeCommand("lumen.enterMode");
   });
-  const panel = new LumenPanelController(context, outputChannel, engineClient, () => {
-    void vscode.commands.executeCommand("lumen.exitMode");
-  });
+  let panel: LumenPanelController;
+  const runCurrentExercise = async (kind: ExerciseRunKind) => {
+    let started = false;
+    const markStarted = () => {
+      started = true;
+      panel.postExerciseRunState(kind);
+    };
+
+    try {
+      if (kind === "compile") {
+        await compileController.compileCurrentExercise(markStarted);
+      } else {
+        await testController.testCurrentExercise(
+          (exerciseId) => panel.postExerciseCompleted(exerciseId),
+          markStarted
+        );
+      }
+      if (started) await waitForExternalRunToFinish();
+    } catch (error) {
+      const detail = formatEngineError(error);
+      const label = kind === "compile" ? "Compile" : "Test";
+      outputChannel.appendLine(`${label} command failed: ${detail}`);
+      await vscode.window.showErrorMessage(detail);
+    } finally {
+      if (started) panel.postExerciseRunState(null);
+    }
+  };
+  panel = new LumenPanelController(
+    context,
+    outputChannel,
+    engineClient,
+    () => void vscode.commands.executeCommand("lumen.exitMode"),
+    (kind) => void runCurrentExercise(kind)
+  );
 
   const deps = { context, launcher, panel };
 
@@ -60,26 +95,12 @@ export function activate(context: vscode.ExtensionContext) {
       const refreshed = await panel.refresh();
       if (!refreshed) await enterLumenMode(deps);
     }),
-    vscode.commands.registerCommand("lumen.compileCurrentExercise", async () => {
-      try {
-        await compileController.compileCurrentExercise();
-      } catch (error) {
-        const detail = formatEngineError(error);
-        outputChannel.appendLine(`Compile command failed: ${detail}`);
-        await vscode.window.showErrorMessage(detail);
-      }
-    }),
-    vscode.commands.registerCommand("lumen.testCurrentExercise", async () => {
-      try {
-        await testController.testCurrentExercise((exerciseId) =>
-          panel.postExerciseCompleted(exerciseId)
-        );
-      } catch (error) {
-        const detail = formatEngineError(error);
-        outputChannel.appendLine(`Test command failed: ${detail}`);
-        await vscode.window.showErrorMessage(detail);
-      }
-    }),
+    vscode.commands.registerCommand("lumen.compileCurrentExercise", () =>
+      runCurrentExercise("compile")
+    ),
+    vscode.commands.registerCommand("lumen.testCurrentExercise", () =>
+      runCurrentExercise("test")
+    ),
     vscode.commands.registerCommand("lumen.importExercise", async () => {
       const selection = await vscode.window.showOpenDialog({
         canSelectMany: false,

@@ -6,6 +6,7 @@ import * as path from "node:path";
 import type * as vscode from "vscode";
 
 const externalRunLockPath = path.join(os.tmpdir(), "lumen-external-run.lock");
+const externalRunPollIntervalMs = 200;
 
 export type ExternalRunReservation = {
   token: string;
@@ -39,6 +40,13 @@ export function isExternalRunActive(): boolean {
   } catch {
     removeStaleLock();
     return false;
+  }
+}
+
+/** Espera el cierre real de la consola observando el lock que comparte el runner. */
+export async function waitForExternalRunToFinish(): Promise<void> {
+  while (isExternalRunActive()) {
+    await new Promise<void>((resolve) => setTimeout(resolve, externalRunPollIntervalMs));
   }
 }
 

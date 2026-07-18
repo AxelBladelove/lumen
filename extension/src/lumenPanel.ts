@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { LumenEngineClient } from "./engine/lumenEngineClient";
-import type { LumenEntryState } from "./lumenProtocol";
+import type { ExerciseRunKind, LumenEntryState } from "./lumenProtocol";
 import {
   getLumenFrontendResourceRoots,
   prepareLumenFrontendHtml,
@@ -68,7 +68,8 @@ export class LumenPanelController {
     private readonly context: vscode.ExtensionContext,
     private readonly outputChannel: vscode.OutputChannel,
     private readonly engineClient: LumenEngineClient,
-    private readonly onPanelClosed: () => void
+    private readonly onPanelClosed: () => void,
+    private readonly onExerciseRunRequested: (kind: ExerciseRunKind) => void
   ) {
     // Se inicia al activar la extension, no al clickear el icono. En la ruta
     // normal el HTML ya esta en memoria y el siguiente cambio visible puede ser
@@ -79,6 +80,7 @@ export class LumenPanelController {
       outputChannel,
       engineClient,
       onExitRequested: () => void vscode.commands.executeCommand("lumen.exitMode"),
+      onExerciseRunRequested: (kind) => this.onExerciseRunRequested(kind),
       onFrontendReady: () => {
         this.clearWatchdog();
         this.readySignal.resolve();
@@ -111,6 +113,10 @@ export class LumenPanelController {
 
   setEntryState(entryState: LumenEntryState) {
     this.host.setEntryState(entryState);
+  }
+
+  postExerciseRunState(active: ExerciseRunKind | null) {
+    this.host.setExerciseRunState(active);
   }
 
   getPreloadedFrontendHtml() {
