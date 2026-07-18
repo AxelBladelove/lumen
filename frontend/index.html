@@ -11,6 +11,11 @@
          app Svelte monta, retoma el porcentaje donde lo dejo esta cortina
          (window.__LUMEN_STATIC_INTRO__) y la conserva hasta el punch-in. */
       .lumen-static-intro {
+        --lumen-static-brightness: 1;
+        --lumen-static-mark-opacity: 1;
+        --lumen-static-mark-scale: 1;
+        --lumen-static-controls-opacity: 1;
+
         position: fixed;
         inset: 0;
         z-index: 200;
@@ -23,6 +28,7 @@
           radial-gradient(ellipse at 50% 42%, rgba(0, 146, 252, 0.2), transparent 34%),
           radial-gradient(ellipse at 50% 58%, rgba(2, 10, 20, 0.9), rgba(1, 4, 9, 0.98) 70%),
           #010508;
+        filter: brightness(var(--lumen-static-brightness));
       }
 
       .lumen-static-intro::before,
@@ -58,9 +64,11 @@
         width: 232px;
         height: 152px;
         gap: 20px;
-        opacity: 1;
+        opacity: var(--lumen-static-mark-opacity);
         visibility: visible;
         pointer-events: none;
+        transform: scale(var(--lumen-static-mark-scale));
+        transform-origin: 50% 30.25%;
       }
 
       .lumen-static-mark::before {
@@ -134,6 +142,11 @@
         line-height: 1;
         text-align: center;
         text-shadow: 0 0 14px rgba(0, 146, 252, 0.55);
+      }
+
+      .lumen-static-bar,
+      .lumen-static-percent {
+        opacity: var(--lumen-static-controls-opacity);
       }
 
     </style>

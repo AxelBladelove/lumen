@@ -50,7 +50,18 @@ button {
     radial-gradient(ellipse at 50% 58%, rgba(2, 10, 20, 0.88), rgba(1, 4, 9, 0.98) 70%),
     #010508;
   transform-origin: 50% 50%;
+  filter: brightness(var(--lumen-loading-brightness, 1));
   will-change: opacity, transform;
+}
+
+.lumen-intro:not(.intro-covering) .lumen-intro-mark {
+  opacity: var(--lumen-loading-mark-opacity, 1);
+  transform: translate3d(0, -12px, 0) scale(var(--lumen-loading-mark-scale, 1));
+}
+
+.lumen-intro:not(.intro-covering) .lumen-intro-bar,
+.lumen-intro:not(.intro-covering) .lumen-intro-percent {
+  opacity: var(--lumen-loading-controls-opacity, 1);
 }
 
 .lumen-intro::before,
@@ -311,6 +322,14 @@ button {
   10% {
     opacity: 1;
     transform: translate3d(0, -10px, 0) scale(1.018);
+    animation-timing-function: linear;
+  }
+
+  /* La escala se mantiene quieta hasta que el lockup ya murió (22%): la
+     expansión posterior sólo arrastra halo y streak, nunca al logo. */
+  22% {
+    opacity: 1;
+    transform: translate3d(0, -10px, 0) scale(1.018);
     animation-timing-function: cubic-bezier(0.54, 0.04, 0.78, 0.28);
   }
 
@@ -341,6 +360,8 @@ button {
   }
 }
 
+/* Con el lockup muerto en el primer golpe, el halo ES el zoom: plena
+   opacidad justo al morir el logo (30%) y expansión continua hasta el corte. */
 @keyframes lumenIntroHaloFocus {
   0% {
     opacity: 0.56;
@@ -349,93 +370,67 @@ button {
   }
 
   8% {
-    opacity: 0.64;
-    transform: translate3d(-50%, -50%, 0) scale(0.9);
+    opacity: 0.7;
+    transform: translate3d(-50%, -50%, 0) scale(0.92);
     animation-timing-function: cubic-bezier(0.54, 0.04, 0.78, 0.28);
   }
 
-  68% {
-    opacity: 0.96;
-    transform: translate3d(-50%, -50%, 0) scale(1.1);
+  30% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(1.12);
   }
 
   100% {
-    opacity: 0.98;
-    transform: translate3d(-50%, -50%, 0) scale(1.12);
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(1.32);
   }
 }
 
+/* El lockup muere EN EL SITIO en el primer golpe (~25 ms): nunca se le ve
+   inflarse. El zoom se percibe como expansión de luz (halo + atmósfera +
+   bloom), no como el logo creciendo. */
 @keyframes lumenIntroOpticalSmear {
   0%,
-  24% {
+  8% {
     opacity: 1;
     transform: translate3d(0, 0, 0) scaleX(1) skewX(0);
     filter: blur(0) saturate(1);
   }
 
-  30% {
-    opacity: 0.94;
-    transform: translate3d(-0.3px, 0, 0) scaleX(1.006) skewX(-0.25deg);
-    filter: blur(0) saturate(1.08);
+  14% {
+    opacity: 0.66;
+    transform: translate3d(0.6px, 0, 0) scaleX(1.02) skewX(0.7deg);
+    filter: blur(0.8px) saturate(1.4);
   }
 
-  38% {
-    opacity: 0.74;
-    transform: translate3d(0.8px, 0, 0) scaleX(1.025) skewX(0.9deg);
-    filter: blur(0.35px) saturate(1.3);
-  }
-
-  46% {
-    opacity: 0.38;
-    transform: translate3d(-1px, 0, 0) scaleX(0.95) skewX(-1.8deg);
-    filter: blur(1.4px) saturate(1.65);
-  }
-
-  58% {
-    opacity: 0.18;
-    transform: translate3d(0.8px, 0, 0) scaleX(1.04) skewX(0.6deg);
-    filter: blur(2px) saturate(1.72);
-  }
-
+  22%,
   100% {
-    opacity: 0.12;
+    opacity: 0;
     transform: translate3d(0, 0, 0) scaleX(1.04) skewX(0);
-    filter: blur(2.2px) saturate(1.72);
+    filter: blur(2px) saturate(1.6);
   }
 }
 
+/* Las dobles exposiciones RGB son el destello del impacto inicial: pico a
+   los ~14 ms y muertas junto al lockup — nada del logo sobrevive al vuelo. */
 @keyframes lumenIntroChromaticRed {
   0%,
+  4% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) skewX(0);
+  }
+
+  12% {
+    opacity: 0.7;
+    transform: translate3d(-1.6px, 0.35px, 0) skewX(-2.4deg) scaleX(1.024);
+  }
+
   20% {
-    opacity: 0;
-    transform: translate3d(0, 0, 0) skewX(0);
+    opacity: 0.12;
+    transform: translate3d(-0.6px, 0.1px, 0) skewX(-0.5deg) scaleX(1.006);
   }
 
-  30% {
-    opacity: 0.28;
-    transform: translate3d(-0.45px, 0.15px, 0) skewX(-0.5deg);
-  }
-
-  38% {
-    opacity: 0.62;
-    transform: translate3d(-1.2px, 0.25px, 0) skewX(-1.5deg) scaleX(1.015);
-  }
-
-  45% {
-    opacity: 0.84;
-    transform: translate3d(-1.9px, 0.4px, 0) skewX(-2.8deg) scaleX(1.028);
-  }
-
-  54% {
-    opacity: 0.2;
-    transform: translate3d(-0.7px, 0.1px, 0) skewX(-0.6deg) scaleX(1.008);
-  }
-
-  68% {
-    opacity: 0;
-    transform: translate3d(0, 0, 0) skewX(0);
-  }
-
+  26%,
   100% {
     opacity: 0;
     transform: translate3d(0, 0, 0) skewX(0);
@@ -444,73 +439,61 @@ button {
 
 @keyframes lumenIntroChromaticCyan {
   0%,
+  4% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) skewX(0);
+  }
+
+  12% {
+    opacity: 0.66;
+    transform: translate3d(1.7px, -0.35px, 0) skewX(2.5deg) scaleX(1.026);
+  }
+
   20% {
-    opacity: 0;
-    transform: translate3d(0, 0, 0) skewX(0);
+    opacity: 0.12;
+    transform: translate3d(0.65px, -0.1px, 0) skewX(0.55deg) scaleX(1.007);
   }
 
-  30% {
-    opacity: 0.26;
-    transform: translate3d(0.5px, -0.15px, 0) skewX(0.55deg);
-  }
-
-  38% {
-    opacity: 0.58;
-    transform: translate3d(1.3px, -0.25px, 0) skewX(1.6deg) scaleX(1.016);
-  }
-
-  45% {
-    opacity: 0.8;
-    transform: translate3d(2px, -0.4px, 0) skewX(2.9deg) scaleX(1.03);
-  }
-
-  54% {
-    opacity: 0.18;
-    transform: translate3d(0.75px, -0.1px, 0) skewX(0.65deg) scaleX(1.009);
-  }
-
-  68% {
-    opacity: 0;
-    transform: translate3d(0, 0, 0) skewX(0);
-  }
-
+  26%,
   100% {
     opacity: 0;
     transform: translate3d(0, 0, 0) skewX(0);
   }
 }
 
+/* El shake vive pegado al impacto (8-28%): golpea junto al flash RGB y decae
+   mientras la luz se expande, en vez de sacudir una pantalla ya en vuelo. */
 @keyframes lumenIntroImpactShake {
   0%,
-  26% {
+  8% {
     transform: translate3d(0, 0, 0) scale(1.012);
   }
 
-  32% {
+  12% {
     transform: translate3d(1.2px, -0.6px, 0) scale(1.013);
   }
 
-  37% {
+  16% {
     transform: translate3d(-2.6px, 1.2px, 0) scale(1.014);
   }
 
-  42% {
+  22% {
     transform: translate3d(3.2px, -1.5px, 0) scale(1.014);
   }
 
-  47% {
+  28% {
     transform: translate3d(-3.4px, 1.6px, 0) scale(1.014);
   }
 
-  52% {
+  36% {
     transform: translate3d(1.8px, -0.8px, 0) scale(1.013);
   }
 
-  60% {
+  46% {
     transform: translate3d(-0.7px, 0.4px, 0) scale(1.012);
   }
 
-  70%,
+  56%,
   100% {
     transform: translate3d(0, 0, 0) scale(1.012);
   }
@@ -628,33 +611,883 @@ button {
   }
 }
 
+/* Aterrizaje de la cámara sobre la UI final. El 0% es idéntico al estado
+   congelado del handoff: la mayor parte del recorrido de escala se consume en
+   el primer tercio (continuidad de velocidad con el punch-in) y el desenfoque
+   se disipa igual de rápido; la cola larga sólo asienta los últimos píxeles. */
 @keyframes lumenUiZoomOut {
-  from {
-    opacity: 0.86;
-    transform: translateZ(0) scale(1.11);
+  0% {
+    opacity: 1;
+    transform: translateZ(0) scale(1.3);
+    filter: blur(18px) saturate(1.5) brightness(1.45);
+    animation-timing-function: cubic-bezier(0.16, 0.84, 0.3, 1);
   }
-  to {
+
+  42% {
+    opacity: 1;
+    transform: translateZ(0) scale(1.045);
+    filter: blur(2px) saturate(1.08) brightness(1.05);
+    animation-timing-function: cubic-bezier(0.22, 0.68, 0.32, 1);
+  }
+
+  100% {
     opacity: 1;
     transform: translateZ(0) scale(1);
+    filter: blur(0) saturate(1) brightness(1);
   }
 }
 
 /* Superficie que el webview pinta ANTES de que VS Code mueva el panel. Si el
    workbench recompone una textura atrasada, sólo puede reutilizar este frame
    de ruta válido, nunca el punch-in del logo. El landing parte exactamente del
-   mismo estado, por lo que no hay salto entre preparación y animación. */
+   mismo estado, por lo que no hay salto entre preparación y animación.
+   El desenfoque + brillo hacen doble servicio: un frame estático borroso se
+   lee como pico de movimiento, así que ni el interludio fullscreen ni el snap
+   de geometría del split son legibles como cortes. */
 .lumen-ui-handoff-frozen .lumen-route-app {
-  opacity: 0.86;
-  transform: translateZ(0) scale(1.11);
+  opacity: 1;
+  transform: translateZ(0) scale(1.3);
   transform-origin: 50% 50%;
-  will-change: opacity, transform;
+  /* Saturación alta y brillo contenido: el pico debe leerse como la UI
+     smeared en azules Lumen, no como una quemadura blanca. */
+  filter: blur(18px) saturate(1.5) brightness(1.45);
+  will-change: opacity, transform, filter;
 }
 
 .lumen-ui-entering .lumen-route-app {
-  animation: lumenUiZoomOut 120ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
+  animation: lumenUiZoomOut 340ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
   transform-origin: 50% 50%;
+  will-change: opacity, transform, filter;
+}
+
+/* Velo de luz del relevo: prolonga el glow del lockup sobre la ruta congelada
+   para que el corte punch-in -> UI y el movimiento del workbench ocurran
+   dentro del mismo campo luminoso. Vive fuera de .lumen-route-app: el filter
+   de la ruta no puede convertirlo en contenedor ni arrastrarlo en el zoom. */
+.lumen-entry-veil {
+  position: fixed;
+  inset: 0;
+  /* Por encima del intro (100): el bloom debe tapar el logo en pleno vuelo.
+     Por debajo de la cortina estatica de index.html (200). */
+  z-index: 150;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  /* Colores de marca, no flash blanco: el pico de una zoom transition es la
+     escena emborronada en su propia paleta (referencia: smooth zoom estilo
+     Kolder / Film Impact). Núcleo apenas caliente y cuerpo azul #0092fc
+     saturado — el mismo glow de la cortina de carga, amplificado. */
+  background:
+    radial-gradient(
+      ellipse 58% 44% at 50% 44%,
+      rgba(178, 229, 255, 0.6),
+      rgba(95, 200, 255, 0.48) 30%,
+      rgba(0, 146, 252, 0.4) 56%,
+      rgba(1, 8, 14, 0) 82%
+    ),
+    radial-gradient(ellipse at center, rgba(0, 146, 252, 0.22) 0 40%, rgba(1, 4, 9, 0.66) 100%);
+}
+
+/* Bloom durante el propio punch-in: a partir de ~1/3 del vuelo la luz toma la
+   pantalla mientras el logo sigue zoomeando debajo. Ningún frame posterior
+   muestra el lockup — el corte al frame congelado ocurre dentro de luz pura. */
+.lumen-intro.intro-covering ~ .lumen-entry-veil {
+  /* Misma duración que --lumen-intro-focus-duration: el bloom es un keyframe
+     del punch (var() no cruza hermanos, por eso el valor va literal). */
+  animation: lumenEntryVeilIn 120ms linear both;
+}
+
+@keyframes lumenEntryVeilIn {
+  0%,
+  18% {
+    opacity: 0;
+    visibility: visible;
+  }
+
+  32% {
+    opacity: 0.6;
+    visibility: visible;
+  }
+
+  44%,
+  100% {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+.lumen-ui-handoff-frozen .lumen-entry-veil {
+  opacity: 1;
+  visibility: visible;
+}
+
+.lumen-ui-entering .lumen-entry-veil {
+  animation: lumenEntryVeilOut 260ms cubic-bezier(0.3, 0.5, 0.3, 1) both;
+}
+
+@keyframes lumenEntryVeilOut {
+  0% {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  55% {
+    opacity: 0.3;
+    visibility: visible;
+  }
+
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   VARIANTE DE ENTRADA: IRIS
+   Mantiene velocity como base y sobreescribe toda superficie animada
+   que podría filtrarse por cascada cuando el host selecciona iris.
+   ═══════════════════════════════════════════════════════════════════ */
+
+html[data-lumen-entry-style="iris"] .lumen-intro {
+  --lumen-intro-focus-duration: 140ms;
+}
+
+/* ── FASE CUBIERTA · D_cover = 140ms ─────────────────────────────── */
+
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering {
+  pointer-events: none;
+  /* Sin shake de impacto: la implosión es succión, no golpe. */
+  animation: none;
+}
+
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-mark {
+  animation: lumenIrisMarkCollapse var(--lumen-intro-focus-duration) linear both;
+}
+
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-mark::before {
+  animation: lumenIrisHaloCharge var(--lumen-intro-focus-duration) linear both;
+}
+
+/* El streak espectral, el smear y las dobles exposiciones RGB pertenecen al
+   punch-in; el iris no los usa. El markup queda intacto. */
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-mark::after,
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-chromatic-red,
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-chromatic-cyan {
+  animation: none;
+  opacity: 0;
+}
+
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-primary {
+  animation: none;
+}
+
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering::before {
+  animation: lumenIrisAtmosphereInhale var(--lumen-intro-focus-duration) linear both;
+}
+
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering::after {
+  animation: lumenIrisVignetteBreath var(--lumen-intro-focus-duration) linear both;
+}
+
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-bar,
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-percent {
+  animation: lumenIrisControlsCollapse 60ms cubic-bezier(0.55, 0.06, 0.68, 0.19) both;
+}
+
+/* El lockup colapsa EN EL SITIO hacia su centro óptico. La escala sólo
+   decrece y la masa se vuelve luz antes de morir dentro del núcleo. */
+@keyframes lumenIrisMarkCollapse {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, -12px, 0) scale(1);
+    filter: brightness(1) saturate(1);
+    animation-timing-function: cubic-bezier(0.62, 0.02, 0.86, 0.34);
+  }
+
+  10% {
+    opacity: 1;
+    transform: translate3d(0, -11px, 0) scale(0.985);
+    filter: brightness(1.08) saturate(1.05);
+    animation-timing-function: cubic-bezier(0.6, 0.05, 0.85, 0.4);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translate3d(0, -8px, 0) scale(0.4);
+    filter: brightness(1.7) saturate(1.3);
+  }
+
+  44% {
+    opacity: 1;
+    transform: translate3d(0, -4px, 0) scale(0.085);
+    filter: brightness(2.4) saturate(1.5);
+    animation-timing-function: linear;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -2px, 0) scale(0.05);
+    filter: brightness(2.8) saturate(1.5);
+  }
+}
+
+/* El halo precede al lockup: se contrae y se enciende alimentando el punto. */
+@keyframes lumenIrisHaloCharge {
+  0% {
+    opacity: 0.56;
+    transform: translate3d(-50%, -50%, 0) scale(0.86);
+    animation-timing-function: cubic-bezier(0.55, 0.04, 0.8, 0.34);
+  }
+
+  32% {
+    opacity: 0.95;
+    transform: translate3d(-50%, -50%, 0) scale(0.4);
+  }
+
+  48% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(0.24);
+    animation-timing-function: linear;
+  }
+
+  54%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.2);
+  }
+}
+
+@keyframes lumenIrisAtmosphereInhale {
+  0% {
+    opacity: 0.34;
+  }
+
+  40% {
+    opacity: 0.18;
+  }
+
+  60%,
+  100% {
+    opacity: 0.06;
+  }
+}
+
+@keyframes lumenIrisVignetteBreath {
+  0% {
+    opacity: 1;
+  }
+
+  46% {
+    opacity: 0.86;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes lumenIrisControlsCollapse {
+  from {
+    opacity: 1;
+    transform: translate3d(-50%, 0, 0) scaleX(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(-50%, -34px, 0) scaleX(0.12);
+  }
+}
+
+/* Salida de emergencia fuera del host: corte por fundido, sin iris. */
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-exiting {
+  pointer-events: none;
+  animation: lumenIrisCurtainFade 280ms cubic-bezier(0.2, 0.88, 0.24, 1) both;
+}
+
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-exiting .lumen-intro-mark {
+  opacity: 0;
+  animation: none;
+}
+
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-exiting .lumen-intro-bar,
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-exiting .lumen-intro-percent {
+  opacity: 0;
+}
+
+@keyframes lumenIrisCurtainFade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+html[data-lumen-entry-style="iris"].lumen-ui-revealing .lumen-route-app {
+  animation: lumenIrisReveal 280ms cubic-bezier(0.2, 0.88, 0.24, 1) both;
+  will-change: opacity;
+}
+
+@keyframes lumenIrisReveal {
+  from {
+    opacity: 0.16;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── EL VELO ES EL IRIS ───────────────────────────────────────────
+   Div base = ambiente fullscreen; ::before = disco de 200vmax;
+   ::after = anillo cian que define la onda. */
+html[data-lumen-entry-style="iris"] .lumen-entry-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse at 50% 44%,
+      rgba(0, 146, 252, 0.5),
+      rgba(0, 66, 130, 0.62) 46%,
+      rgba(1, 8, 14, 0.9) 100%
+    );
+}
+
+html[data-lumen-entry-style="iris"] .lumen-entry-veil::before,
+html[data-lumen-entry-style="iris"] .lumen-entry-veil::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: 200vmax;
+  height: 200vmax;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(-50%, -50%, 0) scale(0.012);
   will-change: opacity, transform;
 }
+
+html[data-lumen-entry-style="iris"] .lumen-entry-veil::before {
+  /* Núcleo contenido y azulado: el pico debe leerse como luz Lumen densa,
+     nunca como un fogonazo claro (feedback del dueño sobre el velo previo). */
+  background: radial-gradient(
+    circle,
+    rgba(178, 229, 255, 0.95) 0 2.2%,
+    rgba(64, 180, 255, 0.96) 9%,
+    rgba(0, 146, 252, 0.95) 30%,
+    rgba(0, 96, 190, 0.96) 52%,
+    rgba(0, 40, 82, 0.97) 74%,
+    rgba(1, 10, 18, 0.985) 100%
+  );
+}
+
+html[data-lumen-entry-style="iris"] .lumen-entry-veil::after {
+  mix-blend-mode: screen;
+  background: radial-gradient(
+    circle,
+    transparent 0 78%,
+    rgba(0, 255, 224, 0.22) 86%,
+    rgba(95, 200, 255, 0.7) 93%,
+    rgba(0, 255, 224, 0.35) 97%,
+    transparent 100%
+  );
+}
+
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering ~ .lumen-entry-veil {
+  animation: lumenIrisAmbientIn 140ms linear both;
+}
+
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering ~ .lumen-entry-veil::before {
+  animation: lumenIrisBloom 140ms linear both;
+}
+
+html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering ~ .lumen-entry-veil::after {
+  animation: lumenIrisRimBloom 140ms linear both;
+}
+
+/* Cobertura total explícita en 78%: 0.72 × 200vmax = 144vmax. */
+@keyframes lumenIrisBloom {
+  0%,
+  16% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.012);
+    animation-timing-function: cubic-bezier(0.3, 0.6, 0.4, 1);
+  }
+
+  28% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(0.03);
+    animation-timing-function: linear;
+  }
+
+  48% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(0.052);
+    animation-timing-function: cubic-bezier(0.7, 0, 0.84, 0.2);
+  }
+
+  54% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(0.044);
+    animation-timing-function: cubic-bezier(0.16, 0.7, 0.18, 1);
+  }
+
+  78% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(0.72);
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.3, 1);
+  }
+
+  90% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(0.85);
+    animation-timing-function: cubic-bezier(0.3, 0.6, 0.35, 1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(0.9);
+  }
+}
+
+@keyframes lumenIrisRimBloom {
+  0%,
+  50% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.05);
+    animation-timing-function: cubic-bezier(0.16, 0.7, 0.18, 1);
+  }
+
+  62% {
+    opacity: 0.9;
+    transform: translate3d(-50%, -50%, 0) scale(0.5);
+  }
+
+  78% {
+    opacity: 0.6;
+    transform: translate3d(-50%, -50%, 0) scale(0.76);
+    animation-timing-function: cubic-bezier(0.3, 0.6, 0.35, 1);
+  }
+
+  100% {
+    opacity: 0.5;
+    transform: translate3d(-50%, -50%, 0) scale(0.94);
+  }
+}
+
+@keyframes lumenIrisAmbientIn {
+  0%,
+  44% {
+    opacity: 0;
+    visibility: visible;
+  }
+
+  62% {
+    opacity: 0.6;
+    visibility: visible;
+  }
+
+  78%,
+  100% {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+/* ── ESTADO CONGELADO (= keyframe 0% del aterrizaje, exacto) ────── */
+
+html[data-lumen-entry-style="iris"].lumen-ui-handoff-frozen .lumen-route-app {
+  opacity: 1;
+  transform: translateZ(0) scale(1.24);
+  transform-origin: 50% 50%;
+  filter: blur(16px) saturate(1.45) brightness(1.4);
+  will-change: opacity, transform, filter;
+}
+
+html[data-lumen-entry-style="iris"].lumen-ui-handoff-frozen .lumen-entry-veil {
+  opacity: 1;
+  visibility: visible;
+}
+
+html[data-lumen-entry-style="iris"].lumen-ui-handoff-frozen .lumen-entry-veil::before {
+  opacity: 1;
+  transform: translate3d(-50%, -50%, 0) scale(0.9);
+}
+
+html[data-lumen-entry-style="iris"].lumen-ui-handoff-frozen .lumen-entry-veil::after {
+  opacity: 0.5;
+  transform: translate3d(-50%, -50%, 0) scale(0.94);
+}
+
+/* ── ATERRIZAJE · D_land = 360ms ─────────────────────────────────── */
+
+html[data-lumen-entry-style="iris"].lumen-ui-entering .lumen-route-app {
+  animation: lumenIrisSettle 360ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
+  transform-origin: 50% 50%;
+  will-change: opacity, transform, filter;
+}
+
+@keyframes lumenIrisSettle {
+  0% {
+    opacity: 1;
+    transform: translateZ(0) scale(1.24);
+    filter: blur(16px) saturate(1.45) brightness(1.4);
+    animation-timing-function: cubic-bezier(0.16, 0.84, 0.3, 1);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateZ(0) scale(1.04);
+    filter: blur(2px) saturate(1.07) brightness(1.05);
+    animation-timing-function: cubic-bezier(0.22, 0.68, 0.32, 1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateZ(0) scale(1);
+    filter: blur(0) saturate(1) brightness(1);
+  }
+}
+
+html[data-lumen-entry-style="iris"].lumen-ui-entering .lumen-entry-veil {
+  animation: lumenIrisAmbientOut 360ms cubic-bezier(0.3, 0.5, 0.3, 1) both;
+}
+
+html[data-lumen-entry-style="iris"].lumen-ui-entering .lumen-entry-veil::before {
+  animation: lumenIrisRetract 360ms linear both;
+}
+
+html[data-lumen-entry-style="iris"].lumen-ui-entering .lumen-entry-veil::after {
+  animation: lumenIrisRimRetract 360ms linear both;
+}
+
+@keyframes lumenIrisRetract {
+  0% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(0.9);
+    animation-timing-function: cubic-bezier(0.3, 0.55, 0.25, 1);
+  }
+
+  45% {
+    opacity: 0.92;
+    transform: translate3d(-50%, -50%, 0) scale(0.34);
+    animation-timing-function: cubic-bezier(0.25, 0.5, 0.3, 1);
+  }
+
+  78% {
+    opacity: 0.6;
+    transform: translate3d(-50%, -50%, 0) scale(0.07);
+    animation-timing-function: cubic-bezier(0.3, 0.4, 0.4, 1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.018);
+  }
+}
+
+@keyframes lumenIrisRimRetract {
+  0% {
+    opacity: 0.5;
+    transform: translate3d(-50%, -50%, 0) scale(0.94);
+    animation-timing-function: cubic-bezier(0.3, 0.55, 0.25, 1);
+  }
+
+  40% {
+    opacity: 0.85;
+    transform: translate3d(-50%, -50%, 0) scale(0.3);
+    animation-timing-function: cubic-bezier(0.25, 0.5, 0.3, 1);
+  }
+
+  70% {
+    opacity: 0.5;
+    transform: translate3d(-50%, -50%, 0) scale(0.06);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.015);
+  }
+}
+
+@keyframes lumenIrisAmbientOut {
+  0% {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  55% {
+    opacity: 0.25;
+    visibility: visible;
+  }
+
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering,
+  html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering::before,
+  html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering::after,
+  html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-mark,
+  html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-mark::before,
+  html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-mark::after,
+  html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-primary,
+  html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-chromatic-red,
+  html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-chromatic-cyan,
+  html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-bar,
+  html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering .lumen-intro-percent,
+  html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering ~ .lumen-entry-veil,
+  html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering ~ .lumen-entry-veil::before,
+  html[data-lumen-entry-style="iris"] .lumen-intro.intro-covering ~ .lumen-entry-veil::after {
+    animation: none;
+  }
+}
+
+/* ═════════════════════════ FIN VARIANTE IRIS ═════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════
+   VARIANTE DE ENTRADA: ECLIPSE
+   Dip-to-black cinematográfico: apaga la cortina, oculta el movimiento
+   del workbench bajo negro sólido y deja que la ruta emerja al aterrizar.
+   Toda superficie animada de velocity queda sobreescrita en este scope.
+   ═══════════════════════════════════════════════════════════════════ */
+
+html[data-lumen-entry-style="eclipse"] .lumen-intro {
+  --lumen-intro-focus-duration: 160ms;
+}
+
+/* ── FASE CUBIERTA · D_cover = 160ms ─────────────────────────────── */
+
+html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering {
+  pointer-events: none;
+  animation: none;
+}
+
+html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-mark {
+  animation: lumenEclipseMarkOut var(--lumen-intro-focus-duration) linear both;
+}
+
+html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-mark::before {
+  animation: lumenEclipseHaloOut var(--lumen-intro-focus-duration) linear both;
+}
+
+html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-mark::after,
+html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-chromatic-red,
+html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-chromatic-cyan {
+  animation: none;
+  opacity: 0;
+}
+
+html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-primary {
+  animation: none;
+  opacity: 1;
+}
+
+html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering::before {
+  animation: lumenEclipseAtmosOut var(--lumen-intro-focus-duration) linear both;
+}
+
+html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering::after {
+  animation: none;
+  opacity: 1;
+}
+
+html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-bar,
+html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-percent {
+  animation: lumenEclipseControlsOut 60ms cubic-bezier(0.55, 0.06, 0.68, 0.19) both;
+}
+
+@keyframes lumenEclipseMarkOut {
+  0% {
+    opacity: 0.38;
+    transform: translate3d(0, -12px, 0) scale(0.975);
+    filter: brightness(1);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+  }
+
+  55% {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0) scale(0.96);
+    filter: brightness(0.55);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0) scale(0.96);
+    filter: brightness(0.55);
+  }
+}
+
+@keyframes lumenEclipseHaloOut {
+  0% {
+    opacity: 0.56;
+    transform: translate3d(-50%, -50%, 0) scale(0.86);
+  }
+
+  45% {
+    opacity: 0.12;
+  }
+
+  70%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.8);
+  }
+}
+
+@keyframes lumenEclipseAtmosOut {
+  0% {
+    opacity: 0.34;
+  }
+
+  60%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes lumenEclipseControlsOut {
+  from {
+    opacity: 1;
+    transform: translate3d(-50%, 0, 0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate3d(-50%, 4px, 0) scale(0.985);
+  }
+}
+
+/* ── VELO ECLIPSE · negro sólido antes del handoff ──────────────── */
+
+html[data-lumen-entry-style="eclipse"] .lumen-entry-veil {
+  background: #010508;
+}
+
+html[data-lumen-entry-style="eclipse"] .lumen-entry-veil::before,
+html[data-lumen-entry-style="eclipse"] .lumen-entry-veil::after {
+  content: none;
+  animation: none;
+  opacity: 0;
+}
+
+html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering ~ .lumen-entry-veil {
+  animation: lumenEclipseVeilIn 160ms linear both;
+}
+
+@keyframes lumenEclipseVeilIn {
+  0%,
+  20% {
+    opacity: 0;
+    visibility: visible;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+  }
+
+  70% {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  100% {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+/* ── ESTADO CONGELADO (= keyframe 0% del aterrizaje, exacto) ────── */
+
+html[data-lumen-entry-style="eclipse"].lumen-ui-handoff-frozen .lumen-route-app {
+  opacity: 0.78;
+  transform: translateZ(0) scale(0.985);
+  transform-origin: 50% 50%;
+  filter: blur(3.5px) brightness(0.9);
+  will-change: opacity, transform, filter;
+}
+
+html[data-lumen-entry-style="eclipse"].lumen-ui-handoff-frozen .lumen-entry-veil {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ── ATERRIZAJE · D_land = 520ms ─────────────────────────────────── */
+
+html[data-lumen-entry-style="eclipse"].lumen-ui-entering .lumen-route-app {
+  animation: lumenEclipseRise 520ms linear both;
+  transform-origin: 50% 50%;
+  will-change: opacity, transform, filter;
+}
+
+@keyframes lumenEclipseRise {
+  0% {
+    opacity: 0.78;
+    transform: translateZ(0) scale(0.985);
+    filter: blur(3.5px) brightness(0.9);
+    animation-timing-function: cubic-bezier(0.16, 0.84, 0.3, 1);
+  }
+
+  45% {
+    opacity: 0.97;
+    transform: translateZ(0) scale(0.998);
+    filter: blur(0.6px) brightness(0.98);
+    animation-timing-function: cubic-bezier(0.22, 0.68, 0.32, 1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateZ(0) scale(1);
+    filter: blur(0) brightness(1);
+  }
+}
+
+html[data-lumen-entry-style="eclipse"].lumen-ui-entering .lumen-entry-veil {
+  animation: lumenEclipseVeilOut 520ms cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+
+@keyframes lumenEclipseVeilOut {
+  0% {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering,
+  html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering::before,
+  html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering::after,
+  html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-mark,
+  html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-mark::before,
+  html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-mark::after,
+  html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-primary,
+  html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-chromatic-red,
+  html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-chromatic-cyan,
+  html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-bar,
+  html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering .lumen-intro-percent,
+  html[data-lumen-entry-style="eclipse"] .lumen-intro.intro-covering ~ .lumen-entry-veil {
+    animation: none;
+  }
+
+  html[data-lumen-entry-style="eclipse"].lumen-ui-handoff-frozen .lumen-route-app,
+  html[data-lumen-entry-style="eclipse"].lumen-ui-entering .lumen-route-app {
+    opacity: 1;
+    animation: none;
+    transform: none;
+    filter: none;
+  }
+}
+
+/* ═════════════════════════ FIN VARIANTE ECLIPSE ══════════════════ */
 
 .lumen-route-app {
   position: relative;
@@ -2564,6 +3397,11 @@ button {
     opacity: 1;
     animation: none;
     transform: none;
+    filter: none;
+  }
+
+  .lumen-entry-veil {
+    display: none;
   }
 
   .hero-text-input,

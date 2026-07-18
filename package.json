@@ -27,6 +27,17 @@
     "workspaceContains:.lumen-perf-auto-open"
   ],
   "contributes": {
+    "configuration": {
+      "title": "Lumen",
+      "properties": {
+        "lumen.entryStyle": {
+          "type": "string",
+          "enum": ["velocity", "iris", "eclipse", "lens", "tide"],
+          "default": "eclipse",
+          "markdownDescription": "Estilo de la transición de entrada a Lumen Mode. `eclipse` (predeterminado): dip-to-black cinematográfico que enlaza con la pantalla de destino. `velocity`: zoom óptico con impacto. `iris`: implosión luminosa. `lens` y `tide`: variantes de exploración. Se aplica en la siguiente entrada a Lumen."
+        }
+      }
+    },
     "commands": [
       {
         "command": "lumen.open",

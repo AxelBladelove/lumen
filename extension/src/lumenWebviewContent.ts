@@ -45,6 +45,17 @@ export async function getLumenFrontendHtml(
   return prepareLumenFrontendHtml(context, webview, await readLumenFrontendIndexHtml(context));
 }
 
+/**
+ * Estilo de entrada elegido por el usuario (lumen.entryStyle). Viaja como
+ * atributo del <html> para estar presente desde el PRIMER frame del webview:
+ * un mensaje llegaria tarde para la cortina y las variantes CSS de la
+ * transicion (selectores html[data-lumen-entry-style="..."]).
+ */
+function resolveEntryStyleAttribute() {
+  const style = vscode.workspace.getConfiguration("lumen").get<string>("entryStyle", "eclipse");
+  return /^[a-z][a-z-]{0,23}$/.test(style) ? style : "eclipse";
+}
+
 function prepareBuiltFrontendHtml(
   webview: vscode.Webview,
   html: string,
@@ -55,6 +66,7 @@ function prepareBuiltFrontendHtml(
   const distBase = withTrailingSlash(webview.asWebviewUri(frontendDistUri).toString());
   const logoWebviewUri = webview.asWebviewUri(logoUri);
   const csp = createContentSecurityPolicy(webview, nonce);
+  const entryStyle = resolveEntryStyleAttribute();
 
   const headInjection = [
     `<base href="${distBase}">`,
@@ -65,6 +77,7 @@ function prepareBuiltFrontendHtml(
 
   return html
     .replace(/<script\b(?![^>]*\bnonce=)/g, `<script nonce="${nonce}"`)
+    .replace(/<html\b/i, `<html data-lumen-entry-style="${entryStyle}"`)
     .replace(/<head>/i, `<head>\n${headInjection}`);
 }
 

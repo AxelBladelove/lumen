@@ -46,22 +46,47 @@
   let introAssetsReady = false;
   let introProgressVisible = staticIntroProgress > 0;
   let introProgress = staticIntroProgress;
+  let introCompletionTail = 0;
   let introCycle = 0;
   let revealedPosted = false;
   let routeVisualReady = false;
   let stopIntroGate = () => {};
   let stopIntroProgress = () => {};
   let uiZoomOutTimer = 0;
-  const introProgressDurationMs = 400;
+  const introProgressDurationMs = 650;
+  const introProgressCompletionHoldMs = 90;
   const introStableFrameDelayMs = 120;
   const introStableFrameBudgetMs = 26;
   const introRevealDurationMs = 280;
-  const introFocusDurationMs = 120;
-  // A 58 ms el punch-in ya cubre el lockup casi por completo. El host pide en
-  // ese punto el frame seguro; dos oportunidades completas de presentación lo
-  // confirman alrededor del pico óptico, sin añadir un hold terminal.
-  const introLayoutHandoffAtMs = 58;
-  const introUiZoomOutDurationMs = 120;
+  const introTimingsByStyle = {
+    velocity: {
+      introFocusDurationMs: 120,
+      introLayoutHandoffAtMs: 58,
+      introUiZoomOutDurationMs: 340
+    },
+    iris: {
+      introFocusDurationMs: 140,
+      introLayoutHandoffAtMs: 126,
+      introUiZoomOutDurationMs: 360
+    },
+    eclipse: {
+      introFocusDurationMs: 160,
+      introLayoutHandoffAtMs: 120,
+      introUiZoomOutDurationMs: 520
+    }
+  } as const;
+  // La variante queda fijada al crear el webview, por eso basta leerla una vez.
+  // Un valor desconocido conserva velocity; eclipse e iris se aceptan explícitamente.
+  const requestedEntryStyle = document.documentElement.dataset.lumenEntryStyle;
+  const entryStyle =
+    requestedEntryStyle === "iris" || requestedEntryStyle === "eclipse"
+      ? requestedEntryStyle
+      : "velocity";
+  const {
+    introFocusDurationMs,
+    introLayoutHandoffAtMs,
+    introUiZoomOutDurationMs
+  } = introTimingsByStyle[entryStyle];
 
   // Protocolo de superficie segura: antes del movimiento de VS Code se pinta
   // la ruta congelada en el inicio exacto del landing. El token hace que sólo
@@ -194,6 +219,10 @@
   $: detailActionAvailable = Boolean(
     exerciseDetail && activatedExerciseId === exerciseDetail.exerciseId
   );
+  $: {
+    const tailProgress = Math.min(1, Math.max(0, (introProgress - 88) / 12));
+    introCompletionTail = tailProgress * tailProgress * (3 - 2 * tailProgress);
+  }
 
   function openDetailPanel() {
     if (!exerciseDetail || !detailActionAvailable) return;
@@ -287,6 +316,8 @@
 
   function syncStaticIntroProgress(progress: number) {
     const clamped = Math.min(100, Math.max(0, progress));
+    const tailProgress = Math.min(1, Math.max(0, (clamped - 88) / 12));
+    const completionTail = tailProgress * tailProgress * (3 - 2 * tailProgress);
     const staticState = (window as any).__LUMEN_STATIC_INTRO__;
     if (staticState) {
       staticState.controlled = true;
@@ -295,9 +326,26 @@
     const fill = document.getElementById("lumen-static-fill");
     const value = document.getElementById("lumen-static-percent-value");
     const bar = document.querySelector<HTMLElement>(".lumen-static-bar");
+    const staticIntro = document.getElementById("lumen-static-intro");
     if (fill) fill.style.transform = `scaleX(${(clamped / 100).toFixed(4)})`;
     if (value) value.textContent = String(Math.floor(clamped));
     bar?.setAttribute("aria-valuenow", String(Math.floor(clamped)));
+    staticIntro?.style.setProperty(
+      "--lumen-static-brightness",
+      (1 - completionTail * 0.32).toFixed(4)
+    );
+    staticIntro?.style.setProperty(
+      "--lumen-static-mark-opacity",
+      (1 - completionTail * 0.62).toFixed(4)
+    );
+    staticIntro?.style.setProperty(
+      "--lumen-static-mark-scale",
+      (1 - completionTail * 0.025).toFixed(4)
+    );
+    staticIntro?.style.setProperty(
+      "--lumen-static-controls-opacity",
+      (1 - completionTail * 0.18).toFixed(4)
+    );
   }
 
   function removeStaticIntro() {
@@ -370,17 +418,29 @@
   }
 
   function handleUiZoomOutAnimationStart(event: AnimationEvent) {
-    if (event.animationName !== "lumenUiZoomOut") return;
+    if (
+      event.animationName !== "lumenUiZoomOut" &&
+      event.animationName !== "lumenIrisSettle" &&
+      event.animationName !== "lumenEclipseRise"
+    ) return;
     beginUiZoomOutTelemetry();
   }
 
   function handleUiZoomOutAnimationEnd(event: AnimationEvent) {
-    if (event.animationName !== "lumenUiZoomOut") return;
+    if (
+      event.animationName !== "lumenUiZoomOut" &&
+      event.animationName !== "lumenIrisSettle" &&
+      event.animationName !== "lumenEclipseRise"
+    ) return;
     settleUiZoomOut();
   }
 
   function handleUiZoomOutAnimationCancel(event: AnimationEvent) {
-    if (event.animationName !== "lumenUiZoomOut") return;
+    if (
+      event.animationName !== "lumenUiZoomOut" &&
+      event.animationName !== "lumenIrisSettle" &&
+      event.animationName !== "lumenEclipseRise"
+    ) return;
     // Un cambio de accesibilidad, resize o navegación no puede dejar la ruta
     // atrapada a scale(1.11). Cancelar significa asentar, nunca reiniciar.
     settleUiZoomOut();
@@ -510,7 +570,11 @@
   }
 
   function handleIntroMarkAnimationEnd(event: AnimationEvent) {
-    if (event.animationName !== "lumenIntroMarkFocus") return;
+    if (
+      event.animationName !== "lumenIntroMarkFocus" &&
+      event.animationName !== "lumenIrisMarkCollapse" &&
+      event.animationName !== "lumenEclipseMarkOut"
+    ) return;
     window.dispatchEvent(new Event("lumen:intro-focus-complete"));
   }
 
@@ -847,7 +911,7 @@
 
     let settleFrame = 0;
     let progressTimer = 0;
-    let progressInterval = 0;
+    let progressFrame = 0;
     let assetsReady = introAssetsReady;
     let uiReady = routeVisualReady;
     let started = false;
@@ -859,19 +923,28 @@
       completed = true;
       introProgress = 100;
       syncStaticIntroProgress(introProgress);
-      window.clearInterval(progressInterval);
-      window.clearTimeout(progressTimer);
-      window.dispatchEvent(new Event("lumen:intro-progress-complete"));
+      cancelAnimationFrame(progressFrame);
+      progressTimer = window.setTimeout(() => {
+        window.dispatchEvent(new Event("lumen:intro-progress-complete"));
+      }, introProgressCompletionHoldMs);
     }
 
     let progressBase = 0;
 
-    function updateProgress() {
+    function updateProgress(now: number) {
       if (completed) return;
-      const progress = Math.min(1, (performance.now() - progressStartedAt) / introProgressDurationMs);
-      introProgress = progress >= 1 ? 100 : Math.floor(progressBase + (100 - progressBase) * progress);
+      const progress = Math.min(1, (now - progressStartedAt) / introProgressDurationMs);
+      // Avanza rápido al retomar la cortina estática y desacelera de forma
+      // continua en la cola. Mantener el valor fraccional evita saltos de 1%
+      // en la barra; sólo el texto se presenta como entero.
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
+      introProgress = progressBase + (100 - progressBase) * easedProgress;
       syncStaticIntroProgress(introProgress);
-      if (progress >= 1) completeProgress();
+      if (progress >= 1) {
+        completeProgress();
+        return;
+      }
+      progressFrame = requestAnimationFrame(updateProgress);
     }
 
     function beginProgress() {
@@ -880,8 +953,7 @@
       progressBase = Math.min(96, Math.max(0, introProgress));
       introProgressVisible = true;
       progressStartedAt = performance.now();
-      progressInterval = window.setInterval(updateProgress, 8);
-      progressTimer = window.setTimeout(completeProgress, introProgressDurationMs);
+      progressFrame = requestAnimationFrame(updateProgress);
     }
 
     function waitForStableFrames() {
@@ -936,7 +1008,7 @@
 
     return () => {
       cancelAnimationFrame(settleFrame);
-      window.clearInterval(progressInterval);
+      cancelAnimationFrame(progressFrame);
       window.clearTimeout(progressTimer);
       window.clearTimeout(fallbackTimer);
       window.removeEventListener("lumen:intro-assets-ready", markAssetsReady);
@@ -974,6 +1046,7 @@
       class:intro-covering={introCovering}
       class:intro-exiting={introExiting}
       class="lumen-intro"
+      style={`--lumen-loading-brightness:${(1 - introCompletionTail * 0.32).toFixed(4)};--lumen-loading-mark-opacity:${(1 - introCompletionTail * 0.62).toFixed(4)};--lumen-loading-mark-scale:${(1 - introCompletionTail * 0.025).toFixed(4)};--lumen-loading-controls-opacity:${(1 - introCompletionTail * 0.18).toFixed(4)}`}
       aria-hidden="true"
     >
       <div class="lumen-intro-mark" on:animationend={handleIntroMarkAnimationEnd}>
@@ -1012,11 +1085,17 @@
       </div>
       {#if introProgressVisible}
         <div class="lumen-intro-bar"><i style:transform={`scaleX(${introProgress / 100})`}></i></div>
-        <p class="lumen-intro-percent">{Math.round(introProgress)}%</p>
+        <p class="lumen-intro-percent">{Math.floor(introProgress)}%</p>
       {/if}
     </div>
   {/key}
 {/if}
+
+<!-- Velo del relevo de entrada. Va DETRÁS del intro en el DOM para que el
+     combinador ~ pueda encenderlo durante el punch-in (bloom sobre el logo);
+     el protocolo de handoff lo mantiene vía clases en <html> y el zoom-out lo
+     disuelve. Fuera de la entrada es inerte. -->
+<div class="lumen-entry-veil" aria-hidden="true"></div>
 
 <style>
   .route-scene {
