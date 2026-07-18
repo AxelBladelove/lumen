@@ -106,24 +106,42 @@
 
   <footer class="run-actions" aria-label="Acciones del ejercicio">
     <div class="run-buttons">
-      <button
-        class="run-button secondary"
-        type="button"
-        disabled={runActive !== null}
-        aria-label="Compilar ejercicio (F9)"
-        on:click={() => requestRun("compile")}
+      <LiquidGlassSurface
+        className="run-button-glass"
+        radius={13}
+        refraction={0.64}
+        glassThickness={13}
+        blur={1.15}
+        saturation={100}
       >
-        Compilar (F9)
-      </button>
-      <button
-        class="run-button primary"
-        type="button"
-        disabled={runActive !== null}
-        aria-label="Probar solución (F10)"
-        on:click={() => requestRun("test")}
+        <button
+          class="run-button"
+          type="button"
+          disabled={runActive !== null}
+          aria-label="Compilar ejercicio (F9)"
+          on:click={() => requestRun("compile")}
+        >
+          Compilar (F9)
+        </button>
+      </LiquidGlassSurface>
+      <LiquidGlassSurface
+        className="run-button-glass"
+        radius={13}
+        refraction={0.64}
+        glassThickness={13}
+        blur={1.15}
+        saturation={100}
       >
-        Probar solución (F10)
-      </button>
+        <button
+          class="run-button"
+          type="button"
+          disabled={runActive !== null}
+          aria-label="Probar solución (F10)"
+          on:click={() => requestRun("test")}
+        >
+          Probar solución (F10)
+        </button>
+      </LiquidGlassSurface>
     </div>
 
     {#if runActive !== null}
@@ -456,99 +474,60 @@
 
   .run-actions {
     width: min(100%, 560px);
-    margin-top: 42px;
+    margin-top: 30px;
     pointer-events: none;
   }
 
   .run-buttons {
-    display: grid;
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.15fr);
-    gap: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .run-buttons :global(.run-button-glass) {
+    flex: 0 0 auto;
+    height: 34px;
+    pointer-events: auto;
   }
 
   .run-button {
-    min-width: 0;
-    min-height: 56px;
-    padding: 0 18px;
-    border: 1px solid color-mix(in srgb, var(--theme-glow) 34%, transparent);
-    border-radius: 17px;
-    color: color-mix(in srgb, var(--theme-glow) 62%, var(--text-main));
-    background: color-mix(in srgb, var(--theme-core) 7%, transparent);
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--text-hot) 10%, transparent),
-      inset 0 -14px 28px color-mix(in srgb, var(--theme-core) 7%, transparent),
-      0 12px 28px color-mix(in srgb, var(--theme-core) 9%, transparent);
-    font-size: 14px;
-    font-weight: 780;
-    letter-spacing: 0.15px;
+    width: 100%;
+    height: 100%;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 13px;
+    color: color-mix(in srgb, var(--theme-glow) 48%, var(--text-main));
+    background: transparent;
+    font-size: 12px;
+    font-weight: 740;
+    letter-spacing: 0.1px;
     white-space: nowrap;
+    appearance: none;
     cursor: pointer;
     pointer-events: auto;
-    -webkit-backdrop-filter: blur(16px) saturate(108%);
-    backdrop-filter: blur(16px) saturate(108%);
     transition:
-      transform 160ms cubic-bezier(0.2, 0.72, 0.2, 1),
-      border-color 150ms ease,
-      color 150ms ease,
-      background 150ms ease,
-      box-shadow 150ms ease,
-      opacity 150ms ease;
-  }
-
-  .run-button.primary {
-    border-color: color-mix(in srgb, var(--theme-glow) 68%, transparent);
-    color: var(--text-hot);
-    background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--theme-core) 46%, transparent),
-      color-mix(in srgb, var(--theme-glow) 24%, transparent)
-    );
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--text-hot) 16%, transparent),
-      inset 0 0 22px color-mix(in srgb, var(--theme-glow) 10%, transparent),
-      0 0 24px color-mix(in srgb, var(--theme-glow) 22%, transparent),
-      0 14px 30px color-mix(in srgb, var(--theme-core) 12%, transparent);
-    font-weight: 840;
+      color 120ms ease,
+      background 120ms ease,
+      opacity 120ms ease;
   }
 
   .run-button:not(:disabled):hover {
-    border-color: color-mix(in srgb, var(--theme-glow) 72%, transparent);
     color: var(--text-hot);
-    background: color-mix(in srgb, var(--theme-glow) 11%, transparent);
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--text-hot) 14%, transparent),
-      inset 0 0 20px color-mix(in srgb, var(--theme-glow) 9%, transparent),
-      0 0 27px color-mix(in srgb, var(--theme-glow) 25%, transparent);
-    transform: translateY(-1px);
-  }
-
-  .run-button.primary:not(:disabled):hover {
-    background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--theme-core) 58%, transparent),
-      color-mix(in srgb, var(--theme-glow) 32%, transparent)
-    );
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--text-hot) 18%, transparent),
-      inset 0 0 24px color-mix(in srgb, var(--theme-glow) 13%, transparent),
-      0 0 31px color-mix(in srgb, var(--theme-glow) 32%, transparent);
+    background: color-mix(in srgb, var(--theme-glow) 6%, transparent);
   }
 
   .run-button:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--theme-accent) 82%, transparent);
-    outline-offset: 3px;
+    outline-offset: -3px;
+    background: color-mix(in srgb, var(--theme-glow) 7%, transparent);
   }
 
   .run-button:disabled {
-    border-color: color-mix(in srgb, var(--theme-glow) 16%, transparent);
     color: color-mix(in srgb, var(--text-muted) 66%, transparent);
-    background: color-mix(in srgb, var(--theme-core) 4%, transparent);
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--text-hot) 6%, transparent),
-      inset 0 0 14px color-mix(in srgb, var(--theme-glow) 3%, transparent);
-    opacity: 0.58;
+    background: transparent;
+    opacity: 0.56;
     cursor: not-allowed;
-    transform: none;
   }
 
   .run-status {
@@ -571,7 +550,7 @@
   }
 
   .integrated-detail.compact .run-actions {
-    margin-top: 34px;
+    margin-top: 24px;
   }
 
   .visually-hidden {
@@ -641,10 +620,6 @@
 
     .run-button {
       transition: none;
-    }
-
-    .run-button:not(:disabled):hover {
-      transform: none;
     }
 
   }
