@@ -204,7 +204,7 @@ fn activation_materializes_without_overwrite_and_completion_unlocks_next() {
     fs::write(&entrypoint, CORRECT_LOWERCASE).expect("working source should be editable");
     assert_ne!(
         fs::read_to_string(&entrypoint).unwrap(),
-        fs::read_to_string(install_path.join("starter/main.c")).unwrap(),
+        fs::read_to_string(install_path.join("starter/contar-minusculas.c")).unwrap(),
         "editing the workspace must not mutate installed content"
     );
 

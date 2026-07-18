@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 const REAL_ACTIVITY: &str = "../content/activities/c.strings.count-lowercase-01";
 const CONTENT_FILES: [&str; 4] = [
     "statement.md",
-    "starter/main.c",
+    "starter/contar-minusculas.c",
     "tests/io-cases.json",
     "hints/hints.es.json",
 ];
@@ -227,7 +227,7 @@ fn migration_three_health_and_import_register_the_activity() {
             },
         )
         .expect("installed row");
-    assert_eq!(row.1, "starter/main.c");
+    assert_eq!(row.1, "starter/contar-minusculas.c");
     assert_eq!(row.2, "c");
     assert_eq!(row.3, "strings");
     assert_eq!(row.4, r#"["strings"]"#);
@@ -391,7 +391,8 @@ fn get_active_returns_none_missing_and_ready() {
     .is_file());
 
     let install_path = PathBuf::from(imported["result"]["installPath"].as_str().expect("path"));
-    fs::remove_file(install_path.join("starter/main.c")).expect("entrypoint should delete");
+    fs::remove_file(install_path.join("starter/contar-minusculas.c"))
+        .expect("entrypoint should delete");
     let deleted = engine.request(json!({
         "id": "deleted", "method": "exercise.getActive", "params": {}
     }));

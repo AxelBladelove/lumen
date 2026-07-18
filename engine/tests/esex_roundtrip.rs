@@ -88,7 +88,7 @@ fn build_is_reproducible_and_import_round_trips() {
     for relative in [
         "manifest.json",
         "statement.md",
-        "starter/main.c",
+        "starter/contar-minusculas.c",
         "tests/io-cases.json",
         "hints/hints.es.json",
     ] {
@@ -213,7 +213,7 @@ fn write_real_activity_entries(
     zip.write_all(manifest_json.as_bytes()).unwrap();
     for relative in [
         "statement.md",
-        "starter/main.c",
+        "starter/contar-minusculas.c",
         "tests/io-cases.json",
         "hints/hints.es.json",
     ] {

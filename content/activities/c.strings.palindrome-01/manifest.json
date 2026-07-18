@@ -131,8 +131,8 @@
   },
 
   "scaffolding": {
-    "scaffoldingLevel": 2,
-    "starterCompleteness": 0.35,
+    "scaffoldingLevel": 1,
+    "starterCompleteness": 0.05,
     "guidedSteps": false,
     "hintPolicy": {
       "maxHints": 4,
@@ -199,7 +199,7 @@
     "languageStandard": "c17",
     "compileProfile": "c17-console",
     "executionMode": "console",
-    "entrypoint": "starter/main.c",
+    "entrypoint": "starter/detectar-palindromos.c",
     "sourceEncoding": "utf-8",
     "requiredHeaders": ["stdio.h"],
     "warningsPolicy": "recommended",
@@ -223,7 +223,7 @@
   "content": {
     "statement": { "path": "statement.md", "locale": "es", "required": true },
     "starter": [
-      { "path": "starter/main.c", "role": "entrypoint", "editable": true, "required": true }
+      { "path": "starter/detectar-palindromos.c", "role": "entrypoint", "editable": true, "required": true }
     ],
     "tests": [
       { "path": "tests/io-cases.json", "role": "test-data", "editable": false, "required": true }

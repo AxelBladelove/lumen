@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 const REAL_ACTIVITY: &str = "../content/activities/c.strings.count-lowercase-01";
 const CONTENT_FILES: [&str; 4] = [
     "statement.md",
-    "starter/main.c",
+    "starter/contar-minusculas.c",
     "tests/io-cases.json",
     "hints/hints.es.json",
 ];
@@ -195,7 +195,7 @@ fn passed_runs_are_persisted_once_as_progress_and_failed_runs_do_not_regress() {
     let health = engine.request(json!({ "id": "health", "method": "engine.healthCheck" }));
     assert_eq!(health["result"]["protocolVersion"], 7);
     let install_path = install_active(&mut engine, &package_path);
-    let source_path = install_path.join("starter/main.c");
+    let source_path = install_path.join("starter/contar-minusculas.c");
     fs::write(&source_path, CORRECT_SOURCE).expect("correct solution should write");
 
     let first = run_tests(&mut engine, "first");
@@ -280,7 +280,7 @@ fn compile_errors_are_results_and_are_recorded() {
     let package_path = package(&work, "compile-error");
     let mut engine = RunningEngine::start(&work.data_dir());
     let install_path = install_active(&mut engine, &package_path);
-    fs::write(install_path.join("starter/main.c"), INVALID_SOURCE)
+    fs::write(install_path.join("starter/contar-minusculas.c"), INVALID_SOURCE)
         .expect("invalid source should write");
 
     let response = run_tests(&mut engine, "compile-error");
@@ -341,7 +341,7 @@ fn corrupt_io_cases_return_structured_tests_invalid() {
     let package_path = package(&work, "invalid-tests");
     let mut engine = RunningEngine::start(&work.data_dir());
     let install_path = install_active(&mut engine, &package_path);
-    fs::write(install_path.join("starter/main.c"), CORRECT_SOURCE)
+    fs::write(install_path.join("starter/contar-minusculas.c"), CORRECT_SOURCE)
         .expect("correct source should write");
     fs::write(install_path.join("tests/io-cases.json"), "{not-json")
         .expect("corrupt cases should write");
