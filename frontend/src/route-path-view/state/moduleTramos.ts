@@ -1,3 +1,4 @@
+import { mockRouteVisualSlots } from "../data/mockRouteSlots";
 import type { RoutePathNode } from "../types/routePath";
 
 export type TramoVisualSlot = {
@@ -15,14 +16,14 @@ export type TramoVisualSlot = {
  * entre tres y siete. Los módulos de uno o dos nodos son la única excepción y
  * se mantienen indivisibles.
  */
-export function partitionModuleNodes<T>(nodes: readonly T[]): T[][] {
+export function partitionModuleNodes<T>(nodes: readonly T[], preferredSize = 6): T[][] {
   const tramos: T[][] = [];
   let cursor = 0;
 
-  while (nodes.length - cursor > 7) {
+  while (nodes.length - cursor > preferredSize + 1) {
     const remaining = nodes.length - cursor;
-    const tailAfterSix = remaining - 6;
-    const take = tailAfterSix === 1 || tailAfterSix === 2 ? 5 : 6;
+    const tailAfterTake = remaining - preferredSize;
+    const take = tailAfterTake === 1 || tailAfterTake === 2 ? preferredSize - 1 : preferredSize;
 
     tramos.push(nodes.slice(cursor, cursor + take));
     cursor += take;
@@ -56,48 +57,46 @@ export function selectVisibleTramoIndex<T extends { id: string }>(
   return index >= 0 ? index : 0;
 }
 
-/** Crea slots locales con aire en ambos extremos de la curva. */
+/**
+ * Recicla por tramo el scaffolding curado del mock. Un tramo excepcionalmente
+ * mayor sólo distribuye de forma uniforme los nodos que exceden ese patrón.
+ */
 export function createTramoVisualSlots(
   nodeCount: number,
-  tramoIndex: number
+  _tramoIndex: number
 ): TramoVisualSlot[] {
   if (nodeCount <= 0) return [];
 
-  const seed = normalizeSeed(tramoIndex);
-  const start = 0.09 + signedUnit(seed + 11) * 0.012;
-  const end = 0.91 + signedUnit(seed + 29) * 0.012;
+  const curatedCount = Math.min(nodeCount, mockRouteVisualSlots.length);
+  const slots = mockRouteVisualSlots.slice(0, curatedCount).map(cloneSlot);
+  const overflowCount = nodeCount - curatedCount;
+  const lastCuratedSlot = mockRouteVisualSlots.at(-1);
 
-  return Array.from({ length: nodeCount }, (_, index) => {
-    const pathT =
-      nodeCount === 1 ? 0.5 : start + (index / (nodeCount - 1)) * (end - start);
-    // El snake vive en la franja izquierda del stage de referencia; reservar
-    // los labels a la derecha evita recortes y conserva su lectura original.
-    const labelSide = "right" as const;
-    const horizontalSign = 1;
-    const drift = Math.round(signedUnit(seed * 13 + index * 17) * 4);
-    const lift = Math.round(signedUnit(seed * 19 + index * 23) * 3);
+  if (overflowCount <= 0 || !lastCuratedSlot) return slots;
 
-    return {
-      pathT,
-      labelSide,
-      nodeOffset: {
-        x: horizontalSign * (2 + Math.abs(drift)),
-        y: lift
-      },
-      labelOffset: {
-        x: horizontalSign * (6 + Math.abs(drift)),
-        y: Math.round(signedUnit(seed * 31 + index * 7) * 2)
-      }
-    };
-  });
+  for (let overflowIndex = 0; overflowIndex < overflowCount; overflowIndex += 1) {
+    slots.push({
+      pathT:
+        lastCuratedSlot.pathT +
+        ((overflowIndex + 1) / overflowCount) * (1 - lastCuratedSlot.pathT),
+      labelSide: lastCuratedSlot.labelSide,
+      nodeOffset: { ...lastCuratedSlot.nodeOffset },
+      labelOffset: { ...lastCuratedSlot.labelOffset }
+    });
+  }
+
+  return slots;
 }
 
 /**
- * Aplica slots locales a todos los tramos sin alterar metadata ni estado de
- * cada nodo. La semilla es el índice del tramo, nunca aleatoriedad de runtime.
+ * Aplica a cada tramo la misma secuencia local de slots, sin alterar metadata
+ * ni estado de los nodos.
  */
-export function projectModuleNodes<T extends RoutePathNode>(nodes: readonly T[]): T[] {
-  return partitionModuleNodes(nodes).flatMap((tramo, tramoIndex) => {
+export function projectModuleNodes<T extends RoutePathNode>(
+  nodes: readonly T[],
+  preferredSize?: number
+): T[] {
+  return partitionModuleNodes(nodes, preferredSize).flatMap((tramo, tramoIndex) => {
     const slots = createTramoVisualSlots(tramo.length, tramoIndex);
 
     return tramo.map((node, index) => ({
@@ -109,15 +108,10 @@ export function projectModuleNodes<T extends RoutePathNode>(nodes: readonly T[])
   });
 }
 
-function normalizeSeed(value: number): number {
-  return Math.abs(Math.trunc(value)) + 1;
-}
-
-// Hash entero pequeño y estable en [-1, 1], suficiente para microvariaciones.
-function signedUnit(value: number): number {
-  let hash = value | 0;
-  hash = Math.imul(hash ^ (hash >>> 16), 0x45d9f3b);
-  hash = Math.imul(hash ^ (hash >>> 16), 0x45d9f3b);
-  hash ^= hash >>> 16;
-  return ((hash >>> 0) / 0xffffffff) * 2 - 1;
+function cloneSlot(slot: TramoVisualSlot): TramoVisualSlot {
+  return {
+    ...slot,
+    nodeOffset: { ...slot.nodeOffset },
+    labelOffset: { ...slot.labelOffset }
+  };
 }

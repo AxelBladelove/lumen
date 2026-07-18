@@ -30,8 +30,9 @@
   class:is-exiting={exiting}
   aria-label={`Detalles del ejercicio: ${detail.title}`}
 >
-  <div class="detail-content">
-  <header class="detail-heading">
+  <div class="detail-scroll">
+    <div class="detail-content">
+    <header class="detail-heading">
     <span class="eyebrow">DETALLES DEL EJERCICIO</span>
     <h2>{detail.title}</h2>
     <p>{detail.summary}</p>
@@ -104,6 +105,9 @@
     {/if}
   </section>
 
+    </div>
+  </div>
+
   <footer class="run-actions" aria-label="Acciones del ejercicio">
     <div class="run-buttons">
       <LiquidGlassSurface
@@ -151,7 +155,6 @@
       </p>
     {/if}
   </footer>
-  </div>
 </article>
 
 <style>
@@ -160,8 +163,10 @@
     left: calc(45% - 8px - var(--detail-content-inset, 0px));
     right: 34px;
     top: var(--detail-content-top, 350px);
+    bottom: 24px;
     z-index: 8;
     min-width: 0;
+    overflow: hidden;
     color: var(--text-main);
     font-family: var(--font);
     opacity: 0;
@@ -174,9 +179,8 @@
     animation: integratedDetailOut 440ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
-  /* El fondo continúa siendo la zona de salida incluso dentro de la caja
-     editorial. Sólo el contenido que el usuario percibe como objeto conserva
-     hit-testing; los huecos entre cards dejan pasar el click. */
+  /* El cuerpo editorial conserva hit-testing en sus objetos y el contenedor
+     de scroll captura rueda/touch; el pie sólo lo activa en sus controles. */
   .eyebrow,
   h2,
   .detail-heading > p,
@@ -189,6 +193,32 @@
 
   .detail-heading {
     max-width: 680px;
+  }
+
+  .detail-scroll {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: 112px;
+    pointer-events: auto;
+    scrollbar-color: color-mix(in srgb, var(--theme-glow) 30%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+
+  .detail-scroll::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .detail-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--theme-glow) 30%, transparent);
+  }
+
+  .detail-scroll::-webkit-scrollbar-track {
+    background: transparent;
   }
 
   .detail-content {
@@ -473,9 +503,16 @@
   }
 
   .run-actions {
+    position: absolute;
+    z-index: 2;
+    left: 0;
+    bottom: 18px;
     width: min(100%, 560px);
-    margin-top: 30px;
+    margin-top: 0;
     pointer-events: none;
+    transform: scale(var(--detail-content-scale, 1));
+    transform-origin: bottom left;
+    transition: transform 480ms cubic-bezier(0.18, 0.78, 0.16, 1);
   }
 
   .run-buttons {
@@ -549,10 +586,6 @@
     box-shadow: 0 0 10px color-mix(in srgb, var(--theme-glow) 56%, transparent);
   }
 
-  .integrated-detail.compact .run-actions {
-    margin-top: 24px;
-  }
-
   .visually-hidden {
     position: absolute;
     width: 1px;
@@ -619,6 +652,10 @@
     }
 
     .run-button {
+      transition: none;
+    }
+
+    .run-actions {
       transition: none;
     }
 

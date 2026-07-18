@@ -6,6 +6,7 @@ import {
   projectModuleNodes,
   selectVisibleTramoIndex
 } from "../src/route-path-view/state/moduleTramos";
+import { mockRouteVisualSlots } from "../src/route-path-view/data/mockRouteSlots";
 import type { RoutePathNode } from "../src/route-path-view/types/routePath";
 
 function nodes(count: number): RoutePathNode[] {
@@ -66,8 +67,8 @@ describe("selectVisibleTramoIndex", () => {
 });
 
 describe("projectModuleNodes", () => {
-  test("aplica slots locales generosos por tramo y preserva metadata y estados", () => {
-    const source = nodes(8);
+  test("reinicia en cada tramo la secuencia exacta de slots curados del mock", () => {
+    const source = nodes(13);
     const projected = projectModuleNodes(source);
     const [first, second] = partitionModuleNodes(projected);
 
@@ -87,18 +88,29 @@ describe("projectModuleNodes", () => {
       reviewMode
     })));
 
-    for (const tramo of [first, second]) {
-      expect(tramo[0].pathT).toBeGreaterThan(0.07);
-      expect(tramo.at(-1)?.pathT).toBeLessThan(0.93);
-      expect(tramo.every((node, index) => index === 0 || node.pathT > tramo[index - 1].pathT)).toBe(true);
-      expect(tramo.every((node) => node.labelSide !== undefined)).toBe(true);
-      expect(tramo.every((node) => node.nodeOffset !== undefined)).toBe(true);
-      expect(tramo.every((node) => node.labelOffset !== undefined)).toBe(true);
-    }
+    expect([first, second].map((tramo) =>
+      tramo.map(({ pathT, labelSide, nodeOffset, labelOffset }) => ({
+        pathT,
+        labelSide,
+        nodeOffset,
+        labelOffset
+      }))
+    )).toEqual([
+      mockRouteVisualSlots.slice(0, 6),
+      mockRouteVisualSlots.slice(0, 7)
+    ]);
   });
 
-  test("los slots son deterministas y varían por índice de tramo", () => {
+  test("los slots curados no dependen del índice de tramo", () => {
     expect(createTramoVisualSlots(5, 2)).toEqual(createTramoVisualSlots(5, 2));
-    expect(createTramoVisualSlots(5, 2)).not.toEqual(createTramoVisualSlots(5, 3));
+    expect(createTramoVisualSlots(5, 2)).toEqual(createTramoVisualSlots(5, 3));
+  });
+
+  test("sólo el excedente de siete slots usa distribución uniforme", () => {
+    const slots = createTramoVisualSlots(9, 0);
+
+    expect(slots.slice(0, 7)).toEqual(mockRouteVisualSlots);
+    expect(slots[7].pathT).toBeCloseTo(0.9945, 8);
+    expect(slots[8].pathT).toBe(1);
   });
 });

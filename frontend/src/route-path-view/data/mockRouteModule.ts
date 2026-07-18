@@ -4,6 +4,7 @@ import {
   ROUTE_C_STRINGS_WIDTH
 } from "../path/snakePath.generated";
 import { stringsGreenTheme } from "../theme/moduleTheme";
+import { mockRouteVisualSlots } from "./mockRouteSlots";
 import type { RoutePathModuleView } from "../types/routePath";
 
 export const mockRouteModule: RoutePathModuleView = {
@@ -30,10 +31,7 @@ export const mockRouteModule: RoutePathModuleView = {
       subtitle: "printf",
       type: "exercise",
       status: "completed",
-      pathT: 0.0,
-      labelSide: "right",
-      nodeOffset: { x: -10, y: 2 },
-      labelOffset: { x: 5, y: -1 }
+      ...mockRouteVisualSlots[0]
     },
     {
       id: "read-text",
@@ -41,10 +39,7 @@ export const mockRouteModule: RoutePathModuleView = {
       subtitle: "scanf / fgets",
       type: "exercise",
       status: "completed",
-      pathT: 0.164,
-      labelSide: "right",
-      nodeOffset: { x: -11, y: 0 },
-      labelOffset: { x: 5, y: 0 }
+      ...mockRouteVisualSlots[1]
     },
     {
       id: "strings-basic",
@@ -52,11 +47,8 @@ export const mockRouteModule: RoutePathModuleView = {
       subtitle: "char[], cadenas",
       type: "exercise",
       status: "active",
-      pathT: 0.359,
-      labelSide: "right",
       size: 126,
-      nodeOffset: { x: -5, y: 7 },
-      labelOffset: { x: 9, y: -1 }
+      ...mockRouteVisualSlots[2]
     },
     {
       id: "string-functions",
@@ -64,10 +56,7 @@ export const mockRouteModule: RoutePathModuleView = {
       subtitle: "strlen, strcpy",
       type: "exercise",
       status: "locked",
-      pathT: 0.553,
-      labelSide: "right",
-      nodeOffset: { x: 0, y: 4 },
-      labelOffset: { x: 5, y: 1 }
+      ...mockRouteVisualSlots[3]
     },
     {
       id: "string-compare",
@@ -75,10 +64,7 @@ export const mockRouteModule: RoutePathModuleView = {
       subtitle: "strcmp",
       type: "exercise",
       status: "locked",
-      pathT: 0.686,
-      labelSide: "right",
-      nodeOffset: { x: 3, y: 5 },
-      labelOffset: { x: 4, y: 1 }
+      ...mockRouteVisualSlots[4]
     },
     {
       id: "name-validator",
@@ -86,10 +72,7 @@ export const mockRouteModule: RoutePathModuleView = {
       subtitle: "Validador de nombre",
       type: "challenge",
       status: "challenge",
-      pathT: 0.858,
-      labelSide: "right",
-      nodeOffset: { x: -12, y: -1 },
-      labelOffset: { x: 8, y: -1 }
+      ...mockRouteVisualSlots[5]
     },
     {
       id: "agenda-cli",
@@ -97,10 +80,7 @@ export const mockRouteModule: RoutePathModuleView = {
       subtitle: "strings + menú",
       type: "project",
       status: "locked",
-      pathT: 0.989,
-      labelSide: "right",
-      nodeOffset: { x: -1, y: 2 },
-      labelOffset: { x: 7, y: 0 }
+      ...mockRouteVisualSlots[6]
     }
   ],
   nextAction: {

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { buildRouteModuleFromEngine } from "../src/route-path-view/data/routeModuleSource";
+import { mockRouteVisualSlots } from "../src/route-path-view/data/mockRouteSlots";
 import type { RouteModuleDataPayload } from "../src/webview/messages";
 
 function payload(
@@ -75,7 +76,7 @@ describe("buildRouteModuleFromEngine", () => {
     expect(module.nextAction.targetTitle).toBe("Módulo completado");
   });
 
-  test("proyecta slots locales por tramo sin recalcular el progreso v7", () => {
+  test("proyecta los slots curados desde cero en cada tramo sin recalcular el progreso v7", () => {
     const statuses = [
       "completed",
       "completed",
@@ -95,9 +96,12 @@ describe("buildRouteModuleFromEngine", () => {
     );
 
     expect(module.nodes.map((node) => node.status)).toEqual(statuses);
-    expect(module.nodes.slice(0, 5).every((node) => node.pathT > 0 && node.pathT < 1)).toBe(true);
-    expect(module.nodes.slice(5).every((node) => node.pathT > 0 && node.pathT < 1)).toBe(true);
-    expect(module.nodes[5].pathT).toBeLessThan(module.nodes[7].pathT);
+    expect(module.nodes.slice(0, 5).map((node) => node.pathT)).toEqual(
+      mockRouteVisualSlots.slice(0, 5).map((slot) => slot.pathT)
+    );
+    expect(module.nodes.slice(5).map((node) => node.pathT)).toEqual(
+      mockRouteVisualSlots.slice(0, 3).map((slot) => slot.pathT)
+    );
     expect(module.completed).toBe(31);
     expect(module.total).toBe(64);
     expect(module.percent).toBe(48);

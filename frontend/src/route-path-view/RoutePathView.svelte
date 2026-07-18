@@ -19,6 +19,7 @@
     settleTramoTransition,
     type TramoTransitionDirection
   } from "./state/tramoTransition";
+  import { nextTramoDemoIndex, tramoDemoDelayMs } from "./state/tramoDemo";
   import { themeVars } from "./theme/moduleTheme";
   import type { NodeMotion, NodeStatus, RoutePathModuleView, RoutePathNode } from "./types/routePath";
 
@@ -79,16 +80,26 @@
   let nodeMotionById: Record<string, NodeMotion> = {};
   let nodeMotionTimers: number[] = [];
   let reviewNodeId: string | null = null;
-  const initialProjectedNodes = projectModuleNodes(module.nodes);
-  const initialTramos = partitionModuleNodes(initialProjectedNodes);
+  // Hook visual opt-in: recorre tramos mediante el reconciliador productivo.
+  const tramoDemoEnabled =
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("lumenTramoDemo");
+  let tramoDemoIndex = 0;
+  let tramoDemoTimer = 0;
+  // En demo los tramos se acortan para garantizar al menos dos y poder
+  // comprobar el scroll aun con módulos que caben en una sola vista.
+  const tramoPreferredSize = tramoDemoEnabled ? 4 : undefined;
+  const initialProjectedNodes = projectModuleNodes(module.nodes, tramoPreferredSize);
+  const initialTramos = partitionModuleNodes(initialProjectedNodes, tramoPreferredSize);
   const initialActiveExerciseId =
     module.activeExerciseId ?? initialProjectedNodes.find((node) => node.status === "active")?.id;
   const initialModuleCompleted = module.total > 0 && module.completed >= module.total;
-  const initialTramoIndex = selectVisibleTramoIndex(
-    initialTramos,
-    initialActiveExerciseId,
-    initialModuleCompleted
-  );
+  const initialTramoIndex = tramoDemoEnabled
+    ? 0
+    : selectVisibleTramoIndex(
+        initialTramos,
+        initialActiveExerciseId,
+        initialModuleCompleted
+      );
   let tramoTransition = createTramoTransition(initialTramoIndex);
   let tramoDataObserved = !moduleDataLoading;
   let tramoRender:
@@ -177,6 +188,7 @@
     splitAnimationTarget = lockedStartT;
     splitAnimationReady = true;
     loadDeferredVisuals();
+    if (tramoDemoEnabled) scheduleTramoDemoAdvance();
 
     return () => {
       window.removeEventListener("resize", updateScale);
@@ -185,6 +197,7 @@
       cancelAnimationFrame(tramoHandoffFrame);
       cancelAnimationFrame(tramoHandoffSettleFrame);
       window.clearTimeout(tramoReadyTimer);
+      window.clearTimeout(tramoDemoTimer);
       window.clearTimeout(detailEnterTimer);
       window.clearTimeout(detailExitTimer);
       nodeMotionTimers.forEach((timer) => window.clearTimeout(timer));
@@ -230,7 +243,7 @@
   // reacciona al snapshot que empuja el engine (via el Extension Host).
   let activeNodeIndex = -1;
 
-  $: projectedModuleNodes = projectModuleNodes(module.nodes);
+  $: projectedModuleNodes = projectModuleNodes(module.nodes, tramoPreferredSize);
   $: snapshotActiveIndex = projectedModuleNodes.findIndex((node) => node.status === "active");
   $: snapshotActiveExerciseId =
     module.activeExerciseId ?? projectedModuleNodes[snapshotActiveIndex]?.id;
@@ -255,17 +268,20 @@
     motion: nodeMotionById[node.id],
     reviewMode: node.id === reviewNodeId && index < activeNodeIndex ? "repeat" as const : undefined
   }));
-  $: moduleTramos = partitionModuleNodes(interactiveNodes);
+  $: moduleTramos = partitionModuleNodes(interactiveNodes, tramoPreferredSize);
   $: snapshotTramoIndex = selectVisibleTramoIndex(
     moduleTramos,
     snapshotActiveExerciseId,
     moduleCompleted
   );
+  $: requestedTramoIndex = tramoDemoEnabled
+    ? clampTramoIndex(tramoDemoIndex, moduleTramos.length)
+    : snapshotTramoIndex;
   $: if (mounted && moduleTramos.length) {
     reconcileTramoSelection(
-      snapshotTramoIndex,
+      requestedTramoIndex,
       moduleDataLoading,
-      lockedStartForNodes(moduleTramos[snapshotTramoIndex] ?? [])
+      lockedStartForNodes(moduleTramos[requestedTramoIndex] ?? [])
     );
   }
   $: settledTramoIndex = clampTramoIndex(tramoTransition.visibleTramoIndex, moduleTramos.length);
@@ -315,6 +331,25 @@
     // invented progression state. All unlock/completion authority stays in Rust.
     if (node.status === "locked" && node.type === "challenge") return "challenge";
     return node.status;
+  }
+
+  function scheduleTramoDemoAdvance() {
+    window.clearTimeout(tramoDemoTimer);
+    tramoDemoTimer = window.setTimeout(() => {
+      // Durante la carga la reconciliación corta sin animar; el demo espera a
+      // que resuelva para mostrar el scroll real.
+      if (moduleDataLoading) {
+        scheduleTramoDemoAdvance();
+        return;
+      }
+      const nextIndex = nextTramoDemoIndex(tramoDemoIndex, moduleTramos.length);
+      if (nextIndex === null) return;
+
+      tramoDemoIndex = nextIndex;
+      if (nextTramoDemoIndex(tramoDemoIndex, moduleTramos.length) !== null) {
+        scheduleTramoDemoAdvance();
+      }
+    }, tramoDemoDelayMs);
   }
 
   function reconcileTramoSelection(
