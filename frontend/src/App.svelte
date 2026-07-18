@@ -11,6 +11,11 @@
     engineRouteModuleDataSource,
     routeModuleDataSource
   } from "./route-path-view/data/routeModuleSource";
+  import {
+    createModuleDataState,
+    moduleDataFallbackDelayMs,
+    transitionModuleDataState
+  } from "./route-path-view/state/moduleDataState";
   import type { RoutePathNode } from "./route-path-view/types/routePath";
   import type { ExerciseDetailPayload } from "./webview/messages";
   import { lumenWebviewProtocolVersion } from "./webview/messages";
@@ -24,6 +29,8 @@
   // al montar, la app retoma su porcentaje para que el contador sea continuo.
   const staticIntroProgress = readStaticIntroProgress();
   let routeModule = createInitialRouteModule();
+  let moduleDataState = createModuleDataState();
+  $: moduleDataLoading = moduleDataState.status === "waiting";
   // Fuente efectiva del modulo actual: arranca en el mock y pasa a
   // `engine:<routeId>/<moduleId>` en cuanto llega `route.module.data`.
   let currentDataSource = routeModuleDataSource;
@@ -110,6 +117,11 @@
 
   performance.mark("lumen:app-mounted");
   window.setTimeout(() => ensureLumenFavicon(), 80);
+  const moduleDataFallbackTimer = window.setTimeout(() => {
+    moduleDataState = transitionModuleDataState(moduleDataState, {
+      type: "fallback-timeout"
+    });
+  }, moduleDataFallbackDelayMs);
 
   const stopListening = bridge.onMessage((message) => {
     if (message.type === "route.module.snapshot") {
@@ -118,6 +130,10 @@
 
     if (message.type === "route.module.data") {
       routeModule = buildRouteModuleFromEngine(message.payload);
+      moduleDataState = transitionModuleDataState(moduleDataState, {
+        type: "engine-data-received"
+      });
+      window.clearTimeout(moduleDataFallbackTimer);
       currentDataSource = engineRouteModuleDataSource(
         message.payload.routeId,
         message.payload.moduleId
@@ -236,6 +252,7 @@
   onDestroy(() => {
     window.cancelAnimationFrame(readySignalFrame);
     window.cancelAnimationFrame(readyPaintFrame);
+    window.clearTimeout(moduleDataFallbackTimer);
     stopListening();
     stopPerfReporting();
     stopIntroAssets();
@@ -620,7 +637,9 @@
     }
 
     window.addEventListener("lumen:webgl-first-rendered", handleWebglFirstRender);
-    disposers.push(() => window.removeEventListener("lumen:webgl-first-rendered", handleWebglFirstRender));
+    disposers.push(() => {
+      window.removeEventListener("lumen:webgl-first-rendered", handleWebglFirstRender);
+    });
     window.addEventListener("pointerdown", handleInteractionFocus);
     window.addEventListener("focusin", handleInteractionFocus);
     window.addEventListener("lumen:route-advance-started", handleRouteAdvance);
@@ -729,11 +748,14 @@
       const hero = document.querySelector<HTMLImageElement>(".hero-sticker-shell img");
       return Boolean(
         document.querySelector(".route-stage") &&
-          document.querySelector("canvas") &&
           document.querySelectorAll(".route-node").length > 0 &&
           hero?.complete &&
           hero.naturalWidth > 0 &&
-          (window as any).__LUMEN_WEBGL_STATS__?.renderCount > 0
+          (Boolean(
+            document.querySelector("canvas") &&
+              (window as any).__LUMEN_WEBGL_STATS__?.renderCount > 0
+          ) ||
+            Boolean(document.querySelector(".static-snake-fallback")))
       );
     }
 
@@ -1026,6 +1048,7 @@
 <div class="route-scene">
   <RoutePathView
     module={routeModule}
+    {moduleDataLoading}
     {busyExerciseId}
     {activationError}
     {detailActionAvailable}

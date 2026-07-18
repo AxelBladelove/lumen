@@ -13,6 +13,7 @@
   import type { NodeMotion, NodeStatus, RoutePathModuleView, RoutePathNode } from "./types/routePath";
 
   export let module: RoutePathModuleView;
+  export let moduleDataLoading = false;
   export let onNodeSelected: ((node: RoutePathNode) => void) | undefined = undefined;
   export let onContinueRequest:
     | ((payload: { fromNodeId?: string; nextNodeId?: string }) => void)
@@ -228,7 +229,7 @@
   $: completedCount = module.completed;
   $: completionPercent = module.percent;
   $: nextTargetTitle = module.nextAction.targetTitle || "Módulo completado";
-  $: canContinue = Boolean(activeNode) && !isAdvancing && !busyExerciseId;
+  $: canContinue = Boolean(activeNode) && !moduleDataLoading && !isAdvancing && !busyExerciseId;
   $: ctaLabel = detailActionAvailable ? "Detalles:" : module.nextAction.label;
   $: ctaTargetTitle = detailActionAvailable ? detailTitle || activeNode?.title || nextTargetTitle : nextTargetTitle;
 
@@ -400,7 +401,7 @@
   class="lumen-route-app"
   class:compact-layout={compactLayout}
   class:route-busy={Boolean(busyExerciseId)}
-  aria-busy={Boolean(busyExerciseId)}
+  aria-busy={moduleDataLoading || Boolean(busyExerciseId)}
   style={themeVars(module.theme)}
 >
   <div
@@ -435,7 +436,12 @@
       />
 
       {#if deferredVisualsReady}
-        <ProgressCard completed={completedCount} total={module.total} percent={completionPercent} />
+        <ProgressCard
+          completed={completedCount}
+          total={module.total}
+          percent={completionPercent}
+          loading={moduleDataLoading}
+        />
       {/if}
 
       <SnakeLayer path={module.path} theme={module.theme} lockedStartT={displayedLockedStartT} renderScale={scale} />
@@ -475,6 +481,7 @@
           label={ctaLabel}
           targetTitle={ctaTargetTitle}
           disabled={!canContinue}
+          loading={moduleDataLoading}
           action={detailActionAvailable ? "details" : "continue"}
           onContinue={continueToNextNode}
         />

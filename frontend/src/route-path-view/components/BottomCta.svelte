@@ -2,18 +2,24 @@
   export let label: string;
   export let targetTitle: string;
   export let disabled = false;
+  export let loading = false;
   export let action: "continue" | "details" = "continue";
   export let onContinue: (() => void) | undefined = undefined;
 
   let handledPointerDown = false;
+  $: actionDisabled = disabled || loading;
 
   function handlePointerDown(event: PointerEvent) {
-    if (disabled || event.button !== 0) return;
+    if (actionDisabled || event.button !== 0) return;
     handledPointerDown = true;
     onContinue?.();
   }
 
   function handleClick(event: MouseEvent) {
+    if (actionDisabled) {
+      handledPointerDown = false;
+      return;
+    }
     if (handledPointerDown) {
       handledPointerDown = false;
       event.preventDefault();
@@ -23,19 +29,19 @@
   }
 </script>
 
-<footer class="bottom-cta">
+<footer class:module-data-waiting={loading} class="bottom-cta" aria-busy={loading}>
   <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
     <circle cx="5" cy="6" r="1.5" />
     <circle cx="5" cy="12" r="1.5" />
     <circle cx="5" cy="18" r="1.5" />
     <path d="M10 6h9M10 12h9M10 18h9" />
   </svg>
-  <p><strong>{label}</strong> {targetTitle}</p>
+  <p><strong>{label}</strong> <span class="cta-target-title">{targetTitle}</span></p>
   <button
     class:details={action === "details"}
     type="button"
-    aria-label={action === "details" ? "Ver detalles" : "Continuar"}
-    {disabled}
+    aria-label={loading ? "Cargando el siguiente paso" : action === "details" ? "Ver detalles" : "Continuar"}
+    disabled={actionDisabled}
     onpointerdown={handlePointerDown}
     onclick={handleClick}
   >

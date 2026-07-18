@@ -1,7 +1,15 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import NodeStringInputIcon from "./NodeStringInputIcon.svelte";
   import { createPathSampler, type PathSampler } from "../path/pathMetrics";
   import { publicAsset } from "../theme/moduleTheme";
+  import {
+    expireLockedNodeHint,
+    lockedNodeHintCopy,
+    lockedNodeHintDurationMs,
+    showLockedNodeHint,
+    type LockedNodeHintState
+  } from "../state/lockedNodeHintState";
   import type { ModuleTheme, RoutePathNode, SnakePathConfig } from "../types/routePath";
 
   export let path: SnakePathConfig;
@@ -15,6 +23,8 @@
       ? createPathSampler(path.pathD, path.transform)
       : null;
   let placedNodes: Array<{ node: RoutePathNode; place: ReturnType<typeof placement> }> = [];
+  let lockedNodeHint: LockedNodeHintState | null = null;
+  let lockedNodeHintTimer = 0;
 
   const assets = {
     completed: publicAsset("assets/route-nodes/node-completed-green.runtime.webp"),
@@ -132,9 +142,28 @@
 
   function iconLabel(node: RoutePathNode) {
     if (node.status === "active") return "Concepto actual";
-    if (node.status === "challenge") return "Reto";
+    if (node.status === "challenge") return "Reto, bloqueado";
+    if (node.status === "locked") return `${node.title}, bloqueado`;
     return node.title;
   }
+
+  function handleNodeActivation(node: RoutePathNode) {
+    // Conserva el callback existente; la explicación es presentación local y
+    // no introduce un mensaje ni una razón de bloqueo nuevos en el protocolo.
+    onNodeSelect?.(node);
+    if (node.status !== "locked" && node.status !== "challenge") return;
+
+    const hint = showLockedNodeHint(node.id, performance.now());
+    lockedNodeHint = hint;
+    window.clearTimeout(lockedNodeHintTimer);
+    lockedNodeHintTimer = window.setTimeout(() => {
+      lockedNodeHint = expireLockedNodeHint(lockedNodeHint, hint.expiresAt);
+    }, lockedNodeHintDurationMs);
+  }
+
+  onDestroy(() => {
+    window.clearTimeout(lockedNodeHintTimer);
+  });
 
   function motionClass(node: RoutePathNode) {
     return node.motion ? `motion-${node.motion}` : "";
@@ -185,7 +214,7 @@
       class={`route-node ${nodeStateClass(node)}`}
       type="button"
       aria-label={iconLabel(node)}
-      onclick={() => onNodeSelect?.(node)}
+      onclick={() => handleNodeActivation(node)}
       style={`
         left:${place.nodeX}px;
         top:${place.nodeY}px;
@@ -225,6 +254,19 @@
         </span>
       {/if}
     </button>
+
+    {#if lockedNodeHint?.nodeId === node.id}
+      {#key lockedNodeHint.shownAt}
+        <div
+          class="locked-node-hint"
+          role="status"
+          aria-live="polite"
+          style={`left:${place.anchor.x}px; top:${place.nodeY - 12}px;`}
+        >
+          {lockedNodeHintCopy}
+        </div>
+      {/key}
+    {/if}
 
     <div
       class={`node-label ${nodeStateClass(node)}`}

@@ -2,6 +2,7 @@
   export let completed: number;
   export let total: number;
   export let percent: number;
+  export let loading = false;
 
   const segmentCount = 14;
   $: exactSegments = (percent / 100) * segmentCount;
@@ -10,7 +11,12 @@
   );
 </script>
 
-<section class="progress-card" aria-label="Progreso del módulo">
+<section
+  class:module-data-waiting={loading}
+  class="progress-card"
+  aria-label={loading ? "Cargando progreso del módulo" : "Progreso del módulo"}
+  aria-busy={loading}
+>
   <div class="progress-metric left">
     <strong>{completed}</strong><span>/{total} ejercicios</span>
   </div>

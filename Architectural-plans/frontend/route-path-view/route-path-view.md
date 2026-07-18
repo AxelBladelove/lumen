@@ -43,15 +43,18 @@ La vista actual:
 - Anima transiciones `complete/unlock` a partir del snapshot autoritativo; la
   intención de continuar no desbloquea nodos por sí sola.
 - Permite seleccionar nodos completados para estado visual de repetición.
+- Espera el primer `route.module.data` con progreso y CTA atenuados, sin mover
+  el layout ni alterar el snake; tras 5 segundos conserva el mock local.
+- Los nodos bloqueados muestran una explicación breve, accesible y efímera al
+  activarse con puntero o teclado.
 - Respeta `prefers-reduced-motion` para saltar o apagar animaciones pesadas.
 - Expone marks de performance como `lumen:route-mounted`,
   `lumen:continue-pressed`, `lumen:route-advance-start` y
   `lumen:route-advance-first-frame`.
 
-Route Loop v5 aporta datos reales, persistencia, activación y desbloqueo
-secuencial. Todavía faltan explicación rica de bloqueo, estados completos de
-error/empty/loading, fallback WebGL visible, gates no secuenciales y módulos
-dinámicos más allá del slice actual.
+El protocolo v7 aporta datos reales, persistencia, activación y desbloqueo
+secuencial. Todavía faltan estados completos de error/empty, gates no
+secuenciales y módulos dinámicos más allá del slice actual.
 
 Es la pantalla tipo Duolingo donde el usuario ve un módulo de una ruta, su progreso, el snake path, los nodos completados, el nodo activo, los nodos bloqueados y el siguiente paso recomendado.
 
@@ -706,16 +709,12 @@ El path, nodos y labels deben recalcular posiciones según el viewport de la web
 
 ## Fallback
 
-Si WebGL no está disponible o falla, la vista debe tener fallback.
+Decisión de producto (2026-07-18): el snake WebGL no tiene fallback degradado.
 
-Opciones:
+Un sustituto SVG/canvas de menor fidelidad es regresión visual y no se acepta.
 
-- SVG path estático.
-- Canvas 2D simple.
-- Imagen generada temporal.
-- Mensaje controlado si no hay alternativa.
-
-El fallback no tiene que tener la misma fidelidad visual, pero debe permitir usar Lumen.
+Si WebGL falla en un entorno soportado, eso es un bug del engine visual y se
+arregla; no se decora con un estado alternativo.
 
 ## Estados principales
 

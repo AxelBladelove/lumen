@@ -1855,6 +1855,35 @@ html[data-lumen-entry-style="eclipse"].lumen-ui-entering .lumen-entry-veil {
   min-width: 15px;
 }
 
+.progress-card .progress-metric,
+.progress-card .progress-segments,
+.bottom-cta .menu-icon,
+.bottom-cta p,
+.bottom-cta button {
+  transition: opacity 160ms ease, filter 160ms ease;
+}
+
+.progress-card.module-data-waiting .progress-metric,
+.progress-card.module-data-waiting .progress-segments,
+.bottom-cta.module-data-waiting .menu-icon,
+.bottom-cta.module-data-waiting p,
+.bottom-cta.module-data-waiting button {
+  opacity: 0.34;
+  filter: saturate(0.28) brightness(0.86);
+  animation: moduleDataSkeletonPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes moduleDataSkeletonPulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 0.46;
+  }
+}
+
 .code-ghost {
   left: calc(var(--content-offset, 0px) + 30px);
   top: 525px;
@@ -2028,6 +2057,66 @@ html[data-lumen-entry-style="eclipse"].lumen-ui-entering .lumen-entry-veil {
   opacity: 0;
   pointer-events: none;
   transform-origin: center;
+}
+
+.locked-node-hint {
+  position: absolute;
+  z-index: 9;
+  width: max-content;
+  max-width: 310px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  border-radius: 14px;
+  color: color-mix(in srgb, var(--theme-accent) 12%, rgba(244, 250, 252, 0.92));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--theme-core) 16%, rgba(4, 12, 18, 0.94)),
+      color-mix(in srgb, var(--theme-core) 6%, rgba(2, 8, 13, 0.94))
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(244, 252, 251, 0.08),
+    0 14px 34px rgba(0, 0, 0, 0.34),
+    0 0 22px color-mix(in srgb, var(--theme-glow) 5%, transparent);
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 22px;
+  text-align: center;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  backdrop-filter: blur(12px);
+  animation: lockedNodeHintLifecycle 2.5s ease both;
+}
+
+.locked-node-hint::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 11px;
+  height: 11px;
+  border-right: 1px solid color-mix(in srgb, var(--theme-accent) 26%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-accent) 26%, transparent);
+  background: color-mix(in srgb, var(--theme-core) 6%, rgba(2, 8, 13, 0.94));
+  transform: translateX(-50%) rotate(45deg);
+}
+
+@keyframes lockedNodeHintLifecycle {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% + 8px)) scale(0.98);
+  }
+
+  7%,
+  88% {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% - 3px)) scale(0.99);
+  }
 }
 
 .route-node img {
@@ -3430,6 +3519,16 @@ html[data-lumen-entry-style="eclipse"].lumen-ui-entering .lumen-entry-veil {
   .route-node.motion-unlock img,
   .active-text-icon.motion-unlock::before {
     animation: none;
+  }
+
+  .progress-card.module-data-waiting .progress-metric,
+  .progress-card.module-data-waiting .progress-segments,
+  .bottom-cta.module-data-waiting .menu-icon,
+  .bottom-cta.module-data-waiting p,
+  .bottom-cta.module-data-waiting button,
+  .locked-node-hint {
+    animation: none;
+    transition: none;
   }
 
   .route-node.motion-complete::before,
