@@ -59,6 +59,7 @@ impl RunningEngine {
         let mut child = Command::new(env!("CARGO_BIN_EXE_lumen-engine"))
             .arg("--data-dir")
             .arg(data_dir)
+            .current_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join(".."))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -173,7 +174,7 @@ fn migration_three_health_and_import_register_the_activity() {
     let mut engine = RunningEngine::start(&work.data_dir());
 
     let health = engine.request(json!({ "id": "health", "method": "engine.healthCheck" }));
-    assert_eq!(health["result"]["protocolVersion"], 6);
+    assert_eq!(health["result"]["protocolVersion"], 7);
     assert_eq!(health["result"]["dbStatus"], "ready");
 
     let imported = engine.request(import_request("import", &package_path));
@@ -442,8 +443,8 @@ fn module_snapshot_orders_nodes_and_marks_first_incomplete_active() {
         "method": "route.getModuleSnapshot",
         "params": { "routeId": "c", "moduleId": "empty" }
     }));
-    assert_eq!(empty["result"]["snapshot"]["nodes"], json!([]));
-    assert_eq!(empty["result"]["snapshot"]["activeExerciseId"], Value::Null);
+    assert_eq!(empty["ok"], false);
+    assert_eq!(empty["error"]["code"], "CONTENT_ERROR");
     engine.shutdown();
 }
 

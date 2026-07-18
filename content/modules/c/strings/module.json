@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "routeId": "c",
+  "moduleId": "strings",
+  "moduleNumber": 2,
+  "routeTitle": "Ruta C",
+  "title": "Cadenas de caracteres",
+  "subtitle": "char, strings y texto"
+}

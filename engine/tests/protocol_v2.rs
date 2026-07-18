@@ -139,7 +139,7 @@ fn migration_two_creates_compile_attempts() {
     let directory = TestDirectory::new("migration");
     let mut engine = RunningEngine::start(&directory.data_dir());
     let health = engine.request(json!({ "id": "health", "method": "engine.healthCheck" }));
-    assert_eq!(health["result"]["protocolVersion"], 6);
+    assert_eq!(health["result"]["protocolVersion"], 7);
     assert_eq!(health["result"]["dbStatus"], "ready");
     engine.shutdown();
 

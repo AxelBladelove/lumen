@@ -213,13 +213,13 @@ fn file_count(root: &Path) -> usize {
 }
 
 #[test]
-fn health_check_reports_protocol_version_six() {
+fn health_check_reports_protocol_version_seven() {
     let work = TestDirectory::new();
     let mut engine = RunningEngine::start(&work.data_dir());
 
     let response = engine.request(json!({ "id": "health", "method": "engine.healthCheck" }));
     assert_eq!(response["ok"], true, "{response:#}");
-    assert_eq!(response["result"]["protocolVersion"], 6);
+    assert_eq!(response["result"]["protocolVersion"], 7);
 
     engine.shutdown();
 }

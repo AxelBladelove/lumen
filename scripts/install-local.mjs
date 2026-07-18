@@ -68,6 +68,7 @@ const requiredBinaries = ["lumen-engine", "lumen-console-runner"].map(
 requireDirectory("frontend/dist");
 requireDirectory("extension/out");
 requireDirectory("assets");
+requireDirectory("content/modules");
 requireDirectory("content/packages");
 for (const binary of requiredBinaries) {
   requireFile(binary);
@@ -87,6 +88,7 @@ const copies = [
   ["extension/out", "extension/out"],
   ["frontend/dist", "frontend/dist"],
   ["assets", "assets"],
+  ["content/modules", "content/modules"],
   ["content/packages", "content/packages"]
 ];
 

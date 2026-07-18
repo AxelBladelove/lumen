@@ -3,6 +3,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Component, Path, PathBuf};
 use std::time::Instant;
 
+use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
 use crate::compile::{self, CompileFailure};
@@ -12,13 +13,14 @@ use crate::storage::{Database, ExerciseProgressResult, InstalledActivity};
 use crate::testing::{self, IoCaseStatus, RunOptions, TestingError};
 use crate::workspace;
 
-const PROTOCOL_VERSION: u64 = 6;
+const PROTOCOL_VERSION: u64 = 7;
 const ENGINE_VERSION: &str = "0.1.0";
 const PACKAGE_SHA_FILE: &str = ".package-sha256";
 
 pub(crate) struct Engine {
     database: Database,
     activities_root: PathBuf,
+    install_root: Option<PathBuf>,
 }
 
 struct Request {
@@ -63,6 +65,7 @@ impl Engine {
         Self {
             database: Database::initialize(data_dir),
             activities_root: data_dir.join("activities"),
+            install_root: std::env::current_dir().ok(),
         }
     }
 
@@ -785,6 +788,11 @@ impl Engine {
             Ok(values) => values,
             Err(()) => return invalid_params_response(id),
         };
+        let metadata =
+            match read_module_metadata(self.install_root.as_deref(), &route_id, &module_id) {
+                Ok(metadata) => metadata,
+                Err(message) => return content_error_response(id, message),
+            };
         let activities = match self.database.get_module_activities(&route_id, &module_id) {
             Ok(activities) => activities,
             Err(_) => return database_error_response(id, "No se pudo leer el modulo."),
@@ -797,6 +805,20 @@ impl Engine {
             .iter()
             .find(|activity| !completed_ids.contains(&activity.activity_id))
             .map(|activity| activity.activity_id.clone());
+        let completed = activities
+            .iter()
+            .filter(|activity| completed_ids.contains(&activity.activity_id))
+            .count();
+        let next_exercise = activities
+            .iter()
+            .find(|activity| recommended_id.as_deref() == Some(activity.activity_id.as_str()))
+            .map(|activity| {
+                json!({
+                    "exerciseId": activity.activity_id,
+                    "title": activity.title,
+                })
+            });
+        let total = activities.len();
         let mut nodes = Vec::with_capacity(activities.len());
         for activity in activities {
             let primary_topics: Value = match serde_json::from_str(&activity.primary_topics) {
@@ -829,6 +851,19 @@ impl Engine {
                     "routeId": route_id,
                     "moduleId": module_id,
                     "activeExerciseId": recommended_id,
+                    "module": {
+                        "routeId": metadata.route_id,
+                        "moduleId": metadata.module_id,
+                        "moduleNumber": metadata.module_number,
+                        "routeTitle": metadata.route_title,
+                        "title": metadata.title,
+                        "subtitle": metadata.subtitle,
+                    },
+                    "progress": {
+                        "completed": completed,
+                        "total": total,
+                    },
+                    "nextExercise": next_exercise,
                     "nodes": nodes,
                 }
             }),
@@ -854,6 +889,68 @@ impl Engine {
 
         Some(compiler_path)
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ModuleMetadata {
+    schema_version: u64,
+    route_id: String,
+    module_id: String,
+    module_number: u64,
+    route_title: String,
+    title: String,
+    subtitle: String,
+}
+
+fn read_module_metadata(
+    install_root: Option<&Path>,
+    route_id: &str,
+    module_id: &str,
+) -> Result<ModuleMetadata, String> {
+    let install_root =
+        install_root.ok_or_else(|| "No se pudo resolver el install path de Lumen.".to_owned())?;
+    let metadata_path = install_root
+        .join("content")
+        .join("modules")
+        .join(route_id)
+        .join(module_id)
+        .join("module.json");
+    let metadata_json = fs::read_to_string(&metadata_path).map_err(|error| {
+        format!(
+            "No se pudo leer la metadata del modulo en {}: {error}",
+            metadata_path.display()
+        )
+    })?;
+    let metadata: ModuleMetadata = serde_json::from_str(&metadata_json).map_err(|error| {
+        format!(
+            "La metadata del modulo en {} no cumple el schema: {error}",
+            metadata_path.display()
+        )
+    })?;
+    if metadata.schema_version != 1 {
+        return Err("La metadata del modulo debe declarar schemaVersion 1.".to_owned());
+    }
+    if metadata.route_id != route_id || metadata.module_id != module_id {
+        return Err(
+            "La metadata del modulo no coincide con la ruta y el modulo solicitados.".to_owned(),
+        );
+    }
+    if metadata.module_number == 0 {
+        return Err("La metadata del modulo debe declarar moduleNumber mayor que cero.".to_owned());
+    }
+    for (field, value) in [
+        ("routeTitle", metadata.route_title.as_str()),
+        ("title", metadata.title.as_str()),
+        ("subtitle", metadata.subtitle.as_str()),
+    ] {
+        if value.trim().is_empty() {
+            return Err(format!(
+                "La metadata del modulo debe declarar {field} no vacio."
+            ));
+        }
+    }
+    Ok(metadata)
 }
 
 struct ExerciseDetailContent {
@@ -1226,6 +1323,11 @@ fn parse_module_params(params: &Value) -> Result<(String, String), ()> {
             .get(key)
             .and_then(Value::as_str)
             .filter(|value| !value.is_empty())
+            .filter(|value| {
+                let mut components = Path::new(value).components();
+                matches!(components.next(), Some(Component::Normal(_)))
+                    && components.next().is_none()
+            })
             .map(str::to_owned)
             .ok_or(())
     };

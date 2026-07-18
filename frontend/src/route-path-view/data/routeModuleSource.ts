@@ -21,9 +21,9 @@ export function cloneRouteModule(module: RoutePathModuleView): RoutePathModuleVi
 }
 
 // Proyecta los nodos del engine sobre el scaffolding visual del mock: se
-// conservan theme, path y encabezados del modulo, y los slots visuales
-// (pathT/labelSide/offsets) se reciclan cuando alcanzan; si sobran nodos se
-// distribuyen uniformemente sobre la curva.
+// conservan theme, path y los slots visuales (pathT/labelSide/offsets), que se
+// reciclan cuando alcanzan; si sobran nodos se distribuyen uniformemente sobre
+// la curva. Metadata, progreso y siguiente ejercicio siguen siendo del engine.
 export function buildRouteModuleFromEngine(payload: RouteModuleDataPayload): RoutePathModuleView {
   const base = cloneRouteModule(mockRouteModule);
   const mockNodes = base.nodes;
@@ -57,22 +57,21 @@ export function buildRouteModuleFromEngine(payload: RouteModuleDataPayload): Rou
     return node;
   });
 
-  const completedCount = projectedNodes.filter((node) => node.status === "completed").length;
-  const nextNode =
-    projectedNodes.find((node) => node.status === "active") ??
-    projectedNodes.find((node) => node.status !== "completed");
+  const { completed, total } = payload.progress;
 
   return {
     ...base,
-    completed: completedCount,
-    total: projectedNodes.length,
-    percent: projectedNodes.length
-      ? Math.round((completedCount / projectedNodes.length) * 100)
-      : 0,
+    routeTitle: payload.module.routeTitle,
+    moduleNumber: payload.module.moduleNumber,
+    title: payload.module.title,
+    subtitle: payload.module.subtitle,
+    completed,
+    total,
+    percent: total ? Math.round((completed / total) * 100) : 0,
     nodes: projectedNodes,
     nextAction: {
       label: "Siguiente:",
-      targetTitle: nextNode?.title ?? "Módulo completado"
+      targetTitle: payload.nextExercise?.title ?? "Módulo completado"
     }
   };
 }

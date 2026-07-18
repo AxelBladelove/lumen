@@ -70,6 +70,7 @@ impl RunningEngine {
         let mut child = Command::new(env!("CARGO_BIN_EXE_lumen-engine"))
             .arg("--data-dir")
             .arg(data_dir)
+            .current_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join(".."))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -160,7 +161,7 @@ fn activation_materializes_without_overwrite_and_completion_unlocks_next() {
     let mut engine = RunningEngine::start(&work.data_dir());
 
     let health = engine.request(json!({ "id": "health", "method": "engine.healthCheck" }));
-    assert_eq!(health["result"]["protocolVersion"], 6);
+    assert_eq!(health["result"]["protocolVersion"], 7);
     import(&mut engine, "import-lowercase", &lowercase_package);
     import(&mut engine, "import-vowels", &vowels_package);
 

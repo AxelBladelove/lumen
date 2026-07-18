@@ -1,4 +1,4 @@
-export const lumenWebviewProtocolVersion = 5;
+export const lumenWebviewProtocolVersion = 7;
 
 export type LumenEntryState = {
   protocolVersion: number;
@@ -29,6 +29,44 @@ export type ExerciseDetailPayload = {
     completed: boolean;
     attempts: { total: number; passed: number; lastRunAt: string | null };
   };
+};
+
+export type RouteModuleDataNodeStatus = "active" | "locked" | "completed";
+
+export type RouteModuleDataNode = {
+  exerciseId: string;
+  title: string;
+  primaryTopics: string[];
+  nodeType: string;
+  orderInModule: number | null;
+  status: RouteModuleDataNodeStatus;
+};
+
+export type RouteModuleDataPayload = {
+  source: "engine";
+  routeId: string;
+  moduleId: string;
+  activeExerciseId: string | null;
+  nodes: RouteModuleDataNode[];
+  module: {
+    routeId: string;
+    moduleId: string;
+    moduleNumber: number;
+    routeTitle: string;
+    title: string;
+    subtitle: string;
+  };
+  progress: {
+    completed: number;
+    total: number;
+  };
+  nextExercise: { exerciseId: string; title: string } | null;
+};
+
+// Extension Host -> webview
+export type LumenRouteModuleDataMessage = {
+  type: "route.module.data";
+  payload: RouteModuleDataPayload;
 };
 
 // Extension Host -> webview

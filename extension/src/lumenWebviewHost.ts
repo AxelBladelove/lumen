@@ -5,14 +5,15 @@ import {
   LumenEngineError,
   type LumenActiveExerciseDescriptor,
   type LumenExerciseMode,
-  type LumenModuleSnapshotNode
+  type LumenModuleSnapshot
 } from "./engine/lumenEngineProtocol";
 import {
   lumenWebviewProtocolVersion,
   type ExerciseDetailPayload,
   type LumenEntryState,
   type LumenExerciseDetailDataMessage,
-  type LumenExerciseDetailRequestedMessage
+  type LumenExerciseDetailRequestedMessage,
+  type LumenRouteModuleDataMessage
 } from "./lumenProtocol";
 
 export type LumenModePhase = "idle" | "entering" | "active";
@@ -238,8 +239,8 @@ export class LumenWebviewHost {
 
   /**
    * "Continuar" no confía en un id del frontend: consulta el snapshot y activa
-   * el primer nodo con estado `active`. Si no hay ninguno (módulo completado o
-   * vacío), no hace nada.
+   * el `nextExercise` autoritativo. Si no existe (módulo completado o vacío),
+   * no hace nada.
    */
   async activateRecommendedExercise(): Promise<LumenActiveExerciseDescriptor | undefined> {
     let recommendedExerciseId: string | undefined;
@@ -249,9 +250,7 @@ export class LumenWebviewHost {
         this.currentRouteId,
         this.currentModuleId
       );
-      recommendedExerciseId =
-        snapshot.activeExerciseId ??
-        snapshot.nodes.find((node) => node.status === "active")?.exerciseId;
+      recommendedExerciseId = snapshot.nextExercise?.exerciseId;
     } catch (error) {
       const message = formatActivationError(error);
       this.options.outputChannel.appendLine(
@@ -295,17 +294,10 @@ export class LumenWebviewHost {
   // se envia cuando hay nodos reales: con lista vacia la webview conserva el
   // mock (contrato v3, "Puente webview").
   private async pushRouteModuleData(routeId: string, moduleId: string) {
-    let snapshotNodes: LumenModuleSnapshotNode[];
-    let activeExerciseId: string | null;
-    let resolvedRouteId: string;
-    let resolvedModuleId: string;
+    let snapshot: LumenModuleSnapshot;
 
     try {
-      const { snapshot } = await this.options.engineClient.getModuleSnapshot(routeId, moduleId);
-      snapshotNodes = snapshot.nodes;
-      activeExerciseId = snapshot.activeExerciseId;
-      resolvedRouteId = snapshot.routeId;
-      resolvedModuleId = snapshot.moduleId;
+      ({ snapshot } = await this.options.engineClient.getModuleSnapshot(routeId, moduleId));
     } catch (error) {
       this.options.outputChannel.appendLine(
         `route.getModuleSnapshot(${routeId}/${moduleId}) failed: ${
@@ -315,22 +307,20 @@ export class LumenWebviewHost {
       return;
     }
 
-    if (snapshotNodes.length === 0) return;
+    if (snapshot.nodes.length === 0) return;
 
-    this.currentRouteId = resolvedRouteId;
-    this.currentModuleId = resolvedModuleId;
+    this.currentRouteId = snapshot.routeId;
+    this.currentModuleId = snapshot.moduleId;
 
-    this.postToWebview({
+    const message: LumenRouteModuleDataMessage = {
       type: "route.module.data",
       payload: {
         source: "engine",
-        routeId: resolvedRouteId,
-        moduleId: resolvedModuleId,
-        activeExerciseId,
-        nodes: snapshotNodes
+        ...snapshot
       }
-    });
-    await this.pushExerciseDetail(activeExerciseId);
+    };
+    this.postToWebview(message);
+    await this.pushExerciseDetail(snapshot.activeExerciseId);
   }
 
   private async pushExerciseDetail(exerciseId: string | null) {

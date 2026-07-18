@@ -1,6 +1,6 @@
 import type { RoutePathModuleView } from "../route-path-view/types/routePath";
 
-export const lumenWebviewProtocolVersion = 5;
+export const lumenWebviewProtocolVersion = 7;
 
 export type RouteModuleDataNodeStatus = "active" | "locked" | "completed";
 
@@ -19,6 +19,19 @@ export type RouteModuleDataPayload = {
   moduleId: string;
   activeExerciseId: string | null;
   nodes: RouteModuleDataNode[];
+  module: {
+    routeId: string;
+    moduleId: string;
+    moduleNumber: number;
+    routeTitle: string;
+    title: string;
+    subtitle: string;
+  };
+  progress: {
+    completed: number;
+    total: number;
+  };
+  nextExercise: { exerciseId: string; title: string } | null;
 };
 
 export type ExerciseDetailPayload = {

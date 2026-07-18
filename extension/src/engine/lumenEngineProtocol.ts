@@ -1,4 +1,4 @@
-export const lumenEngineProtocolVersion = 6;
+export const lumenEngineProtocolVersion = 7;
 
 export const lumenEngineErrorCodes = [
   "INVALID_REQUEST",
@@ -267,11 +267,33 @@ export type LumenModuleSnapshotNode = {
   status: LumenModuleSnapshotNodeStatus;
 };
 
+export type LumenModuleMetadata = {
+  routeId: string;
+  moduleId: string;
+  moduleNumber: number;
+  routeTitle: string;
+  title: string;
+  subtitle: string;
+};
+
+export type LumenModuleProgress = {
+  completed: number;
+  total: number;
+};
+
+export type LumenModuleNextExercise = {
+  exerciseId: string;
+  title: string;
+};
+
 export type LumenModuleSnapshot = {
   routeId: string;
   moduleId: string;
   activeExerciseId: string | null;
   nodes: LumenModuleSnapshotNode[];
+  module: LumenModuleMetadata;
+  progress: LumenModuleProgress;
+  nextExercise: LumenModuleNextExercise | null;
 };
 
 export type LumenModuleSnapshotResult = {
