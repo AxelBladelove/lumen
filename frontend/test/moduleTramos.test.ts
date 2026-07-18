@@ -67,7 +67,7 @@ describe("selectVisibleTramoIndex", () => {
 });
 
 describe("projectModuleNodes", () => {
-  test("reinicia en cada tramo la secuencia exacta de slots curados del mock", () => {
+  test("reinicia en cada tramo una subsecuencia curada que cubre ambos extremos", () => {
     const source = nodes(13);
     const projected = projectModuleNodes(source);
     const [first, second] = partitionModuleNodes(projected);
@@ -96,9 +96,36 @@ describe("projectModuleNodes", () => {
         labelOffset
       }))
     )).toEqual([
-      mockRouteVisualSlots.slice(0, 6),
-      mockRouteVisualSlots.slice(0, 7)
+      [0, 1, 2, 4, 5, 6].map((index) => mockRouteVisualSlots[index]),
+      mockRouteVisualSlots
     ]);
+  });
+
+  test.each([
+    [3, [0, 3, 6]],
+    [4, [0, 2, 4, 6]],
+    [5, [0, 2, 3, 5, 6]],
+    [6, [0, 1, 2, 4, 5, 6]],
+    [7, [0, 1, 2, 3, 4, 5, 6]]
+  ] as const)("%i nodos submuestrean slots en orden y cubren inicio y fin", (count, indices) => {
+    expect(createTramoVisualSlots(count, 0)).toEqual(
+      indices.map((index) => mockRouteVisualSlots[index])
+    );
+  });
+
+  test("conserva orden y estados alineados con pathT ascendente", () => {
+    const statuses = ["completed", "completed", "active", "locked", "locked"] as const;
+    const source = nodes(statuses.length).map((node, index) => ({
+      ...node,
+      status: statuses[index]
+    }));
+    const projected = projectModuleNodes(source);
+
+    expect(projected.map((node) => node.id)).toEqual(source.map((node) => node.id));
+    expect(projected.map((node) => node.status)).toEqual(statuses);
+    expect(projected.map((node) => node.pathT)).toEqual(
+      [...projected].map((node) => node.pathT).sort((left, right) => left - right)
+    );
   });
 
   test("los slots curados no dependen del índice de tramo", () => {

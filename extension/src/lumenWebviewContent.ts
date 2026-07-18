@@ -56,6 +56,10 @@ function resolveEntryStyleAttribute() {
   return /^[a-z][a-z-]{0,23}$/.test(style) ? style : "eclipse";
 }
 
+function resolveTramoDemoAttribute() {
+  return vscode.workspace.getConfiguration("lumen").get<boolean>("tramoDemo", false);
+}
+
 function prepareBuiltFrontendHtml(
   webview: vscode.Webview,
   html: string,
@@ -67,6 +71,9 @@ function prepareBuiltFrontendHtml(
   const logoWebviewUri = webview.asWebviewUri(logoUri);
   const csp = createContentSecurityPolicy(webview, nonce);
   const entryStyle = resolveEntryStyleAttribute();
+  const tramoDemoAttribute = resolveTramoDemoAttribute()
+    ? ' data-lumen-tramo-demo="true"'
+    : "";
 
   const headInjection = [
     `<base href="${distBase}">`,
@@ -77,7 +84,10 @@ function prepareBuiltFrontendHtml(
 
   return html
     .replace(/<script\b(?![^>]*\bnonce=)/g, `<script nonce="${nonce}"`)
-    .replace(/<html\b/i, `<html data-lumen-entry-style="${entryStyle}"`)
+    .replace(
+      /<html\b/i,
+      `<html data-lumen-entry-style="${entryStyle}"${tramoDemoAttribute}`
+    )
     .replace(/<head>/i, `<head>\n${headInjection}`);
 }
 

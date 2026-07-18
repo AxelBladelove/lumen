@@ -163,8 +163,11 @@
     left: calc(45% - 8px - var(--detail-content-inset, 0px));
     right: 34px;
     top: var(--detail-content-top, 350px);
-    bottom: 24px;
-    z-index: 8;
+    /* La CTA vive dentro del mismo stage pero se ancla por su borde superior.
+       El panel termina justo antes de ese borde; el margen de .run-actions
+       mantiene los controles separados sin dejar una zona que robe clicks. */
+    bottom: calc(var(--stage-height, 1448px) - var(--cta-top, 1300px));
+    z-index: 10;
     min-width: 0;
     overflow: hidden;
     color: var(--text-main);

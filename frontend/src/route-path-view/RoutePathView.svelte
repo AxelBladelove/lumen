@@ -82,7 +82,10 @@
   let reviewNodeId: string | null = null;
   // Hook visual opt-in: recorre tramos mediante el reconciliador productivo.
   const tramoDemoEnabled =
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("lumenTramoDemo");
+    (typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("lumenTramoDemo")) ||
+    (typeof document !== "undefined" &&
+      document.documentElement.dataset.lumenTramoDemo === "true");
   let tramoDemoIndex = 0;
   let tramoDemoTimer = 0;
   // En demo los tramos se acortan para garantizar al menos dos y poder

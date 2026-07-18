@@ -35,6 +35,11 @@
           "enum": ["velocity", "iris", "eclipse", "lens", "tide"],
           "default": "eclipse",
           "markdownDescription": "Estilo de la transición de entrada a Lumen Mode. `eclipse` (predeterminado): dip-to-black cinematográfico que enlaza con la pantalla de destino. `velocity`: zoom óptico con impacto. `iris`: implosión luminosa. `lens` y `tide`: variantes de exploración. Se aplica en la siguiente entrada a Lumen."
+        },
+        "lumen.tramoDemo": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Herramienta de verificación visual que recorre automáticamente tramos cortos de la ruta para comprobar el scroll real. Requiere recargar la vista de Lumen."
         }
       }
     },

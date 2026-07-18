@@ -58,8 +58,10 @@ export function selectVisibleTramoIndex<T extends { id: string }>(
 }
 
 /**
- * Recicla por tramo el scaffolding curado del mock. Un tramo excepcionalmente
- * mayor sólo distribuye de forma uniforme los nodos que exceden ese patrón.
+ * Recicla por tramo el scaffolding curado del mock. Los tramos cortos
+ * submuestrean la secuencia completa para conservar siempre los slots de
+ * inicio y fin; un tramo excepcionalmente mayor sólo distribuye de forma
+ * uniforme los nodos que exceden ese patrón.
  */
 export function createTramoVisualSlots(
   nodeCount: number,
@@ -67,9 +69,20 @@ export function createTramoVisualSlots(
 ): TramoVisualSlot[] {
   if (nodeCount <= 0) return [];
 
-  const curatedCount = Math.min(nodeCount, mockRouteVisualSlots.length);
-  const slots = mockRouteVisualSlots.slice(0, curatedCount).map(cloneSlot);
-  const overflowCount = nodeCount - curatedCount;
+  const curatedSlotCount = mockRouteVisualSlots.length;
+  if (nodeCount <= curatedSlotCount) {
+    if (nodeCount === 1) return [cloneSlot(mockRouteVisualSlots[0])];
+
+    return Array.from({ length: nodeCount }, (_, nodeIndex) => {
+      const curatedIndex = Math.round(
+        (nodeIndex * (curatedSlotCount - 1)) / (nodeCount - 1)
+      );
+      return cloneSlot(mockRouteVisualSlots[curatedIndex]);
+    });
+  }
+
+  const slots = mockRouteVisualSlots.map(cloneSlot);
+  const overflowCount = nodeCount - curatedSlotCount;
   const lastCuratedSlot = mockRouteVisualSlots.at(-1);
 
   if (overflowCount <= 0 || !lastCuratedSlot) return slots;

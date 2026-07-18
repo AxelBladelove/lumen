@@ -25,7 +25,23 @@ export function cloneRouteModule(module: RoutePathModuleView): RoutePathModuleVi
 // ubicación visual se proyecta en slots locales deterministas por tramo.
 export function buildRouteModuleFromEngine(payload: RouteModuleDataPayload): RoutePathModuleView {
   const base = cloneRouteModule(mockRouteModule);
-  const engineNodes = payload.nodes;
+  // `orderInModule` es la autoridad semántica. No dependemos del orden de
+  // serialización del snapshot: así estado y slot nunca se desacoplan si un
+  // productor entrega el array en otro orden.
+  const engineNodes = payload.nodes
+    .map((node, sourceIndex) => ({ node, sourceIndex }))
+    .sort((left, right) => {
+      const leftOrder = left.node.orderInModule;
+      const rightOrder = right.node.orderInModule;
+
+      if (leftOrder === null && rightOrder !== null) return 1;
+      if (leftOrder !== null && rightOrder === null) return -1;
+      if (leftOrder !== null && rightOrder !== null && leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
+      return left.sourceIndex - right.sourceIndex;
+    })
+    .map(({ node }) => node);
 
   const routeNodes: RoutePathNode[] = engineNodes.map((engineNode) => {
     return {

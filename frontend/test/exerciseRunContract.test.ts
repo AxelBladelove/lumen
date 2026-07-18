@@ -74,9 +74,18 @@ describe("exercise run webview contract", () => {
   });
 
   test("el panel conecta ambos botones al lock y expone sus atajos", () => {
+    expect(exerciseDetailPanel).toContain("export let runActive: ExerciseRunKind | null = null;");
     expect(exerciseDetailPanel.match(/disabled=\{runActive !== null\}/g)).toHaveLength(2);
     expect(exerciseDetailPanel).toContain('aria-label="Compilar ejercicio (F9)"');
     expect(exerciseDetailPanel).toContain('aria-label="Probar solución (F10)"');
     expect(exerciseDetailPanel).toContain("Consola en curso");
+  });
+
+  test("mantiene el pie por encima de la CTA sibling y fuera de su hitbox", () => {
+    expect(exerciseDetailPanel).toContain(
+      "bottom: calc(var(--stage-height, 1448px) - var(--cta-top, 1300px));"
+    );
+    expect(exerciseDetailPanel).toContain("z-index: 10;");
+    expect(exerciseDetailPanel).toContain("bottom: 18px;");
   });
 });

@@ -97,14 +97,35 @@ describe("buildRouteModuleFromEngine", () => {
 
     expect(module.nodes.map((node) => node.status)).toEqual(statuses);
     expect(module.nodes.slice(0, 5).map((node) => node.pathT)).toEqual(
-      mockRouteVisualSlots.slice(0, 5).map((slot) => slot.pathT)
+      [0, 2, 3, 5, 6].map((index) => mockRouteVisualSlots[index].pathT)
     );
     expect(module.nodes.slice(5).map((node) => node.pathT)).toEqual(
-      mockRouteVisualSlots.slice(0, 3).map((slot) => slot.pathT)
+      [0, 3, 6].map((index) => mockRouteVisualSlots[index].pathT)
     );
     expect(module.completed).toBe(31);
     expect(module.total).toBe(64);
     expect(module.percent).toBe(48);
     expect(module.nextAction.targetTitle).toBe("Quinto ejercicio");
+  });
+
+  test("ordena por orderInModule antes de alinear estado y slot", () => {
+    const source = payload(["completed", "active", "locked"]);
+    source.nodes = [source.nodes[2], source.nodes[0], source.nodes[1]];
+
+    const module = buildRouteModuleFromEngine(source);
+
+    expect(module.nodes.map((node) => node.id)).toEqual([
+      "exercise-1",
+      "exercise-2",
+      "exercise-3"
+    ]);
+    expect(module.nodes.map((node) => node.status)).toEqual([
+      "completed",
+      "active",
+      "locked"
+    ]);
+    expect(module.nodes.map((node) => node.pathT)).toEqual(
+      [0, 3, 6].map((index) => mockRouteVisualSlots[index].pathT)
+    );
   });
 });
