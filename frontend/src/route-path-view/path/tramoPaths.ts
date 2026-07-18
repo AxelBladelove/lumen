@@ -18,6 +18,9 @@ const pathCache = new Map<string, SnakePathConfig>();
  */
 export function createTramoPath(basePath: SnakePathConfig, tramoIndex: number): SnakePathConfig {
   const safeIndex = Math.max(0, Math.floor(tramoIndex));
+  // El tramo 0 conserva la curva curada del módulo (la referencia visual
+  // aprobada); la variación procedural empieza en el tramo 1.
+  if (safeIndex === 0) return basePath;
   const transform = basePath.transform ?? { x: 0, y: 0, scale: 1 };
   const cacheKey = [
     basePath.id,
